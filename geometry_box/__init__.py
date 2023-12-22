@@ -5,14 +5,19 @@ Geometry Box
 
 
 """
-import numpy as np
 
-from .shapes2D import (
+from .shapes import (
+    StraightLine,
+    EllipticalArc,
     Circle,
     Ellipse,
     Rectangle,
     RegularPolygon,
     CShape,
     NLobeShape,
+    BoundingBox2D,
 )
-from .primitives import Point, Vector
+
+from .points import (
+    Points,
+)
