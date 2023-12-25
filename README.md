@@ -1,6 +1,13 @@
 # Geometry Box
 
-A simple python package for geometrical operations.
+A simple Python package for geometrical operations.
+
+## Installation
+```commandline
+pip install geometry-box
+```
+
+## Simple Examples
 
 ```python
 
@@ -42,7 +49,7 @@ plt.savefig(path.join(path.dirname(__file__), "shapes.pdf"))
 plt.close()
 ```
 
-It produces the following figure
+It produces the following figure.
 
 ![Shape](docs/media/shapes.png)
 
