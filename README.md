@@ -4,7 +4,7 @@ A simple python package for geometrical operations.
 
 ```python
 
-import geometry_box as gb
+import gbox as gb
 
 circle = gb.Circle(radius=2.0, cent=(3.0, 6.0))
 print(circle.area)  # prints circle area
@@ -24,7 +24,7 @@ circle.eval_locus().plot(axis=axs)  # plots circle on the axs object
 A sample code for plotting various shapes
 
 ```python
-import geometry_box as gb
+import gbox as gb
 from os import path
 import matplotlib.pyplot as plt
 

@@ -7,7 +7,7 @@ All angles are supplied in radians
 from numpy import sin, cos, arcsin, tan, pi, sqrt, linspace, array, concatenate, stack, zeros_like, ndarray
 from matplotlib.pyplot import subplots, show, savefig, close
 from .points import Points, rotate
-from .geometry_box import PLOT_OPTIONS
+from .gbox import PLOT_OPTIONS
 
 
 class Shape:
@@ -380,7 +380,7 @@ class Capsule(Rectangle):
             smj_angle=0.0,
             locus=None
     ):
-        super(Capsule, self).__init__(smj, smn, 0.5 * smn, centre, smj_angle, locus)
+        super(Capsule, self).__init__(smj, smn, smn, centre, smj_angle, locus)
 
 
 class CShape(ClosedShape2D):
@@ -534,3 +534,69 @@ class BoundingBox2D(ClosedShape2D):
     def area(self):
         self._area = self.lx * self.ly
         return self._area
+
+
+class ShapesList(list):
+    def plot(self, *args, **kwargs):
+        for i in range(self.__len__()):
+            axs = self.__getitem__(i).eval_locus().plot(*args, **kwargs)
+
+
+class ClosedShapesList(ShapesList):
+    def __init__(self):
+        super(ClosedShapesList, self).__init__()
+
+    @staticmethod
+    def validate_incl_data(a, n):
+        assert isinstance(a, ndarray), "given inclusion data must be an numpy.ndarray"
+        assert a.shape[1] == n, f"Incorrect number of columns, found {a.shape[1]} instead of {n}"
+        return
+
+
+class Circles(ClosedShapesList):
+    def __init__(self, xyr: ndarray):
+        self.validate_incl_data(xyr, 3)
+        super(Circles, self).__init__()
+        self.extend([Circle(r, (x, y)) for (x, y, r) in xyr])
+
+
+class Capsules(ClosedShapesList):
+    def __init__(self, xyt_ab):
+        self.validate_incl_data(xyt_ab, 5)
+        super(Capsules, self).__init__()
+        self.extend([Capsule(a, b, (x, y), tht) for (x, y, tht, a, b) in xyt_ab])
+
+
+class RegularPolygons(ClosedShapesList):
+    def __init__(self, xyt_arn):
+        self.validate_incl_data(xyt_arn, 6)
+        super(RegularPolygons, self).__init__()
+        self.extend([RegularPolygon(n, rc, a, (x, y), tht) for (x, y, tht, a, rc, n) in xyt_arn])
+
+
+class Ellipses(ClosedShapesList):
+    def __init__(self, xyt_ab):
+        self.validate_incl_data(xyt_ab, 5)
+        super(Ellipses, self).__init__()
+        self.extend([Ellipse(a, b, centre=(x, y), smj_angle=tht) for (x, y, tht, a, b) in xyt_ab])
+
+
+class Rectangles(ClosedShapesList):
+    def __init__(self, xyt_abr):
+        self.validate_incl_data(xyt_abr, 6)
+        super(Rectangles, self).__init__()
+        self.extend([Rectangle(a, b, r, (x, y), tht) for (x, y, tht, a, b, r) in xyt_abr])
+
+
+class CShapes(ClosedShapesList):
+    def __init__(self, xyt_ro_ri_ang):
+        self.validate_incl_data(xyt_ro_ri_ang, 6)
+        super(CShapes, self).__init__()
+        self.extend([CShape(ro, ri, ang, (x, y), tht) for (x, y, tht, ro, ri, ang) in xyt_ro_ri_ang])
+
+
+class NLobeShapes(ClosedShapesList):
+    def __init__(self, xyt_abr):
+        self.validate_incl_data(xyt_abr, 6)
+        super(NLobeShapes, self).__init__()
+        self.extend([NLobeShape(a, b, r, (x, y), tht) for (x, y, tht, a, b, r) in xyt_abr])

@@ -1,4 +1,4 @@
-# This is geometry_box module file
+# This is gbox module file
 
 """
 Assumptions:

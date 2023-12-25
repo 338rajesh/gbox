@@ -18,6 +18,16 @@ from .shapes import (
     CShape,
     NLobeShape,
     BoundingBox2D,
+    #
+    ShapesList,
+    ClosedShapesList,
+    Circles,
+    Ellipses,
+    Rectangles,
+    Capsules,
+    RegularPolygons,
+    CShapes,
+    NLobeShapes,
 )
 
 from .points import (
@@ -25,4 +35,4 @@ from .points import (
     Points,
 )
 
-from .geometry_box import PLOT_OPTIONS
+from .gbox import PLOT_OPTIONS

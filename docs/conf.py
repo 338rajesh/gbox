@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Geometry Box'
+project = 'gbox'
 copyright = '2023, Rajesh Nakka'
 author = 'Rajesh Nakka'
 release = '0.2.0'

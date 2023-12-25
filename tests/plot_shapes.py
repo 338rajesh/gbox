@@ -1,6 +1,8 @@
-import geometry_box as gb
+import gbox as gb
 from os import path, makedirs
+from numpy import array
 from math import pi
+from matplotlib.pyplot import subplots, savefig
 
 gb.PLOT_OPTIONS.face_color = 'b'
 gb.PLOT_OPTIONS.edge_color = 'r'
@@ -36,3 +38,20 @@ gb.CShape(theta_c=1.25 * pi).eval_locus(50, pivot_angle=1.5 * pi).plot(f_path=pa
 gb.NLobeShape(3, 2.0, ld_factor=0.95).eval_locus().plot(f_path=path.join(PLOT_DIR, "n_lobe.png"))
 
 # N-TIP STAR
+
+gb.PLOT_OPTIONS.face_color = 'g'
+gb.PLOT_OPTIONS.edge_color = 'b'
+
+circle_data = array([[0.0, 0.0, 2.0], [5.0, 5.0, 2.5]])
+capsule_data = array([[-5.0, 5.0, 0.3 * pi, 3.0, 1.0]])
+nrp_data = array([[5.0, -5.0, 0.0 * pi, 3.0, 0.5, 5]])
+
+fig, axs = subplots()
+#
+shapes = gb.ShapesList()
+shapes.extend(gb.Circles(circle_data))
+shapes.extend(gb.Capsules(capsule_data))
+shapes.extend(gb.RegularPolygons(nrp_data))
+shapes.plot(axis=axs, linewidth=1.0)
+#
+savefig(path.join(PLOT_DIR, "shapes.png"))

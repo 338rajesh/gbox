@@ -1,5 +1,5 @@
 import numpy as np
-import geometry_box as gb
+import gbox as gb
 import unittest
 
 
