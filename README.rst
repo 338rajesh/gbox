@@ -1,6 +1,6 @@
 
-Geometry Box
-============
+gbox: Geometry Box
+==================
 
 A simple python package for geometrical operations.
 
