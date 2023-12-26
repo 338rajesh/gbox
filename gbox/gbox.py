@@ -7,7 +7,7 @@ Assumptions:
 
 """
 from matplotlib.pyplot import subplots, show, savefig, close
-from numpy import ndarray, pi, sqrt
+from numpy import ndarray, pi, sqrt, stack
 
 from .points import Points
 from .utils import PLOT_OPTIONS, assert_positivity
@@ -63,6 +63,7 @@ class ClosedShape2D(Shape2D):
         #
         self._area = 0.0
         self._perimeter = 0.0
+        self._sf = 1.0
 
     @property
     def area(self):
@@ -72,10 +73,12 @@ class ClosedShape2D(Shape2D):
     def perimeter(self):
         return self._perimeter
 
+    @property
     def shape_factor(self):
         assert_positivity(self.area, 'Area')
         assert_positivity(self.perimeter, 'Perimeter')
-        return self.perimeter / sqrt(4.0 * pi * self.area)
+        self._sf = self.perimeter / sqrt(4.0 * pi * self.area)
+        return self._sf
 
     def plot(
             self,
@@ -147,9 +150,37 @@ class ClosedShape2D(Shape2D):
 
 
 class ShapesList(list):
+
+    def __init__(self):
+        super(ShapesList, self).__init__()
+        self._loci = Points()
+        self._perimeters = ()
+        self._areas = ()
+        self._shape_factors = ()
+
     def plot(self, *args, **kwargs):
         for i in range(self.__len__()):
             self.__getitem__(i).plot(*args, **kwargs)
+
+    @property
+    def loci(self):
+        self._loci = Points(stack([self.__getitem__(i).locus.points for i in range(self.__len__())], axis=0))
+        return self._loci
+
+    @property
+    def perimeters(self):
+        self._perimeters = tuple(self.__getitem__(i).perimeter for i in range(self.__len__()))
+        return self._perimeters
+
+    @property
+    def areas(self):
+        self._areas = tuple(self.__getitem__(i).area for i in range(self.__len__()))
+        return self._areas
+
+    @property
+    def shape_factors(self):
+        self._shape_factors = tuple(self.__getitem__(i).shape_factor for i in range(self.__len__()))
+        return self._shape_factors
 
 
 class ClosedShapesList(ShapesList):

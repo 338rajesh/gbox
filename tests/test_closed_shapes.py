@@ -12,7 +12,7 @@ class TestEllipse(unittest.TestCase):
         assert self.e1.area == np.pi * self.a1 * self.b1
 
     def test_shape_factor(self):
-        assert abs(self.e2.shape_factor() - 1.0) < 1e-06
+        assert abs(self.e2.shape_factor - 1.0) < 1e-06
 
 
 class TestRectangle(unittest.TestCase):
@@ -51,7 +51,7 @@ class TestRegularPolygon(unittest.TestCase):
 
     def test_regular_polygon_shape_factor_1(self):
         assert abs(
-            gb.RegularPolygon(self.n2, self.crr0, side_len=self.a1, ).shape_factor() - (2.0 / np.sqrt(np.pi))
+            gb.RegularPolygon(self.n2, self.crr0, side_len=self.a1, ).shape_factor - (2.0 / np.sqrt(np.pi))
         ) < 1e-06
         #
 
@@ -59,7 +59,7 @@ class TestRegularPolygon(unittest.TestCase):
         # testing if crr=1.0 leads to shf of 1.0
         n, a = 3, 5
         rc = a / (2.0 * np.tan(np.pi / n))  # this ensures that the reg-polygon is a circle
-        assert abs(gb.RegularPolygon(n, rc, a, ).shape_factor() - 1.00) < 1e-06
+        assert abs(gb.RegularPolygon(n, rc, a, ).shape_factor - 1.00) < 1e-06
 
 
 if __name__ == '__main__':

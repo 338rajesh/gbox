@@ -13,6 +13,7 @@ pip install gbox
 ```python
 
 import gbox as gb
+import matplotlib.pyplot as plt
 
 circle = gb.Circle(radius=2.0, cent=(3.0, 6.0))
 print(circle.area)  # prints circle area
@@ -24,15 +25,12 @@ circle.num_locus_points = 251
 print(circle.locus)  # prints 251 points along the locus of the circle
 circle.plot()  # plots a circle displays using `matplotlib.pyplot.show()`
 circle.plot(f_path='/path/to/file')  # saves a plot at the specified path
-#
-import matplotlib.pyplot as plt
-
-fig, axs = plt.subplots()
-circle.plot(axis=axs)  # plots circle on the axs object
-
+_, axis = plt.subplots()[1]
+circle.plot(axis=axis)  # plots circle on the axs object
+gb.Rectangle().plot(axis=axis)  # adds rectangle to the same axis
 ```
 
-A sample code for plotting various shapes
+A sample code for plotting various shapes, with default parameters, on the same figure
 
 ```python
 import gbox as gb
@@ -57,7 +55,7 @@ It produces the following figure.
 
 ![Shape](docs/media/shapes.png)
 
-## All methods
+## Methods
 
 ### Points
 
@@ -109,8 +107,8 @@ cir_arc = gb.CircularArc(r=2.5, theta_1=0.0 * pi, theta_2=1.25 * pi, centre=(2.0
 
 ### Closed Shapes
 
-Methods for working with curves (at present in a plane). For all the shapes the following four common properties are
-defined
+Methods for working with closed shapes (at present in a plane).
+For all the shapes the following four common properties are defined
 
 + `locus`: `Points` kind of object containing the points along the locus of the shape. The number of points defaults to
   100 but can be set to a desired number.
@@ -119,11 +117,35 @@ defined
 + `shape_factor`: A non-dimensional number used to quantify the non-circularity of the shape. It is defined as the
   ratio of the respective shape perimeter to the perimeter of the circle containing equivalent area.
 
-```python
+### Shapes List
 
+`ShapesList`, `ClosedShapesList` are defined to work efficiently with multiple shapes. For all the closed
+shapes list version is available which takes a single numpy array with the respective shape information.
+
+For example,
+
+```python
+import gbox as gb
+from numpy import array
+
+circles_data = array([
+    [0.0, 0.0, 2.0],
+    [2.0, 8.0, 3.2],
+    [-2.0, 4.0, 1.2],
+    [2.0, 4.0, 1.2],
+])  # (4, 3) shaped array containing four circles information with first two columns (x, y) coordinates of
+# their centres and the last column contains radii.
+circles = gb.Circles(circles_data)
+circles.plot()  # plots circles on a given axis or to new axis (which can be saved or displayed using plt.show())
+print(circles.loci.shape)  # (num_circles, num_locus_points, 2) shaped array
+print(circles.areas)  # evaluates all circles areas
+print(circles.perimeters)  # evaluates all circles perimeters
+print(circles.shape_factors)  # evaluates all circles shape_factors
 ```
 
-## Goals
+## WIP/Goals
 
++ At present Only `Circle` and `Ellipse` contain the specified number of points on the locus. As, other shapes are made
+  up of multiple elements, needs to find the right number of points on each element of the shape.
 + Convert `Points(list)` to `Points(numpy.ndarray)` and see if there is any performance gain
-+ Optimize the shapes list operations and storage 
++ Updating the documentation

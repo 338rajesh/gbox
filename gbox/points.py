@@ -18,13 +18,32 @@ class Point:
         self.x = x
         self.y = y
 
-    def distance(self, x_2, y_2):
+    def distance(self, x_2: float, y_2: float):
+        """
+        :param x_2: x-coordinate
+        :param y_2: y-coordinate
+        :return: distance between the current point and (x_2, y_2)
+        """
         return sqrt((self.x - x_2) ** 2 + (self.y - y_2) ** 2)
 
-    def slope(self, x_2, y_2, eps=1e-16):
+    def slope(self, x_2: float, y_2: float, eps=1e-16):
+        """
+        Evaluates the slope of the line connecting this points to (x_2, y_2)
+        :param x_2: x-coordinate
+        :param y_2: y-coordinate
+        :param eps: A small number to avoid zero-division errors
+        :return:
+        """
         return (y_2 - self.y) / (x_2 - self.x + (eps if x_2 == self.x else 0.0))
 
-    def line_eqn(self, x_2, y_2):
+    def line_eqn(self, x_2: float, y_2: float):
+        """
+        Finds the equation of line connecting this point to (x_2, y_2)
+        :param x_2:
+        :param y_2:
+        :return: a, b, c of the line ax + by + c = 0
+        :rtype: tuple[float, float, float]
+        """
         m = self.slope(x_2, y_2)
         return m, -1.0, y_2 - (m * x_2)
 

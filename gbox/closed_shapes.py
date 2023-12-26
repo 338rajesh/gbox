@@ -65,6 +65,11 @@ class Circle(Ellipse):
 
 
 class RegularPolygon(ClosedShape2D):
+    """
+    Regular Polygon with `n`-sides
+
+    """
+
     def __init__(self,
                  num_sides: int = 3,
                  corner_radius: float = 0.15,
@@ -72,6 +77,15 @@ class RegularPolygon(ClosedShape2D):
                  centre: tuple[float, float] = (0.0, 0.0),
                  pivot_angle: float = 0.0,
                  ):
+        """
+
+        :param num_sides:  int, number of sides which must be greater than 2
+        :param corner_radius: float, corner radius to add fillets
+        :param side_len: float, side length
+        :param centre: tuple[float, float], centre
+        :param pivot_angle: float, A reference angle in radians, measured from the positive x-axis with the normal
+        to the first side of the polygon.
+        """
         assert_positivity(corner_radius, 'Corner radius', absolute=False)
         assert_range(num_sides, 3)
         #
@@ -88,6 +102,10 @@ class RegularPolygon(ClosedShape2D):
 
     @property
     def perimeter(self):
+        """
+
+        :rtype: float
+        """
         self._perimeter = self.num_sides * self.side_len * (1.0 - self.crr + (self.crr * self.alpha * self.cot_alpha))
         return self._perimeter
 
@@ -306,6 +324,7 @@ class Circles(ClosedShapesList):
     def __init__(self, xyr: ndarray):
         self.validate_incl_data(xyr, 3)
         super(Circles, self).__init__()
+        self.xc, self.yc, self.r = xyr.T
         self.extend([Circle(r, (x, y)) for (x, y, r) in xyr])
 
 
