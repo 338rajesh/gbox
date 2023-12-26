@@ -2,16 +2,7 @@
 ===================
 
 .. automodule:: gbox.closed_shapes
-
-   
-   
-   
-
-   
-   
-   
-
-   
+   :members:
    
    .. rubric:: Classes
 

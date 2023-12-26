@@ -11,7 +11,6 @@ Contents
    :caption: Contents:
 
    usage
-   gbox
    generated/gbox
    generated/gbox.points
    generated/gbox.curves

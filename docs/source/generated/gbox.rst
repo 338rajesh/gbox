@@ -2,7 +2,7 @@
 ====
 
 .. automodule:: gbox
-
+   :members:
    
    
    
