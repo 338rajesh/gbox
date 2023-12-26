@@ -2,6 +2,7 @@
 ===========
 
 .. automodule:: gbox.points
+   :members:
 
    
    

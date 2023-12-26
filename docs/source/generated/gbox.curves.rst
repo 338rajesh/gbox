@@ -2,16 +2,7 @@
 ===========
 
 .. automodule:: gbox.curves
-
-   
-   
-   
-
-   
-   
-   
-
-   
+   :members:
    
    .. rubric:: Classes
 
