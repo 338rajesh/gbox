@@ -7,11 +7,16 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 5
+   :maxdepth: 3
    :caption: Contents:
 
    usage
    gbox
+   generated/gbox
+   generated/gbox.points
+   generated/gbox.curves
+   generated/gbox.closed_shapes
+   generated/gbox.utils
 
 
 WIP/Goals
