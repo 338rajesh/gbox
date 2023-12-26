@@ -15,6 +15,17 @@ class TestEllipse(unittest.TestCase):
         assert abs(self.e2.shape_factor() - 1.0) < 1e-06
 
 
+class TestRectangle(unittest.TestCase):
+    a, b = 5.126, 2.654
+    r1 = gb.Rectangle(a, b)
+
+    def test_area_perimeter(self):
+        assert self.r1.area == 4.0 * self.a * self.b
+
+    def test_perimeter(self):
+        assert self.r1.perimeter == 4.0 * (self.a + self.b)
+
+
 class TestRegularPolygon(unittest.TestCase):
     n1, n2, n3 = 3, 4, 13
     a1 = 2.695

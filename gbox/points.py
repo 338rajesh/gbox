@@ -1,5 +1,6 @@
 # from scipy.spatial import Voronoi
-from numpy import ndarray, array, concatenate, sin, cos, sqrt
+from numpy import ndarray, array, concatenate
+from numpy import sin, cos, sqrt
 
 
 def rotational_matrix(angle: float):
@@ -26,6 +27,12 @@ class Point:
     def line_eqn(self, x_2, y_2):
         m = self.slope(x_2, y_2)
         return m, -1.0, y_2 - (m * x_2)
+
+
+#
+# class Locus(ndarray):
+#     def __init__(self):
+#         super(Locus, self).__init__()
 
 
 class Points(list):
@@ -67,7 +74,7 @@ class Points(list):
         return self
 
     def close_loop(self):
-        self.points = concatenate((self.points, self.points[0:1, ...]), axis=0)
+        self.append(self.points[0:1, ...])
 
     def transform(self, angle=0.0, dx=0.0, dy=0.0):
         """ Transforms the points cluster by rotation and translation """
@@ -78,7 +85,7 @@ class Points(list):
         self.points = self.points[::-1, :]
         return self
 
-    def make_periodic_tiles(self, bbox):
+    def make_periodic_tiles(self, bbox):  # TODO
         assert bbox.dim == self.dim, "mismatch in points and bbox dimensions"
         periodic_points = []
         for i in range(3):  # shifting x

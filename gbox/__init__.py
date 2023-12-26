@@ -6,10 +6,7 @@ Geometry Box
 
 """
 
-from .shapes import (
-    StraightLine,
-    EllipticalArc,
-    CircularArc,
+from .closed_shapes import (
     Circle,
     Ellipse,
     Rectangle,
@@ -19,8 +16,6 @@ from .shapes import (
     NLobeShape,
     BoundingBox2D,
     #
-    ShapesList,
-    ClosedShapesList,
     Circles,
     Ellipses,
     Rectangles,
@@ -29,10 +24,12 @@ from .shapes import (
     CShapes,
     NLobeShapes,
 )
+from .gbox import ShapesList, ClosedShapesList
+from .curves import StraightLine, EllipticalArc, CircularArc
 
 from .points import (
     Point,
     Points,
 )
 
-from .gbox import PLOT_OPTIONS
+from .utils import PLOT_OPTIONS
