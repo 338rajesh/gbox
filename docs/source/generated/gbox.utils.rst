@@ -1,9 +1,9 @@
-﻿gbox.utils
-==========
+﻿Utilities
+=========
 
 .. automodule:: gbox.utils
    :members:
-   
+   :special-members: __init__
    
    
 

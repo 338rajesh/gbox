@@ -24,7 +24,7 @@ from .closed_shapes import (
     CShapes,
     NLobeShapes,
 )
-from .gbox import ShapesList, ClosedShapesList
+from .gbox import ShapesList, ClosedShapesList, ClosedShape2D, Curve2D, ShapePlotter
 from .curves import StraightLine, EllipticalArc, CircularArc
 
 from .points import (

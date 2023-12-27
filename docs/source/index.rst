@@ -1,7 +1,11 @@
-gbox: Geometry Box documentation
-================================
+gbox :: Geometry Box
+=====================
 
-**gbox** is a simple and small python package intended to perform elementary geometry operations.
+**gbox** is a simple and small python package intended to perform mathematical operations on elementary shapes.
+
+.. image:: ../media/shapes.png
+
+A sample collection of shapes plotted using this library
 
 Contents
 --------

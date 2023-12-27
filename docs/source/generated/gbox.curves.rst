@@ -1,10 +1,11 @@
-﻿gbox.curves
-===========
+﻿Curves
+======
 
 .. automodule:: gbox.curves
    :members:
+   :special-members: __init__
    
-   .. rubric:: Classes
+   .. rubric:: Functions
 
    .. autosummary::
    
@@ -12,7 +13,8 @@
       EllipticalArc
       StraightLine
    
-   
+
+   .. rubric:: Classes
 
    
    

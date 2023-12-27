@@ -8,31 +8,159 @@ Assumptions:
 """
 from matplotlib.pyplot import subplots, show, savefig, close
 from numpy import ndarray, pi, sqrt, stack
+from os import path
 
 from .points import Points
 from .utils import PLOT_OPTIONS, assert_positivity
 
 
+class ShapePlotter:
+    """
+        Plotter for various shapes
+    """
+
+    def __init__(
+            self,
+            locus: Points,
+            axis=None,
+            f_path=None,
+            closure=True,
+            linewidth=None,
+            show_grid=None,
+            hide_axes=None,
+            face_color=None,
+            edge_color=None,
+    ):
+        """
+
+        :param axis: Shape is plotted on this axis and returns the same, If not provided, a figure will be created
+         with default options which will be saved at `f_path` location if the `f_path` is specified.
+         Otherwise, it will be displayed using matplotlib.pyplot.show() method.
+        :param f_path: str, file path to save the figure
+        :param closure: Whether to make loop by connecting the last point with the first point.
+        :param face_color: str, Color to fill the shape
+        :param edge_color: str, Color of the edge
+        :param linewidth: float,
+        :param show_grid: bool, enable/disable the grid on figure
+        :param hide_axes: bool, enable/disable the axis on figure
+        :return: None
+
+        """
+        if show_grid is None:
+            show_grid = PLOT_OPTIONS.show_grid
+        if hide_axes is None:
+            hide_axes = PLOT_OPTIONS.hide_axes
+        if linewidth is None:
+            linewidth = PLOT_OPTIONS.linewidth
+        if face_color is None:
+            face_color = PLOT_OPTIONS.face_color
+        if edge_color is None:
+            edge_color = PLOT_OPTIONS.edge_color
+        #
+        assert locus is not None, "Plotting a shape requires locus but it is set to `None` at present."
+        if closure:
+            locus.close_loop()
+        self.locus: Points = locus
+        self.axis = axis
+        self.f_path = f_path
+        self.closure = closure
+        self.linewidth = linewidth
+        self.show_grid = show_grid
+        self.hide_axes = hide_axes
+        self.face_color = face_color
+        self.edge_color = edge_color
+
+    def _plot_on_axis(self, _axs, fill=True, **plt_opt):
+        if fill:
+            _axs.fill(
+                self.locus.points[:, 0],
+                self.locus.points[:, 1],
+                facecolor=self.face_color,
+                edgecolor=self.edge_color,
+                linewidth=self.linewidth,
+                **plt_opt
+            )
+        else:
+            _axs.plot(
+                self.locus.points[:, 0],
+                self.locus.points[:, 1],
+                color=self.edge_color,
+                linewidth=self.linewidth,
+                **plt_opt
+            )
+        _axs.axis('equal')
+        if self.show_grid:
+            _axs.grid()
+        if self.hide_axes:
+            _axs.axis('off')
+        return _axs
+
+    def _plot(self, fill_plot=True, **plt_opt):
+
+        def _plt():
+            if fill_plot:
+                self._plot_on_axis(self.axis, fill=True, **plt_opt)
+            else:
+                self._plot_on_axis(self.axis, fill=False, **plt_opt)
+
+        if self.axis is None:
+            _, self.axis = subplots(1, 1)
+            _plt()
+            if self.f_path is None:
+                try:
+                    show()
+                except ValueError as e:
+                    print(f"Tried to display the figure but not working due to {e}")
+            else:
+                savefig(self.f_path)
+                close('all')
+        else:
+            return _plt()
+
+    def line_plot(self, **plt_opt):
+        """
+            Line plot of the shapes
+        """
+        self._plot(fill_plot=False, **plt_opt)
+
+    def fill_plot(self, **plt_opt):
+        self._plot(fill_plot=True, **plt_opt)
+
+
 class Shape:
+    """ Base class for all shapes """
     pass
 
 
 class Shape2D(Shape):
+    """ Base class for the two-dimensional shapes """
+
     def __init__(self):
         self._locus: Points = Points()
         self._num_locus_points: int = 100
 
     @property
     def num_locus_points(self):
+        """
+            Number of points along the locus of the shape
+
+        :rtype: Points
+
+        """
         return self._num_locus_points
 
     @num_locus_points.setter
     def num_locus_points(self, val):
-        assert assert_positivity(val, val_type=int)
         self._num_locus_points = val
 
     @property
     def locus(self):
+        """
+            The locus of 2D shapes
+
+         :rtype: Points
+
+        """
         return self._locus
 
     @locus.setter
@@ -43,6 +171,25 @@ class Shape2D(Shape):
             self._locus = value
         else:
             raise TypeError(f"locus must be either 'numpy.ndarray' or 'Points' type but not {type(value)}")
+
+
+class Curve2D(Shape2D):
+    """ Curve in tw-dimensional space """
+
+    def plot(
+            self,
+            axis=None,
+            f_path=None,
+            closure=True,
+            linewidth=None,
+            show_grid=None,
+            hide_axes=None,
+            edge_color='b',
+    ):
+        ShapePlotter(
+            self.locus, axis, f_path, closure, linewidth, show_grid, hide_axes,
+            edge_color=edge_color,
+        ).line_plot()
 
 
 class ClosedShape2D(Shape2D):
@@ -67,14 +214,29 @@ class ClosedShape2D(Shape2D):
 
     @property
     def area(self):
+        """
+
+        :rtype: float
+
+        """
         return self._area
 
     @property
     def perimeter(self):
+        """
+
+        :rtype: float
+
+        """
         return self._perimeter
 
     @property
     def shape_factor(self):
+        """
+
+        :rtype: float
+
+        """
         assert_positivity(self.area, 'Area')
         assert_positivity(self.perimeter, 'Perimeter')
         self._sf = self.perimeter / sqrt(4.0 * pi * self.area)
@@ -85,71 +247,28 @@ class ClosedShape2D(Shape2D):
             axis=None,
             f_path=None,
             closure=True,
-            face_color=None,
-            edge_color=None,
             linewidth=None,
             show_grid=None,
             hide_axes=None,
+            face_color=None,
+            edge_color=None,
             **plt_opt
     ):
         """
 
-        :param axis: Shape is plotted on this axis and returns the same, If not provided, a figure will be created
-         with default options which will be saved at `f_path` location if the `f_path` is specified.
-         Otherwise, it will be displayed using matplotlib.pyplot.show() method.
-        :param f_path:
-        :param closure: Whether to make loop by connecting the last point with the first point.
-        :param face_color: Color to fill the shape
-        :param edge_color: Color
-        :param linewidth:
-        :param show_grid:
-        :param hide_axes:
-        :param plt_opt: The plotting key-word arguments, that are taken by `matplotlib.patches.Polygon()`.
-        :return:
+        :rtype: None
+
         """
-        if face_color is None:
-            face_color = PLOT_OPTIONS.face_color
-        if edge_color is None:
-            edge_color = PLOT_OPTIONS.edge_color
-        if show_grid is None:
-            show_grid = PLOT_OPTIONS.show_grid
-        if hide_axes is None:
-            hide_axes = PLOT_OPTIONS.hide_axes
-        if linewidth is None:
-            linewidth = PLOT_OPTIONS.linewidth
-
-        assert self.locus is not None, "Plotting a shape requires locus but it is set to `None` at present."
-        if closure:
-            self.locus.close_loop()
-
-        def _plot(_axs):
-            _axs.fill(
-                self.locus.points[:, 0], self.locus.points[:, 1],
-                facecolor=face_color,
-                edgecolor=edge_color,
-                linewidth=linewidth,
-                **plt_opt
-            )
-            _axs.axis('equal')
-            if show_grid:
-                _axs.grid()
-            if hide_axes:
-                _axs.axis('off')
-            return _axs
-
-        if axis is None:
-            _, axis = subplots(1, 1)
-            _plot(axis)
-            if f_path is None:
-                show()
-            else:
-                savefig(f_path)
-                close('all')
-        else:
-            return _plot(axis)
+        ShapePlotter(
+            self.locus, axis, f_path, closure, linewidth, show_grid, hide_axes,
+            face_color=face_color, edge_color=edge_color,
+        ).fill_plot()
 
 
 class ShapesList(list):
+    """
+        List of multiple shapes
+    """
 
     def __init__(self):
         super(ShapesList, self).__init__()
@@ -159,31 +278,64 @@ class ShapesList(list):
         self._shape_factors = ()
 
     def plot(self, *args, **kwargs):
+        """
+        A convenient method for plotting multiple shapes, and it takes same arguments and key-word arguments as
+        the ClosedShapes2D.plot()
+
+        :rtype: None
+
+        """
         for i in range(self.__len__()):
             self.__getitem__(i).plot(*args, **kwargs)
 
     @property
     def loci(self):
+        """
+        Evaluates locus of all the shapes in the list. The first dimension of the loci refers to shapes
+
+        :rtype: Points
+
+        """
         self._loci = Points(stack([self.__getitem__(i).locus.points for i in range(self.__len__())], axis=0))
         return self._loci
 
     @property
     def perimeters(self):
-        self._perimeters = tuple(self.__getitem__(i).perimeter for i in range(self.__len__()))
+        """
+            Evaluates perimeters of all the shapes in the list.
+
+        :rtype: list[float]
+
+        """
+        self._perimeters = [self.__getitem__(i).perimeter for i in range(self.__len__())]
         return self._perimeters
 
     @property
     def areas(self):
-        self._areas = tuple(self.__getitem__(i).area for i in range(self.__len__()))
+        """
+            Evaluates area of all the shapes in the list.
+
+        :rtype: list[float]
+
+        """
+        self._areas = [self.__getitem__(i).area for i in range(self.__len__())]
         return self._areas
 
     @property
     def shape_factors(self):
-        self._shape_factors = tuple(self.__getitem__(i).shape_factor for i in range(self.__len__()))
+        """
+            Evaluates shape factors of all the shapes in the list.
+
+        :rtype: list[float]
+
+        """
+        self._shape_factors = [self.__getitem__(i).shape_factor for i in range(self.__len__())]
         return self._shape_factors
 
 
 class ClosedShapesList(ShapesList):
+    """ List of multiple closed shapes """
+
     def __init__(self):
         super(ClosedShapesList, self).__init__()
 

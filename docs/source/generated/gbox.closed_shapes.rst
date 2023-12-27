@@ -1,8 +1,9 @@
-﻿gbox.closed\_shapes
-===================
+﻿Closed Shapes
+=============
 
 .. automodule:: gbox.closed_shapes
    :members:
+   :special-members: __init__
    
    .. rubric:: Classes
 

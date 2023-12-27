@@ -84,7 +84,8 @@ class RegularPolygon(ClosedShape2D):
         :param side_len: float, side length
         :param centre: tuple[float, float], centre
         :param pivot_angle: float, A reference angle in radians, measured from the positive x-axis with the normal
-        to the first side of the polygon.
+            to the first side of the polygon.
+
         """
         assert_positivity(corner_radius, 'Corner radius', absolute=False)
         assert_range(num_sides, 3)
