@@ -7,13 +7,27 @@ All angles are supplied in radians
 from numpy import arcsin, concatenate, ndarray
 from numpy import sin, sqrt, cos, tan, pi
 
+from .curves import StraightLine, EllipticalArc, CircularArc
+from .gbox import ClosedShape2D, ClosedShapesList
 from .points import Points, rotate
 from .utils import is_ordered, assert_range, assert_positivity
-from .gbox import ClosedShape2D, ClosedShapesList
-from .curves import StraightLine, EllipticalArc, CircularArc
 
 
 class Ellipse(ClosedShape2D):
+    """
+    Ellipse defined its centre, orientation of semi-major axis with the positive x-axis, starting and ending points
+    (defined by the parametric values theta_1 and theta_2), semi-major and semi-minor axis lengths. It has perimeter,
+    area, shape factor, locus, bounding box and union of circles representation properties.
+
+    >>> ellipse = Ellipse()
+    >>> ellipse.smj  # prints semi-major axis length, a
+    >>> ellipse.smn  # prints semi-minor axis length, b
+    >>> ellipse.pivot_point  # prints centre of the ellipse
+    >>> ellipse.pivot_angle  # prints orientation of the semi-major axis of the ellipse
+    >>> ellipse.shape_factor  # prints shape factor of the ellipse
+
+    """
+
     def __init__(self,
                  smj: float = 2.0,
                  smn: float = 1.0,
@@ -28,25 +42,42 @@ class Ellipse(ClosedShape2D):
         self.theta_1 = theta_1
         self.theta_2 = theta_2
         super(Ellipse, self).__init__(centre, smj_angle)
-        #
-        return
 
     @property
-    def perimeter(self, method="Ramanujan"):
-        if method == "Ramanujan":
-            self._perimeter = pi * (
-                    (3.0 * (self.smj + self.smn))
-                    - sqrt(((3.0 * self.smj) + self.smn) * (self.smj + (3.0 * self.smn)))
-            )
+    def perimeter(self):
+        """
+        Perimeter is approximated using the following Ramanujan formula
+
+        .. math::
+            p = \pi[3(a+b) - \sqrt{(3a + b)(a + 3b)}]
+
+        """
+        self._perimeter = pi * (
+                (3.0 * (self.smj + self.smn))
+                - sqrt(((3.0 * self.smj) + self.smn) * (self.smj + (3.0 * self.smn)))
+        )
         return self._perimeter
 
     @property
     def area(self):
+        """
+        Area is evaluated using the following formula,
+
+        .. math::
+            A = \pi a b
+
+        """
         self._area = pi * self.smj * self.smn
         return self._area
 
     @property
     def locus(self):
+        """
+        Determines the points along the locus of the ellipse.
+
+        .. math::
+            x = a \\cos{ \\theta },  y = b \\sin{ \\theta }; \;\; \\theta \in [\\theta_1, \\theta_2]
+        """
         #
         self._locus = EllipticalArc(
             self.smj,
@@ -58,8 +89,34 @@ class Ellipse(ClosedShape2D):
         ).locus
         return self._locus
 
+    @property
+    def bounding_box(self):
+        """
+        Returns the coordinate-axis aligned bounds of the ellipse using the following formulae
+
+        .. math::
+            x = x_c \pm \sqrt{a^2 \cos^2 \\theta + b^2 \sin^2 \\theta}
+
+            y = y_c \pm \sqrt{a^2 \sin^2 \\theta + b^2 \cos^2 \\theta}
+
+        """
+        k1 = sqrt((self.smj ** 2) * (cos(self.pivot_angle) ** 2) + (self.smj ** 2) * (sin(self.pivot_angle) ** 2))
+        k2 = sqrt((self.smj ** 2) * (sin(self.pivot_angle) ** 2) + (self.smj ** 2) * (cos(self.pivot_angle) ** 2))
+        self._b_box = self.pxc - k1, self.pyc - k2, self.pxc + k1, self.pyc + k2
+        return self._b_box
+
+    def union_of_circles(self):
+        """
+        Returns union of circles representation for the Ellipse
+        """
+        return
+
 
 class Circle(Ellipse):
+    """
+    Inherits all the methods and properties from the `Ellipse()` using same semi-major and semi-minor axis lengths.
+    """
+
     def __init__(self, radius=2.0, cent=(0.0, 0.0)):
         super().__init__(radius, radius, centre=cent)
 

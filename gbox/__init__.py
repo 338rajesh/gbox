@@ -24,12 +24,10 @@ from .closed_shapes import (
     CShapes,
     NLobeShapes,
 )
-from .gbox import ShapesList, ClosedShapesList, ClosedShape2D, Curve2D, ShapePlotter
 from .curves import StraightLine, EllipticalArc, CircularArc
-
+from .gbox import ShapesList, ClosedShapesList, ClosedShape2D, Curve2D, ShapePlotter
 from .points import (
     Point,
     Points,
 )
-
 from .utils import PLOT_OPTIONS

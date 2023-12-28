@@ -8,7 +8,6 @@ Assumptions:
 """
 from matplotlib.pyplot import subplots, show, savefig, close
 from numpy import ndarray, pi, sqrt, stack
-from os import path
 
 from .points import Points
 from .utils import PLOT_OPTIONS, assert_positivity
@@ -138,6 +137,7 @@ class Shape2D(Shape):
     def __init__(self):
         self._locus: Points = Points()
         self._num_locus_points: int = 100
+        self._b_box: tuple[float, float, float, float] = ()
 
     @property
     def num_locus_points(self):
@@ -171,6 +171,16 @@ class Shape2D(Shape):
             self._locus = value
         else:
             raise TypeError(f"locus must be either 'numpy.ndarray' or 'Points' type but not {type(value)}")
+
+    @property
+    def bounding_box(self):
+        return self._b_box
+
+    @bounding_box.setter
+    def bounding_box(self, val):
+        assert len(val) == 4, "Bounds must be supplied as a tuple / list of four real numbers"
+        assert (val[2] > val[0] and val[3] > val[1]), "bounds must be in the order of x_min, y_min, x_max, y_max"
+        self._b_box = val
 
 
 class Curve2D(Shape2D):

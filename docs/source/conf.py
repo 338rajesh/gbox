@@ -28,5 +28,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
+autodoc_member_order = 'bysource'  # to avoid the sorting of methods in the alphabetical order
+
 html_theme = 'sphinx_rtd_theme'  # bizstyle, sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku
 html_static_path = []
