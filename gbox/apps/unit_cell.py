@@ -10,7 +10,21 @@ from ..gbox import ClosedShapesList
 """
 # TODO
 
++ data:
+    bounds of each unit cell
+    inclusion shape and the respective shape's data
+
 + data input streams
+    Single Unit Cell
+    1. *.npz file with
+        'bounds' key containing four values in the order of x_min, y_min, x_max, y_max of the unit cell
+        and the inclusion shapes as key and the data as value. For example, for circular inclusions 'Circle' key 
+        should contain (n, 3) shaped array with n being the number of circles and the three columns
+        indicating x, y and radius of the respective circles. 
+    1. *.json file 
+        
+    Batch of Unit Cells
+    1. *.h5 file
 
 """
 

@@ -42,6 +42,7 @@ class Ellipse(ClosedShape2D):
         self.theta_1 = theta_1
         self.theta_2 = theta_2
         super(Ellipse, self).__init__(centre, smj_angle)
+        self._ecc = 1.0
 
     @property
     def perimeter(self):
@@ -69,6 +70,22 @@ class Ellipse(ClosedShape2D):
         """
         self._area = pi * self.smj * self.smn
         return self._area
+
+    @staticmethod
+    def _eval_eccentricity(_a: float, _b: float) -> float:
+        return sqrt(1 - (_b * _b) / (_a * _a))
+
+    @property
+    def eccentricity(self):
+        """
+        Eccentricity of the ellipse, evaluated using
+
+        .. math::
+            e = \\sqrt{1 - \\frac{b^2}{a^2}}
+
+        """
+        self._ecc = self._eval_eccentricity(self.smj, self.smn)
+        return self._ecc
 
     @property
     def locus(self):
@@ -105,11 +122,36 @@ class Ellipse(ClosedShape2D):
         self._b_box = self.pxc - k1, self.pyc - k2, self.pxc + k1, self.pyc + k2
         return self._b_box
 
-    def union_of_circles(self):
+    def union_of_circles(self, buffer: float = 0.01) -> ClosedShapesList:
         """
         Returns union of circles representation for the Ellipse
+
+        :param buffer: A small thickness around the shape to indicate the buffer region.
+
+        :rtype: ClosedShapesList
         """
-        return
+        assert buffer > 0.0, f"buffer must be a positive real number, but not {buffer}"
+        e, e_outer = self.eccentricity, self._eval_eccentricity(self.smj + buffer, self.smn + buffer)
+        zeta = e_outer / e
+        k = self.smj * e * e
+        xi = -k  # starting at -ae^2
+
+        def r_shortest(_xi, _a, _b):
+            return _b * sqrt(1.0 - ((_xi ** 2) / (_a ** 2 - _b ** 2)))
+
+        circles = ClosedShapesList()
+        while True:
+            if xi > k:
+                circles.append(Circle(self.smn * self.smn / self.smj, cent=(k, 0.0)))
+                break
+            ri = r_shortest(xi, self.smj, self.smn)
+            circles.append(Circle(ri, cent=(xi, 0.0)))
+            r_ip1 = r_shortest(xi, self.smj + buffer, self.smn + buffer)
+            xi = (xi * ((2.0 * zeta * zeta) - 1.0)) + (2.0 * e_outer * zeta * sqrt(
+                (r_ip1 * r_ip1) - (ri * ri)
+            ))
+
+        return circles
 
 
 class Circle(Ellipse):

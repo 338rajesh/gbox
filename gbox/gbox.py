@@ -69,7 +69,7 @@ class ShapePlotter:
         self.face_color = face_color
         self.edge_color = edge_color
 
-    def _plot_on_axis(self, _axs, fill=True, **plt_opt):
+    def _plot_on_axis(self, _axs, fill=True, title=None, **plt_opt):
         if fill:
             _axs.fill(
                 self.locus.points[:, 0],
@@ -88,19 +88,21 @@ class ShapePlotter:
                 **plt_opt
             )
         _axs.axis('equal')
+        if title is not None:
+            _axs.set_title(title)
         if self.show_grid:
             _axs.grid()
         if self.hide_axes:
             _axs.axis('off')
         return _axs
 
-    def _plot(self, fill_plot=True, **plt_opt):
+    def _plot(self, fill_plot=True, title=None, **plt_opt):
 
         def _plt():
             if fill_plot:
-                self._plot_on_axis(self.axis, fill=True, **plt_opt)
+                self._plot_on_axis(self.axis, fill=True, title=title, **plt_opt)
             else:
-                self._plot_on_axis(self.axis, fill=False, **plt_opt)
+                self._plot_on_axis(self.axis, fill=False, title=title, **plt_opt)
 
         if self.axis is None:
             _, self.axis = subplots(1, 1)
@@ -116,14 +118,14 @@ class ShapePlotter:
         else:
             return _plt()
 
-    def line_plot(self, **plt_opt):
+    def line_plot(self, title=None, **plt_opt):
         """
             Line plot of the shapes
         """
-        self._plot(fill_plot=False, **plt_opt)
+        self._plot(fill_plot=False, title=title, **plt_opt)
 
-    def fill_plot(self, **plt_opt):
-        self._plot(fill_plot=True, **plt_opt)
+    def fill_plot(self, title=None, **plt_opt):
+        self._plot(fill_plot=True, title=title, **plt_opt)
 
 
 class Shape:
@@ -137,7 +139,7 @@ class Shape2D(Shape):
     def __init__(self):
         self._locus: Points = Points()
         self._num_locus_points: int = 100
-        self._b_box: tuple[float, float, float, float] = ()
+        self._b_box: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
 
     @property
     def num_locus_points(self):
@@ -195,11 +197,13 @@ class Curve2D(Shape2D):
             show_grid=None,
             hide_axes=None,
             edge_color='b',
+            title=None,
+            **plt_opt
     ):
         ShapePlotter(
             self.locus, axis, f_path, closure, linewidth, show_grid, hide_axes,
             edge_color=edge_color,
-        ).line_plot()
+        ).line_plot(title=title, **plt_opt)
 
 
 class ClosedShape2D(Shape2D):
@@ -262,6 +266,7 @@ class ClosedShape2D(Shape2D):
             hide_axes=None,
             face_color=None,
             edge_color=None,
+            title=None,
             **plt_opt
     ):
         """
@@ -272,7 +277,7 @@ class ClosedShape2D(Shape2D):
         ShapePlotter(
             self.locus, axis, f_path, closure, linewidth, show_grid, hide_axes,
             face_color=face_color, edge_color=edge_color,
-        ).fill_plot()
+        ).fill_plot(title=title, **plt_opt)
 
 
 class ShapesList(list):
@@ -287,7 +292,7 @@ class ShapesList(list):
         self._areas = ()
         self._shape_factors = ()
 
-    def plot(self, *args, **kwargs):
+    def plot(self, **kwargs):
         """
         A convenient method for plotting multiple shapes, and it takes same arguments and key-word arguments as
         the ClosedShapes2D.plot()
@@ -295,8 +300,14 @@ class ShapesList(list):
         :rtype: None
 
         """
+        # if common_plot:
+        #     fig, axs = subplots()
+        #     for i in range(self.__len__()):
+        #         self.__getitem__(i).plot(axis=axs, **kwargs)
+        #     show()
+        # else:
         for i in range(self.__len__()):
-            self.__getitem__(i).plot(*args, **kwargs)
+            self.__getitem__(i).plot(**kwargs)
 
     @property
     def loci(self):
