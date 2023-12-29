@@ -22,5 +22,7 @@ setup(
         "numpy~=1.24.3",
         "matplotlib~=3.7.1",
         "setuptools~=65.5.0",
+        "Pillow~=10.1.0",
+        "h5py~=3.10.0",
     ],
 )

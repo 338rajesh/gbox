@@ -15,6 +15,7 @@ Contents
    :caption: Contents:
 
    usage
+   apps
    generated/gbox
    generated/gbox.points
    generated/gbox.curves

@@ -300,12 +300,6 @@ class ShapesList(list):
         :rtype: None
 
         """
-        # if common_plot:
-        #     fig, axs = subplots()
-        #     for i in range(self.__len__()):
-        #         self.__getitem__(i).plot(axis=axs, **kwargs)
-        #     show()
-        # else:
         for i in range(self.__len__()):
             self.__getitem__(i).plot(**kwargs)
 

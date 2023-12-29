@@ -1,4 +1,22 @@
+from io import BytesIO
 from math import inf
+from multiprocessing import cpu_count
+
+from matplotlib.pyplot import savefig
+from numpy import reshape, frombuffer, uint8
+
+
+# ==================================
+#           Multi-Processing Utils
+# ==================================
+
+
+def validated_num_cores(n):
+    assert isinstance(n, int), "Number of cores must be an integer"
+    if n > cpu_count():
+        print("Given number of cores greater than available, setting to maximum.")
+        n = cpu_count()
+    return n
 
 
 def assert_positivity(k, tag: str = None, val_type=float, absolute=True):
@@ -16,6 +34,21 @@ def assert_range(k, mn=-inf, mx=inf, closed=True, tag=None):
 
 def is_ordered(a, b, am: str, bm: str):
     assert a <= b, f"{am}: {a} > {bm}: {b} "
+
+
+# ===================================
+#       PLOTTING UTILITIES
+# ===================================
+def get_fig_array(_fig):
+    io_buffer = BytesIO()
+    savefig(io_buffer, format="raw")
+    io_buffer.seek(0)
+    _image_array = reshape(
+        frombuffer(io_buffer.getvalue(), dtype=uint8),
+        newshape=(int(_fig.bbox.bounds[3]), int(_fig.bbox.bounds[2]), -1)
+    )
+    io_buffer.close()
+    return _image_array
 
 
 class PlotOptions:

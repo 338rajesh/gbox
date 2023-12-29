@@ -2,3 +2,6 @@ matplotlib~=3.8.2
 numpy~=1.26.2
 setuptools~=65.5.1
 Pillow~=10.1.0
+gbox~=0.1.1
+h5py~=3.10.0
+tqdm~=4.66.1
