@@ -212,6 +212,52 @@ class Inclusions:
         self.shapes = shapes
 
 
+def parse_unit_cell_file_data(data_fp: str | list[str]) -> dict[str, UnitCell2D]:
+    """ This function extracts the unit cell information from various types of inputs and prepares a dictionary with
+    the key values being the unit cell identifiers (or tags) and their values in turn hold dictionary of inclusion
+    and unit-cell bounds information.
+
+
+    Arguments:
+    ^^^^^^^^^^
+    :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
+     list of file paths which contain single unit cell information.
+    :return: dict[str, UnitCell2D] A dictionary that contains key-value pairs of 2D Unit-Cell.
+
+    """
+    # bounds, inc_data = [], {}
+    inclusions: dict[str, UnitCell2D] = {}
+    if isinstance(data_fp, str):  # a single file path that contains data of all unit-cells
+        f_extn = data_fp.split(".")[-1]
+        assert data_fp.split(".")[-1] == "h5", f"Expecting a *.h5 file but {f_extn} is found."
+        h5_fp = File(data_fp, mode='r')
+        for (k, v) in h5_fp.items():
+            inclusions[k] = UnitCell2D(
+                [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
+                {ak: transpose(av) for (ak, av) in v.items()}
+            )
+        h5_fp.close()
+    elif all(isinstance(i, str) for i in data_fp):
+        for a_data_fp in data_fp:
+            file_name, f_extn = path.basename(a_data_fp).split(".")
+            if f_extn == "npz":
+                npz_data = dict(np_load(a_data_fp))
+                assert 'bounds' in npz_data.keys(), (
+                    f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
+                )
+                inclusions[file_name] = UnitCell2D(list(npz_data.pop('bounds')), npz_data)
+            elif f_extn == "json":
+                pass  # TODO
+            elif f_extn in ("dat", "txt"):
+                pass  # TODO
+            else:
+                print(f"Unsupported file type {f_extn}.")
+            #
+    else:
+        raise TypeError(f"data must be either a single file path or list of file paths")
+    return inclusions
+
+
 class UnitCells2D(dict):
     """
         A subclass of python dictionary to hold unit cells, whose with a typical key-value pair looks as follows
@@ -224,53 +270,7 @@ class UnitCells2D(dict):
 
     def __init__(self, data_fp: str | list[str]):
         super(UnitCells2D, self).__init__()
-        self.update(self.parse_unit_cell_file_data(data_fp))  # Updating the dictionary with parsed data
-
-    @staticmethod
-    def parse_unit_cell_file_data(data_fp: str | list[str]) -> dict[str, UnitCell2D]:
-        """
-        This function extracts the unit cell information from various types of inputs and prepares a dictionary with
-        the key values being the unit cell identifiers (or tags) and their values in turn hold dictionary of
-        inclusion and unit-cell bounds information.
-
-        :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
-        list of file paths which contain single unit cell information.
-        :return: A dictionary that contains key-value pairs of Unit Cell ID and its data. In turn the unit cell data
-        is another dictionary with following keys and values. 'bounds': (xlb, ylb, xub, yub); 'shape_1': its data;
-        'shape_2': its data; and so on.
-
-        """
-        # bounds, inc_data = [], {}
-        inclusions: dict[str, UnitCell2D] = {}
-        if isinstance(data_fp, str):  # a single file path that contains data of all unit-cells
-            f_extn = data_fp.split(".")[-1]
-            assert data_fp.split(".")[-1] == "h5", f"Expecting a *.h5 file but {f_extn} is found."
-            h5_fp = File(data_fp, mode='r')
-            for (k, v) in h5_fp.items():
-                inclusions[k] = UnitCell2D(
-                    [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
-                    {ak: transpose(av) for (ak, av) in v.items()}
-                )
-            h5_fp.close()
-        elif all(isinstance(i, str) for i in data_fp):
-            for a_data_fp in data_fp:
-                file_name, f_extn = path.basename(a_data_fp).split(".")
-                if f_extn == "npz":
-                    npz_data = dict(np_load(a_data_fp))
-                    assert 'bounds' in npz_data.keys(), (
-                        f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
-                    )
-                    inclusions[file_name] = UnitCell2D(list(npz_data.pop('bounds')), npz_data)
-                elif f_extn == "json":
-                    pass  # TODO
-                elif f_extn in ("dat", "txt"):
-                    pass  # TODO
-                else:
-                    print(f"Unsupported file type {f_extn}.")
-                #
-        else:
-            raise TypeError(f"data must be either a single file path or list of file paths")
-        return inclusions
+        self.update(parse_unit_cell_file_data(data_fp))  # Updating the dictionary with parsed data
 
     def plot(
             self,

@@ -4,8 +4,8 @@ Implicit Assumptions
 All angles are supplied in radians
 
 """
-from numpy import arcsin, concatenate, ndarray
-from numpy import sin, sqrt, cos, tan, pi
+from numpy import arcsin, concatenate, ndarray, roll
+from numpy import sin, sqrt, cos, tan, pi, sum
 
 from .curves import StraightLine, EllipticalArc, CircularArc
 from .gbox import ClosedShape2D, ClosedShapesList
@@ -161,6 +161,33 @@ class Circle(Ellipse):
 
     def __init__(self, radius=2.0, cent=(0.0, 0.0)):
         super().__init__(radius, radius, centre=cent)
+
+
+class Polygon(ClosedShape2D):
+    def __init__(self, vert: ndarray = None):
+        super(Polygon, self).__init__()
+        self.vertices = vert
+        self._side_lengths = ()
+
+    @property
+    def area(self):
+        """
+        Evaluates the area of a polygon using the following formula
+
+        """
+        a = sum(self.vertices * roll(roll(self.vertices, 1, 0), 1, 1), axis=0)
+        self._area = 0.5 * abs(a[0] - a[1])
+        return self._area
+
+    @property
+    def side_lengths(self):
+        self._side_lengths = sqrt(sum((self.vertices - roll(self.vertices, 1, axis=0)) ** 2, axis=1))
+        return self._side_lengths
+
+    @property
+    def perimeter(self):
+        self._perimeter = sum(self.side_lengths)
+        return self._perimeter
 
 
 class RegularPolygon(ClosedShape2D):

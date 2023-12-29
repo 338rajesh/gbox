@@ -15,12 +15,12 @@ Contents
    :caption: Contents:
 
    usage
-   apps
    generated/gbox
    generated/gbox.points
    generated/gbox.curves
    generated/gbox.closed_shapes
    generated/gbox.utils
+   generated/unit_cell
 
 
 WIP/Goals

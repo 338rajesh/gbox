@@ -12,6 +12,7 @@ from .closed_shapes import (
     Rectangle,
     Capsule,
     RegularPolygon,
+    Polygon,
     CShape,
     NLobeShape,
     BoundingBox2D,

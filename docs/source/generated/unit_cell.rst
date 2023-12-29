@@ -7,4 +7,19 @@ Unit Cell
 
    .. rubric:: Functions
 
+   .. autosummary::
+
+      parse_unit_cell_file_data
+
+
+   .. rubric:: Classes
+
+   .. autosummary::
+
+      Inclusions
+      UnitCell
+      UnitCell2D
+      UnitCells2D
+
+
 
