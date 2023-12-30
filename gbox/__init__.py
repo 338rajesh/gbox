@@ -5,30 +5,31 @@ Geometry Box
 
 
 """
-
-from .closed_shapes import (
-    Circle,
-    Ellipse,
-    Rectangle,
-    Capsule,
-    RegularPolygon,
-    Polygon,
-    CShape,
-    NLobeShape,
-    BoundingBox2D,
-    #
+from .gbox import (
     Circles,
-    Ellipses,
-    Rectangles,
     Capsules,
     RegularPolygons,
+    Ellipses,
+    Rectangles,
     CShapes,
-    NLobeShapes,
+    NLobeShapes
 )
-from .curves import StraightLine, EllipticalArc, CircularArc
-from .gbox import ShapesList, ClosedShapesList, ClosedShape2D, Curve2D, ShapePlotter
-from .points import (
+from .gbox import (
+    Ellipse,
+    Circle,
+    Polygon,
+    RegularPolygon,
+    Rectangle,
+    Capsule,
+    CShape,
+    NLobeShape,
+    BoundingBox2D
+)
+from .gbox import (
     Point,
-    Points,
+    Points
 )
+from .gbox import ShapePlotter
+from .gbox import ShapesList, ClosedShapesList
+from .gbox import StraightLine, EllipticalArc, CircularArc
 from .utils import PLOT_OPTIONS

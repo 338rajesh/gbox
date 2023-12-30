@@ -3,7 +3,26 @@ from math import inf
 from multiprocessing import cpu_count
 
 from matplotlib.pyplot import savefig
-from numpy import reshape, frombuffer, uint8
+from numpy import reshape, frombuffer, uint8, sin, cos
+
+
+def rotational_matrix(angle: float):
+    """
+    Rotational matrix for rotating a plane through angle in counter clock wise direction.
+
+    >>> from math import pi
+    >>> rotational_matrix(0.25 * pi)
+    [[0.7071067811865476, 0.7071067811865476], [-0.7071067811865476, 0.7071067811865476]]
+
+    :rtype: list[list]
+    """
+    return [[+cos(angle), sin(angle)], [-sin(angle), cos(angle)], ]
+
+
+def get_pairs(a: list, loop=False) -> list:
+    if loop:
+        a.append(a[0])
+    return [i for i in zip(a[:-1], a[1:])]
 
 
 # ==================================

@@ -11,11 +11,12 @@ pip install gbox
 ## Quick Introduction
 
 ```python
-
+import gbox.gbox
+import gbox.elements
 import gbox as gb
 import matplotlib.pyplot as plt
 
-circle = gb.Circle(radius=2.0, cent=(3.0, 6.0))
+circle = gbox.gbox.Circle(radius=2.0, cent=(3.0, 6.0))
 print(circle.area)  # prints circle area
 print(circle.perimeter)  # prints circle perimeter
 circle.shape_factor()  # returns shape factor: perimeter/equivalent circle perimeter.
@@ -27,25 +28,27 @@ circle.plot()  # plots a circle displays using `matplotlib.pyplot.show()`
 circle.plot(f_path='/path/to/file')  # saves a plot at the specified path
 _, axis = plt.subplots()[1]
 circle.plot(axis=axis)  # plots circle on the axs object
-gb.Rectangle().plot(axis=axis)  # adds rectangle to the same axis
+gbox.gbox.Rectangle().plot(axis=axis)  # adds rectangle to the same axs
 ```
 
 A sample code for plotting various shapes, with default parameters, on the same figure
 
 ```python
+import gbox.gbox
+import gbox.elements
 import gbox as gb
 from os import path
 import matplotlib.pyplot as plt
 
 fig, axs = plt.subplots(2, 4)
-gb.Circle().plot(axis=axs[0, 0])
-gb.Ellipse().plot(axis=axs[0, 1])
-gb.RegularPolygon(3).plot(axis=axs[0, 2])
-gb.Rectangle().plot(axis=axs[0, 3])
-gb.BoundingBox2D().plot(axis=axs[1, 0])
-gb.CShape().plot(axis=axs[1, 1])
-gb.Capsule().plot(axis=axs[1, 2])
-gb.NLobeShape(3).plot(axis=axs[1, 3])
+gbox.gbox.Circle().plot(axis=axs[0, 0])
+gbox.gbox.Ellipse().plot(axis=axs[0, 1])
+gbox.gbox.RegularPolygon(3).plot(axis=axs[0, 2])
+gbox.gbox.Rectangle().plot(axis=axs[0, 3])
+gbox.gbox.BoundingBox2D().plot(axis=axs[1, 0])
+gbox.gbox.CShape().plot(axis=axs[1, 1])
+gbox.gbox.Capsule().plot(axis=axs[1, 2])
+gbox.gbox.NLobeShape(3).plot(axis=axs[1, 3])
 plt.tight_layout()
 plt.savefig(path.join(path.dirname(__file__), "shapes.pdf"))
 plt.close()
@@ -62,10 +65,11 @@ It produces the following figure.
 Methods for working with points (at present in a plane)
 
 ```python
+import gbox.gbox
 import gbox as gb
 from numpy import array, pi
 
-points = gb.Points(array([[2.0, 3.0], [6.0, 6.5], [5.0, 8.0]]))
+points = gbox.gbox.Points(array([[2.0, 3.0], [6.0, 6.5], [5.0, 8.0]]))
 print(points.x)  # x coordinates of points
 print(points.y)  # y coordinates of points
 print(len(points))  # 3, i.e., number of points
@@ -84,23 +88,25 @@ points.reflect(p1=(0.0, 5.0), p2=(-8.0, 1.0))  # reflects the points about the l
 Methods for working with curves (at present in a plane)
 
 ```python
+import gbox.gbox
+import gbox.elements
 import gbox as gb
 from numpy import pi
 
-line = gb.StraightLine(length=1.0, start_point=(2.0, 3.0), angle=pi / 2)
-# Creates straight line starting at a given point, of a given length and aligned at an angle with the positive x-axis
+line = gbox.gbox.StraightLine(length=1.0, start_point=(2.0, 3.0), angle=pi / 2)
+# Creates straight line starting at a given point, of a given length and aligned at an angle with the positive x-axs
 line.num_locus_points = 200  # set the number of points along the locus, defaults to 100
 print(line.locus)  # points: Points along the locus of the line
 #
-ell_arc = gb.EllipticalArc(
-    smj=2.0, smn=1.0, theta_1=0.25 * pi, theta_2=0.6 * pi, centre=(1.0, -5.0), smj_angle=0.45 * pi
+ell_arc = gbox.gbox.EllipticalArc(
+  smj=2.0, smn=1.0, theta_1=0.25 * pi, theta_2=0.6 * pi, centre=(1.0, -5.0), smj_angle=0.45 * pi
 )
 # Creates an elliptical arc with specified `centre`, semi major and minor axes of lengths 2.0 and 1.0, 
-# starting from `theta_1` to `theta_2` (w.r.t semi major axis) and the inclination of semi major axis `smj_angle`.
+# starting from `theta_1` to `theta_2` (w.r.t semi major axs) and the inclination of semi major axs `smj_angle`.
 print(ell_arc.locus)
 # points of arc along the locus, default to 100 point which can be set by `ell_arc.num_locus_points`  
 #
-cir_arc = gb.CircularArc(r=2.5, theta_1=0.0 * pi, theta_2=1.25 * pi, centre=(2.0, 4.0))
+cir_arc = gbox.gbox.CircularArc(r=2.5, theta_1=0.0 * pi, theta_2=1.25 * pi, centre=(2.0, 4.0))
 # Creates a circular arc with radius `r`, starting from `theta_1` and ending at `theta_2`
 
 ```
@@ -125,18 +131,20 @@ shapes list version is available which takes a single numpy array with the respe
 For example,
 
 ```python
+import gbox.gbox
+import gbox.elements
 import gbox as gb
 from numpy import array
 
 circles_data = array([
-    [0.0, 0.0, 2.0],
-    [2.0, 8.0, 3.2],
-    [-2.0, 4.0, 1.2],
-    [2.0, 4.0, 1.2],
+  [0.0, 0.0, 2.0],
+  [2.0, 8.0, 3.2],
+  [-2.0, 4.0, 1.2],
+  [2.0, 4.0, 1.2],
 ])  # (4, 3) shaped array containing four circles information with first two columns (x, y) coordinates of
 # their centres and the last column contains radii.
-circles = gb.Circles(circles_data)
-circles.plot()  # plots circles on a given axis or to new axis (which can be saved or displayed using plt.show())
+circles = gbox.gbox.Circles(circles_data)
+circles.plot()  # plots circles on a given axs or to new axs (which can be saved or displayed using plt.show())
 print(circles.loci.shape)  # (num_circles, num_locus_points, 2) shaped array
 print(circles.areas)  # evaluates all circles areas
 print(circles.perimeters)  # evaluates all circles perimeters

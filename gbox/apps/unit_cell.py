@@ -4,12 +4,12 @@ from PIL.Image import fromarray
 from h5py import File
 from matplotlib.pyplot import figure, Axes, savefig, axis, xlim, ylim, clf
 from matplotlib.pyplot import show
-from numpy import asarray, transpose, ndarray, savez_compressed
+from numpy import asarray, transpose, ndarray, savez_compressed, concatenate
 from numpy import load as np_load
 from numpy import save as np_save
 from tqdm import tqdm
 
-from ..closed_shapes import Circles, Ellipses, Rectangles, RegularPolygons, NLobeShapes, CShapes, BoundingBox2D
+from ..gbox import BoundingBox2D, Circles, RegularPolygons, Ellipses, Rectangles, CShapes, NLobeShapes, Points
 from ..gbox import ClosedShapesList
 from ..utils import get_fig_array
 
@@ -85,8 +85,9 @@ class UnitCell2D(UnitCell):
 
         """
         super(UnitCell2D, self).__init__()
+        self.bounds = bounds
         self.matrix = BoundingBox2D(*bounds)
-        self.inclusions = Inclusions(inclusions).shapes
+        self.inclusions = Inclusions(inclusions)
 
     def _plot(
             self,
@@ -106,7 +107,7 @@ class UnitCell2D(UnitCell):
             face_color=matrix_color,
             edge_color=matrix_edge_color,
         )
-        self.inclusions.plot(
+        self.inclusions.shapes.plot(
             axis=ax,
             face_color=inclusion_color,
             edge_color=inclusion_edge_color,
@@ -183,6 +184,21 @@ class UnitCell2D(UnitCell):
         )
         return asarray(fromarray(get_fig_array(fig)).convert(mode=image_mode, dither=dither))
 
+    def eval_voronoi(self, periodic=True):
+        points = Points(self.inclusions.pivot_points())
+        points.eval_voronoi(tile_order=(1 if periodic else 0), clip=True, bounds=self.bounds)
+        return points
+
+    def plot_voronoi(self, axs=None, show_fig=False, file_path=None, bounds=None, periodic=False):
+        points = self.eval_voronoi(periodic)
+        points.plot_voronoi(axs, show_fig, file_path, self.bounds)
+
+    def eval_metrics(self, metrics=()):
+        for a_metric in metrics:
+            if a_metric == 'cva':
+                pass
+        return
+
 
 class Inclusions:
 
@@ -210,6 +226,10 @@ class Inclusions:
         for (k, v) in inclusions_data.items():
             shapes.extend(self._shapes(k, v))
         self.shapes = shapes
+        self.data = inclusions_data
+
+    def pivot_points(self):
+        return concatenate([v[:, 0:2] for v in self.data.values()], axis=0)
 
 
 def parse_unit_cell_file_data(data_fp: str | list[str]) -> dict[str, UnitCell2D]:
