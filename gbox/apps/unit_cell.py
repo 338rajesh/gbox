@@ -65,10 +65,13 @@ class UnitCell:
 
 
 class UnitCell2D(UnitCell):
+    _default_periodicity = True
+
     def __init__(
             self,
-            bounds: list,
-            inclusions: dict,
+            bounds: list = None,
+            inclusions: dict = None,
+            npz_fp: str = None
     ):
         """
         Unit Cell in two-dimensional space defined by bounds of the continuous phase (matrix) as a list and
@@ -85,9 +88,16 @@ class UnitCell2D(UnitCell):
 
         """
         super(UnitCell2D, self).__init__()
+        if bounds is None and inclusions is None:
+            if npz_fp is not None:
+                pass
+            else:
+                raise FileNotFoundError("The bounds and inclusions source is missing")
         self.bounds = bounds
         self.matrix = BoundingBox2D(*bounds)
         self.inclusions = Inclusions(inclusions)
+        #
+        self.voronoi = None
 
     def _plot(
             self,
@@ -131,6 +141,7 @@ class UnitCell2D(UnitCell):
     ):
         """
             Plots a single two-dimensional unit cell.
+
         :param file_path: str, if image extension is provided, then it will override the file_path extension.
         :param image_extension: str, Image extensions like 'png', 'pdf', 'jpg'. Defaults to 'png'.
         :param matrix_color: str, Color of the continuous phase
@@ -184,18 +195,28 @@ class UnitCell2D(UnitCell):
         )
         return asarray(fromarray(get_fig_array(fig)).convert(mode=image_mode, dither=dither))
 
-    def eval_voronoi(self, periodic=True):
-        points = Points(self.inclusions.pivot_points())
-        points.eval_voronoi(tile_order=(1 if periodic else 0), clip=True, bounds=self.bounds)
-        return points
+    def eval_voronoi(self, periodic=_default_periodicity):
+        self.voronoi = Points(self.inclusions.pivot_points()).eval_voronoi(
+            tile_order=(1 if periodic else 0), clip=True, bounds=self.bounds
+        )
+        return self
 
-    def plot_voronoi(self, axs=None, show_fig=False, file_path=None, bounds=None, periodic=False):
-        points = self.eval_voronoi(periodic)
-        points.plot_voronoi(axs, show_fig, file_path, self.bounds)
+    def plot_voronoi(self, axs=None, show_fig=False, file_path=None, bounds=None, periodic=_default_periodicity):
+        if self.voronoi is None:
+            self.eval_voronoi(periodic)
+        self.voronoi.plot_voronoi(axs, show_fig, file_path, self.bounds)
 
-    def eval_metrics(self, metrics=()):
+    def eval_metrics(self, metrics=(), periodic=_default_periodicity):
+        if self.voronoi is None:
+            self.eval_voronoi(periodic)
+        vc_vertices = self.voronoi.cells_vertices
+        vc_neighbours = self.voronoi.cells_neighbours
         for a_metric in metrics:
-            if a_metric == 'cva':
+            if a_metric == 'voronoi_cells_area':
+                pass
+            elif a_metric in ('first_nnd', 'second_nnd', 'third_nnd'):
+                pass
+            elif a_metric == 'first_nna':
                 pass
         return
 
@@ -232,40 +253,46 @@ class Inclusions:
         return concatenate([v[:, 0:2] for v in self.data.values()], axis=0)
 
 
-def parse_unit_cell_file_data(data_fp: str | list[str]) -> dict[str, UnitCell2D]:
+def parse_unit_cell_file_data(data_fp: str | list[str]) -> UnitCell2D | dict[str, UnitCell2D]:
     """ This function extracts the unit cell information from various types of inputs and prepares a dictionary with
     the key values being the unit cell identifiers (or tags) and their values in turn hold dictionary of inclusion
     and unit-cell bounds information.
 
-
-    Arguments:
-    ^^^^^^^^^^
     :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
      list of file paths which contain single unit cell information.
-    :return: dict[str, UnitCell2D] A dictionary that contains key-value pairs of 2D Unit-Cell.
+    :return: A single UnitCell2D instance or a dictionary containing multiple UnitCell2D instances with its
+     identifiers as key.
+    :rtype: dict[str, UnitCell2D] | UnitCell2D
 
     """
-    # bounds, inc_data = [], {}
+
+    def _npz_parser(_fp):
+        npz_data = dict(np_load(_fp))
+        assert 'bounds' in npz_data.keys(), (
+            f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
+        )
+        return UnitCell2D(list(npz_data.pop('bounds')), npz_data)
+
     inclusions: dict[str, UnitCell2D] = {}
     if isinstance(data_fp, str):  # a single file path that contains data of all unit-cells
         f_extn = data_fp.split(".")[-1]
-        assert data_fp.split(".")[-1] == "h5", f"Expecting a *.h5 file but {f_extn} is found."
-        h5_fp = File(data_fp, mode='r')
-        for (k, v) in h5_fp.items():
-            inclusions[k] = UnitCell2D(
-                [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
-                {ak: transpose(av) for (ak, av) in v.items()}
-            )
-        h5_fp.close()
+        if f_extn == "h5":
+            h5_fp = File(data_fp, mode='r')
+            for (k, v) in h5_fp.items():
+                inclusions[k] = UnitCell2D(
+                    [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
+                    {ak: transpose(av) for (ak, av) in v.items()}
+                )
+            h5_fp.close()
+        elif f_extn == "npz":
+            return _npz_parser(data_fp)
+        else:
+            assert data_fp.split(".")[-1] == "h5", f"Expecting a *.h5 file but {f_extn} is found."
     elif all(isinstance(i, str) for i in data_fp):
         for a_data_fp in data_fp:
             file_name, f_extn = path.basename(a_data_fp).split(".")
             if f_extn == "npz":
-                npz_data = dict(np_load(a_data_fp))
-                assert 'bounds' in npz_data.keys(), (
-                    f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
-                )
-                inclusions[file_name] = UnitCell2D(list(npz_data.pop('bounds')), npz_data)
+                inclusions[file_name] = _npz_parser(a_data_fp)
             elif f_extn == "json":
                 pass  # TODO
             elif f_extn in ("dat", "txt"):

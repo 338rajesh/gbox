@@ -88,6 +88,114 @@ class Point:
             return (xlb < self.x < xub) and (ylb < self.y < yub)
 
 
+class VoronoiCells(Voronoi):
+    def __init__(self, points, tile_order=0, clip=False, bounds=None, **kwargs):
+        super(VoronoiCells, self).__init__(
+            # tiling points if required, otherwise points are passed as they are
+            Points(points).make_periodic_tiles(tile_order).points if tile_order > 0 else points,
+            **kwargs
+        )
+        self.tile_order = tile_order
+        self.clip = clip
+        self.bounds = bounds
+        #
+        # Get ridge_dict with keys: ids of points on either side of the ridge & values: ids of vertices on the ridges
+        self.ridge_dict_inv: dict = {tuple(v): list(k) for (k, v) in self.ridge_dict.items()}
+        self._cells_vertices = None
+        self._cells_neighbour_points = None
+        self.valid_cells = self.get_valid_cells()
+        self._cells_area = None
+        self._neighbour_distances = None
+
+    def get_valid_cells(self):
+        # Get all the valid cells information: list[tuple[coordinates of cell point, ids of the cell vertices]]
+        _valid_cells = [
+            (self.points[count], self.regions[i]) for (count, i) in enumerate(self.point_region)
+            if (self.regions[i] != [] and -1 not in self.regions[i])
+        ]
+        if self.clip:
+            assert self.bounds is not None, "If clip is set to True, bounds must be provided."
+            # Filter out all the cells outside the bounds of actual points (not including the tiled points)
+            _valid_cells = [
+                ((xc, yc), j) for ((xc, yc), j) in _valid_cells if BoundingBox2D(*self.bounds).has_point([xc, yc])
+            ]
+        return _valid_cells
+
+    @property
+    def cells_vertices(self):
+        self._cells_vertices = {
+            cell_centre: self.vertices[cell_vertices_ids] for (cell_centre, cell_vertices_ids) in self.valid_cells
+        }
+        return self._cells_vertices
+
+    @property
+    def cells_neighbour_points(self):
+        cells_neighbours = {}
+        for (cell_centre, cell_vertices_ids) in self.valid_cells:
+            cell_ridges = get_pairs(cell_vertices_ids, loop=True)  # Making a list of current cell ridges
+            #
+            neighbour_points = []
+            for (r1, r2) in cell_ridges:
+                if (r1, r2) in self.ridge_dict_inv.keys():
+                    b = self.points[self.ridge_dict_inv[(r1, r2)]]
+                elif (r2, r1) in self.ridge_dict_inv.keys():
+                    b = self.points[self.ridge_dict_inv[(r2, r1)]]
+                else:
+                    raise ValueError()
+                neighbour_points.append(b)
+            neighbour_points = array(neighbour_points)
+
+            if neighbour_points.size != 0:
+                cells_neighbours[cell_centre] = neighbour_points
+        self._cells_neighbour_points = cells_neighbours
+        return self._cells_neighbour_points
+
+    @property
+    def cells_area(self):
+        self._cells_area = [Polygon(v).area for v in self.cells_vertices.values()]
+        return self._cells_area
+
+    @property
+    def neighbour_distances(self):
+        self._neighbour_distances = {
+            cell_centre: [Point(*p1).distance(*p2) for (p1, p2) in neighbour_point_coordinates]
+            for (cell_centre, neighbour_point_coordinates) in self.cells_neighbour_points.items()
+        }
+        return self._neighbour_distances
+
+    def plot(self,
+             axs=None,
+             show_fig=False,
+             file_path=None,
+             pnt_plt_opt: dict = None,
+             ridge_plt_opt: dict = None,
+             bounds_plt_opt: dict = None,
+             ):
+        assert self.ndim == 2, NotImplementedError("At present only two dimension vor plotting is supported!")
+        if ridge_plt_opt is None:
+            ridge_plt_opt = {'face_color': 'None', 'edge_color': 'b', 'linewidth': 1.0}
+        if pnt_plt_opt is None:
+            pnt_plt_opt = {'c': 'b', 'marker': '*', 's': 5.0}
+        if axs is None:
+            fig, axs = subplots()
+        #
+        # Axis decorations
+        axis('off')
+        axis('equal')
+        tight_layout()
+        for ((xc, yc), cell_vertices_coordinates) in self.cells_vertices.items():
+            Polygon(cell_vertices_coordinates).plot(axs, **ridge_plt_opt)
+            axs.scatter(xc, yc, **pnt_plt_opt)
+
+        if self.bounds is not None:
+            BoundingBox2D(*self.bounds).plot(axs, **bounds_plt_opt)
+        # Output
+        if file_path is not None:
+            savefig(file_path)
+        if show_fig:
+            show()
+
+
 class Points(list):
     """ Collection of **ordered** points """
 
@@ -234,10 +342,10 @@ class Points(list):
         BoundingBox2D(*(self.bbox if bounds is None else bounds)).plot(axs)
 
     def plot(self, axs=None, file_path=None, show_fig=False, hide_axis=True, b_box=False, **sct_opt):
-        """
-            Plots the points
+        """ Plots the points
+
         :param axs: The axs on which points are plotted. If not specified, it will create a new axs with default
-        options.
+         options.
         :param file_path: The path of the image (with appropriate extension) to save the figure.
         :param hide_axis: Enable/disable the plot
         :param show_fig: Should the figure be displayed using ``matplotlib.pyplot.show()``
@@ -256,112 +364,6 @@ class Points(list):
 
         if hide_axis:
             axis('off')
-        if file_path is not None:
-            savefig(file_path)
-        if show_fig:
-            show()
-
-    def eval_voronoi(self, tile_order=0, clip: bool = True, bounds: list | tuple = None):
-        """
-            Evaluates the voronoi of the points
-
-        :param tile_order: The number of times points are repeated in the space. By default, it doesn't tile but for
-        the cases like periodic repetition, one can set it to 1 or greater than 1.
-        :type tile_order: int
-        :param clip: Should the generated voronoi be clipped to the original set points bounds (i.e., without tiling)
-        :type clip: bool
-        :param bounds: x_min, y_min, x_max, y_max of the domain. Note that these values may not be same as that of the
-        points cluster.
-        :return: ``scipy.spatial.Voronoi()`` object, but with two additional attributes ``cell_vertices`` and
-        ``cells_neighbours`` attributes, each holding the cell information coordinates of vertices and coordinates
-        of neighbour points, respectively.
-        :rtype: Voronoi
-        """
-        points = self.make_periodic_tiles(tile_order).points if tile_order > 0 else self.points
-        #
-        self.vor = Voronoi(points)
-        #
-        # Get ridge_dict with keys: ids of points on either side of the ridge & values: ids of vertices on the ridges
-        ridge_dict_inv: dict = {tuple(v): list(k) for (k, v) in self.vor.ridge_dict.items()}
-        #
-        # Get all the valid cells information: list[tuple[coordinates of cell point, ids of the cell vertices]]
-        vor_cells = [
-            (self.vor.points[count], self.vor.regions[i]) for (count, i) in enumerate(self.vor.point_region)
-            if (self.vor.regions[i] != [] and -1 not in self.vor.regions[i])
-        ]
-        #
-        if clip:
-            # Filter out all the cells outside the bounds of actual points (not including the tiled points)
-            b_box = BoundingBox2D(*(self.bbox if bounds is None else bounds))
-            vor_cells = [((xc, yc), j) for ((xc, yc), j) in vor_cells if b_box.has_point([xc, yc])]
-        #
-        cells_vertices, cells_neighbours = {}, {}
-        for (cell_centre, cell_vertices_ids) in vor_cells:
-            cell_vertices_coordinates = self.vor.vertices[cell_vertices_ids]
-            cell_ridges = get_pairs(cell_vertices_ids, loop=True)  # Making a list of current cell ridges
-            #
-            neighbour_points = []
-            for (r1, r2) in cell_ridges:
-                if (r1, r2) in ridge_dict_inv.keys():
-                    b = self.vor.points[ridge_dict_inv[(r1, r2)]]
-                elif (r2, r1) in ridge_dict_inv.keys():
-                    b = self.vor.points[ridge_dict_inv[(r2, r1)]]
-                else:
-                    raise ValueError()
-                neighbour_points.append(b)
-            neighbour_points = array(neighbour_points)
-
-            if neighbour_points.size != 0:
-                cells_neighbours[cell_centre] = neighbour_points
-                cells_vertices[cell_centre] = cell_vertices_coordinates
-        self.vor.cells_vertices = cells_vertices
-        self.vor.cells_neighbours = cells_neighbours
-
-        return self
-
-    def plot_voronoi(
-            self,
-            axs=None,
-            show_fig=False,
-            file_path=None,
-            bounds=None,
-            pnt_plt_opt: dict = None,
-            ridge_plt_opt: dict = None,
-            bounds_plt_opt: dict = None,
-    ):
-        """
-            Plot voronoi of the points group.
-        :param axs: The axis for plotting voronoi
-        :param show_fig:
-        :param bounds:
-        :param file_path:
-        :param pnt_plt_opt: kwargs that are accepted by ``matplotlib.pyplot.scatter()`` for plotting points.
-        :param ridge_plt_opt: kwargs that are accepted by ``gbox.ClosedShape2D.plot()`` for plotting ridges.
-        :param bounds_plt_opt:
-        :return:
-        """
-        #
-        if ridge_plt_opt is None:
-            ridge_plt_opt = {'face_color': 'None', 'edge_color': 'b', 'linewidth': 1.0}
-        if pnt_plt_opt is None:
-            pnt_plt_opt = {'c': 'b', 'marker': '*', 's': 5.0}
-        if axs is None:
-            fig, axs = subplots()
-        #
-        # Axis decorations
-        axis('off')
-        axis('equal')
-        tight_layout()
-        #
-        if self.vor is None:  # evaluate voronoi, if not available
-            raise ValueError("Voronoi is not evaluated.")
-        #
-        for ((xc, yc), cell_vertices_coordinates) in self.vor.cells_vertices.items():
-            Polygon(cell_vertices_coordinates).plot(axs, **ridge_plt_opt)
-            axs.scatter(xc, yc, **pnt_plt_opt)
-        if bounds is not None:
-            BoundingBox2D(*bounds).plot(axs, **bounds_plt_opt)
-        # Output
         if file_path is not None:
             savefig(file_path)
         if show_fig:
@@ -435,21 +437,21 @@ class StraightLine(Shape2D):
         Line segment, defined by its length, starting point and orientation with respect to the positive x-axs.
 
 
-        >>>line = StraightLine(5.0, (1.0, 1.0,), 0.25 * pi)
-        >>>line.length
-        5.0
-        >>>line.slope
-        0.9999999999999999
-        >>>line.equation()
-        (0.9999999999999999, -1.0, 1.1102230246251565e-16)
-        >>>line.locus.points
-        array([[1.        , 1.        ],
-               [1.03571246, 1.03571246],
-               [1.07142493, 1.07142493],
-               .
-               .
-               [4.49982144, 4.49982144],
-               [4.53553391, 4.53553391]])
+        >>> line = StraightLine(5.0, (1.0, 1.0,), 0.25 * pi)
+        >>> line.length
+        ... 5.0
+        >>> line.slope
+        ... 0.9999999999999999
+        >>> line.equation()
+        ... (0.9999999999999999, -1.0, 1.1102230246251565e-16)
+        >>> line.locus.points
+        ... array([[1.        , 1.        ],
+        ...      [1.03571246, 1.03571246],
+        ...      [1.07142493, 1.07142493],
+        ...      .
+        ...      .
+        ...      [4.49982144, 4.49982144],
+        ...      [4.53553391, 4.53553391]])
 
     """
 
