@@ -1,21 +1,19 @@
-gbox.apps package
-=================
+Applications
+============
 
-Submodules
+.. toctree::
+   :maxdepth: 3
+   :caption: Applications:
+
+
+Unit Cell
 ----------
 
-gbox.apps.unit\_cell module
----------------------------
-
-.. automodule:: gbox.apps.unit_cell
+.. autoclass:: gbox.apps.UnitCell2D
    :members:
-   :undoc-members:
-   :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: gbox.apps
+.. autoclass:: gbox.apps.UnitCells2D
    :members:
-   :undoc-members:
-   :show-inheritance:
+
+.. py:function:: gbox.apps.parse_unit_cell_file_data
+   :members:

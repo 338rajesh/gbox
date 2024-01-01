@@ -1,5 +1,5 @@
-gbox package
-============
+Base
+=====
 
 Subpackages
 -----------
@@ -12,26 +12,19 @@ Subpackages
 Submodules
 ----------
 
-gbox.gbox module
-----------------
+gbox :: Geometry Box
+---------------------
 
 .. automodule:: gbox.gbox
    :members:
    :undoc-members:
    :show-inheritance:
 
-gbox.utils module
------------------
+Utilities
+----------
 
 .. automodule:: gbox.utils
    :members:
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
-
-.. automodule:: gbox
-   :members:
-   :undoc-members:
-   :show-inheritance:

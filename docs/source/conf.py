@@ -30,5 +30,19 @@ exclude_patterns = []
 
 autodoc_member_order = 'bysource'  # to avoid the sorting of methods in the alphabetical order
 
-html_theme = 'sphinx_rtd_theme'  # bizstyle, sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku
+html_theme = 'pydata_sphinx_theme'
+# Available themes
+# bizstyle, sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku
 html_static_path = []
+
+
+# pydata sphinx theme options
+html_theme_options = {
+    "logo": {
+        "text": "gbox",
+        # "image_dark": "_static/logo-dark.svg",
+    }
+}
+
+#
+autosummary_generate = True

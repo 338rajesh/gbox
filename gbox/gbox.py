@@ -10,7 +10,7 @@ from math import pi
 
 from matplotlib.pyplot import subplots, show, savefig, close, axis, tight_layout
 from numpy import ndarray, pi, sqrt, stack, array, concatenate, tan, linspace, zeros_like, cos, sin, sum, roll, arcsin
-from scipy.spatial import Voronoi
+from scipy.spatial import Voronoi, ConvexHull
 
 from .utils import PLOT_OPTIONS, assert_positivity, rotational_matrix, get_pairs, is_ordered, assert_range
 
@@ -89,7 +89,7 @@ class Point:
 
 
 class VoronoiCells(Voronoi):
-    def __init__(self, points, tile_order=0, clip=False, bounds=None, **kwargs):
+    def __init__(self, points: ndarray, tile_order=0, clip=False, bounds=None, **kwargs):
         super(VoronoiCells, self).__init__(
             # tiling points if required, otherwise points are passed as they are
             Points(points).make_periodic_tiles(tile_order).points if tile_order > 0 else points,
@@ -104,7 +104,7 @@ class VoronoiCells(Voronoi):
         self._cells_vertices = None
         self._cells_neighbour_points = None
         self.valid_cells = self.get_valid_cells()
-        self._cells_area = None
+        self._cells_volume = None
         self._neighbour_distances = None
 
     def get_valid_cells(self):
@@ -151,9 +151,12 @@ class VoronoiCells(Voronoi):
         return self._cells_neighbour_points
 
     @property
-    def cells_area(self):
-        self._cells_area = [Polygon(v).area for v in self.cells_vertices.values()]
-        return self._cells_area
+    def cells_volume(self):
+        if self.ndim == 2:  # it is much computationally efficient than ConvexHull
+            self._cells_volume = [Polygon(v).area for v in self.cells_vertices.values()]
+        else:
+            self._cells_volume = [ConvexHull(v).volume for v in self.cells_vertices.values()]
+        return self._cells_volume
 
     @property
     def neighbour_distances(self):
@@ -302,10 +305,7 @@ class Points(list):
                [3., 5.]])
         >>> q = p.reflect((0.0, 0.0), (1.0, 2.0))
         >>> q.points
-        array([[2.2, 5.4],
-               [0.4, 2.8],
-               [0. , 0. ]])
-
+        ... array([[2.2, 5.4], [0.4, 2.8], [0., 0.0],])
         """
         a, b, c = Point(*p1).line_eqn(*p2)
         f = 2.0 * (((a * self.x) + (b * self.y) + c) / (a ** 2 + b ** 2))
@@ -389,7 +389,7 @@ class Shape2D(Shape):
         self._b_box: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
 
     @property
-    def num_locus_points(self):
+    def num_locus_points(self) -> int:
         """
             Number of points along the locus of the shape
 
@@ -445,7 +445,7 @@ class StraightLine(Shape2D):
         >>> line.equation()
         ... (0.9999999999999999, -1.0, 1.1102230246251565e-16)
         >>> line.locus.points
-        ... array([[1.        , 1.        ],
+        ... array([[1., 1.],
         ...      [1.03571246, 1.03571246],
         ...      [1.07142493, 1.07142493],
         ...      .

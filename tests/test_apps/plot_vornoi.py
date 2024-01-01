@@ -1,5 +1,4 @@
 from os import path
-
 import numpy as np
 
 import gbox as gb
@@ -18,4 +17,4 @@ vor_cells.plot(
     pnt_plt_opt={'c': 'b', 's': 5.0, 'marker': '*'},
     bounds_plt_opt={'face_color': 'None', 'edge_color': 'g', 'linewidth': 1.0},
 )
-
+print(vor_cells.cells_volume[:5])

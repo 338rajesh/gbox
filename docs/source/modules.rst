@@ -1,6 +1,3 @@
-gbox
-====
-
 .. toctree::
    :maxdepth: 4
 
