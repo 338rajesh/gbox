@@ -27,9 +27,11 @@ from .gbox import (
 )
 from .gbox import (
     Point,
-    Points
+    Points,
+    StraightLine,
+    EllipticalArc,
+    CircularArc,
 )
 from .gbox import ShapePlotter
 from .gbox import ShapesList, ClosedShapesList
-from .gbox import StraightLine, EllipticalArc, CircularArc
 from .utils import PLOT_OPTIONS

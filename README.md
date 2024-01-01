@@ -1,4 +1,6 @@
-# gbox :: Geometry Box
+# gbox &#11207;&#11200;&#11208; Geometry Box
+
+[//]: # (&#9634;)
 
 [![Documentation Status](https://readthedocs.org/projects/gbox/badge/?version=latest)](https://gbox.readthedocs.io/en/latest/?badge=latest)
 

@@ -254,14 +254,14 @@ class Inclusions:
 
 
 def parse_unit_cell_file_data(data_fp: str | list[str]) -> UnitCell2D | dict[str, UnitCell2D]:
-    """ This function extracts the unit cell information from various types of inputs and prepares a dictionary with
-    the key values being the unit cell identifiers (or tags) and their values in turn hold dictionary of inclusion
-    and unit-cell bounds information.
+    """ This function extracts the unit-cell information from various types of inputs. The extracted information is
+    returned as a single UnitCell2D instance (if input contains single unit-cell) or a python dictionary of multiple
+    UnitCell2D instances (if input contains multiple unit-cells).
 
     :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
      list of file paths which contain single unit cell information.
     :return: A single UnitCell2D instance or a dictionary containing multiple UnitCell2D instances with its
-     identifiers as key.
+     identifier as key.
     :rtype: dict[str, UnitCell2D] | UnitCell2D
 
     """

@@ -1,5 +1,5 @@
 Usage
-=====
+======
 
 .. _installation:
 
@@ -11,6 +11,14 @@ To use the gbox, first install it using pip:
 .. code-block:: console
 
    pip install gbox
+
+
+.. toctree::
+   :caption: API reference
+   :maxdepth: 2
+
+   elements
+
 
 Creating Closed Shapes
 ----------------------

@@ -1,3 +1,5 @@
+.. currentmodule:: gbox.apps
+
 Applications
 ============
 
@@ -7,13 +9,16 @@ Applications
 
 
 Unit Cell
-----------
+**********
 
-.. autoclass:: gbox.apps.UnitCell2D
-   :members:
+.. autosummary::
+   :toctree: functions
 
-.. autoclass:: gbox.apps.UnitCells2D
-   :members:
+   unit_cell.parse_unit_cell_file_data
 
-.. py:function:: gbox.apps.parse_unit_cell_file_data
-   :members:
+.. autosummary::
+   :toctree: stubs
+   :template: class.rst
+
+   UnitCell2D
+   UnitCells2D
