@@ -113,12 +113,12 @@ class UnitCell2D(UnitCell):
         ax = Axes(fig, rect=[0., 0., 1., 1.])
         fig.add_axes(ax)
         self.matrix.plot(
-            axis=ax,
+            axs=ax,
             face_color=matrix_color,
             edge_color=matrix_edge_color,
         )
         self.inclusions.shapes.plot(
-            axis=ax,
+            axs=ax,
             face_color=inclusion_color,
             edge_color=inclusion_edge_color,
             linewidth=inclusion_edge_thickness,
