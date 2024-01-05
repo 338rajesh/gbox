@@ -32,6 +32,7 @@ from .gbox import (
     EllipticalArc,
     CircularArc,
 )
+from .gbox import VoronoiCells
 from .gbox import ShapePlotter
 from .gbox import ShapesList, ClosedShapesList
 from .utils import PLOT_OPTIONS

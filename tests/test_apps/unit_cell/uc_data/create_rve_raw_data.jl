@@ -14,11 +14,11 @@ const r_std = 0.0
 const VERBOSE = 0
 const working_dir = @__DIR__
 const num_samples = 20
-const fvf_c = 0.3 * ones(Float64, num_samples)  # fibre volume fractions of circles
-const fvf_e = 0.2 * ones(Float64, num_samples)  # fibre volume fractions of ellipse
+const fvf_c = 0.5 * ones(Float64, num_samples)  # fibre volume fractions of circles
+const fvf_e = 0.0 * ones(Float64, num_samples)  # fibre volume fractions of ellipse
 
 
-TARGET_RAW_DATA_FILE = joinpath(working_dir, "rve_raw_data.h5")
+TARGET_RAW_DATA_FILE = joinpath(working_dir, "rve_raw_data_circular_non_periodic.h5")
 
 # -------------
 bbox_ruc = ((-0.5, -0.5, 0.5, 0.5) .* (rve_size * r_mean))
@@ -27,7 +27,7 @@ rve_info = RUC_data(
 	bbox=BBox2D(bbox_ruc...,),
 	ssd_ratio=SSDratio,
 	inclusion_distr=RANDOM,
-	periodicity=true,
+	periodicity=false,
 )
 for (i, a_fvf) in enumerate(fvf_c)
 	fvf_total = fvf_c[i] + fvf_e[i]
@@ -71,6 +71,7 @@ for (i, a_fvf) in enumerate(fvf_c)
 		rvesg = h5file_id[arves_path]
 		attributes(rvesg)["eqrad"] = r_mean
 		attributes(rvesg)["ivf"] = fvf_total
+		attributes(rvesg)["periodic"] = rve_info.periodicity
 		attributes(rvesg)["xlb"] = ruc["bbox"][1]
 		attributes(rvesg)["ylb"] = ruc["bbox"][2]
 		attributes(rvesg)["xub"] = ruc["bbox"][3]

@@ -90,11 +90,10 @@ class Point:
 
 class VoronoiCells(Voronoi):
     def __init__(self, points: ndarray, tile_order=0, clip=False, bounds=None, **kwargs):
-        super(VoronoiCells, self).__init__(
-            # tiling points if required, otherwise points are passed as they are
-            Points(points).make_periodic_tiles(tile_order).points if tile_order > 0 else points,
-            **kwargs
-        )
+        # tiling points if required, otherwise points are passed as they are
+        if tile_order > 0:
+            points = Points(points).make_periodic_tiles(tile_order).points
+        super(VoronoiCells, self).__init__(points, **kwargs)
         self.tile_order = tile_order
         self.clip = clip
         self.bounds = bounds
@@ -179,6 +178,9 @@ class VoronoiCells(Voronoi):
             ridge_plt_opt = {'face_color': 'None', 'edge_color': 'b', 'linewidth': 1.0}
         if pnt_plt_opt is None:
             pnt_plt_opt = {'c': 'b', 'marker': '*', 's': 5.0}
+        if bounds_plt_opt is None:
+            bounds_plt_opt = {'face_color': 'None', 'edge_color': 'k', 'linestyle': 'solid', 'linewidth': 0.75}
+
         if axs is None:
             fig, axs = subplots()
         #
@@ -190,8 +192,9 @@ class VoronoiCells(Voronoi):
             Polygon(cell_vertices_coordinates).plot(axs, **ridge_plt_opt)
             axs.scatter(xc, yc, **pnt_plt_opt)
 
-        if self.bounds is not None:
+        if bounds_plt_opt is not None:
             BoundingBox2D(*self.bounds).plot(axs, **bounds_plt_opt)
+
         # Output
         if file_path is not None:
             savefig(file_path)
