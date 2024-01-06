@@ -11,8 +11,8 @@ if __name__ == '__main__':
 
     unit_cells.plot(
         images_dir, p_bar=True,
-        matrix_color="white",
-        matrix_edge_color="k",
-        inclusion_color="None",
-        inclusion_edge_color="b",
+        matrix_color="k",
+        matrix_edge_color="None",
+        inclusion_color="y",
+        inclusion_edge_color="None",
     )

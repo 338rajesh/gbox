@@ -9,9 +9,18 @@ from numpy import load as np_load
 from numpy import save as np_save
 from tqdm import tqdm
 
-from ..gbox import BoundingBox2D, Circles, RegularPolygons, Ellipses, Rectangles, CShapes, NLobeShapes
-from ..gbox import ClosedShapesList
-from ..gbox import VoronoiCells
+from .. import (
+    BoundingBox2D,
+    Circles,
+    RegularPolygons,
+    Ellipses,
+    Rectangles,
+    CShapes,
+    NLobeShapes,
+    ClosedShapesList,
+    #
+    VoronoiCells,
+)
 from ..utils import get_fig_array
 
 """
@@ -330,7 +339,7 @@ class UnitCell2D(UnitCell):
         :param axs:
         :param show_fig:
         :param file_path:
-        :param kwargs:
+        :param kwargs:  All the kwargs taken by the ``gbox.misc.VoronoiCells().plot()``
         :return:
         """
         if self.voronoi is None:
@@ -451,7 +460,7 @@ class UnitCellsDataFile:
         file_name_with_extn = path.basename(self.fp)
         self.f_name = ".".join(file_name_with_extn.split(".")[:-1])
         self.f_extension = file_name_with_extn.split(".")[-1]
-        assert self.f_extension in self.valid_file_extensions , f"Invalid file extension {self.f_extension}."
+        assert self.f_extension in self.valid_file_extensions, f"Invalid file extension {self.f_extension}."
         self.periodic = periodic
 
     def parse_npz(self):

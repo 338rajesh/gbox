@@ -1,20 +1,18 @@
-"""
-Geometry Box
-============
-
-
-
-"""
-from .gbox import (
-    Circles,
-    Capsules,
-    RegularPolygons,
-    Ellipses,
-    Rectangles,
-    CShapes,
-    NLobeShapes
+from .elements import (
+    Point,
+    Points,
+    BoundingBox2D,
 )
-from .gbox import (
+from .misc import VoronoiCells
+from .shapes import (
+    #
+    StraightLine,
+    EllipticalArc,
+    CircularArc,
+    #
+    ClosedShape2D,
+    ClosedShapesList,
+    #
     Ellipse,
     Circle,
     Polygon,
@@ -23,16 +21,16 @@ from .gbox import (
     Capsule,
     CShape,
     NLobeShape,
-    BoundingBox2D
+    #
+    Circles,
+    Capsules,
+    RegularPolygons,
+    Ellipses,
+    Rectangles,
+    CShapes,
+    NLobeShapes,
 )
-from .gbox import (
-    Point,
-    Points,
-    StraightLine,
-    EllipticalArc,
-    CircularArc,
+from .utils import (
+    rotational_matrix,
+    PLOT_OPTIONS,
 )
-from .gbox import VoronoiCells
-from .gbox import ShapePlotter
-from .gbox import ShapesList, ClosedShapesList
-from .utils import PLOT_OPTIONS

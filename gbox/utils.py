@@ -3,7 +3,7 @@ from math import inf
 from multiprocessing import cpu_count
 
 from matplotlib.pyplot import savefig
-from numpy import reshape, frombuffer, uint8, sin, cos
+from numpy import reshape, frombuffer, uint8, sin, cos, array
 
 
 def rotational_matrix(angle: float):
@@ -19,7 +19,38 @@ def rotational_matrix(angle: float):
     return [[+cos(angle), sin(angle)], [-sin(angle), cos(angle)], ]
 
 
+def rotate(x: float, y: float, angle: float, xc: float = 0.0, yc: float = 0.0, ):
+    """
+    Rotate the points `x` and `y` by specified angle about the point (xc, yc).
+
+    >>> from math import pi
+    >>> rotate(1.0, 1.0, 0.25 * pi, 0.0, 0.0)
+    (0.0, 1.41421356237)
+
+    :rtype: tuple[float, float]
+    """
+    return tuple((array([[x - xc, y - yc]]) @ rotational_matrix(angle)).ravel())
+
+
 def get_pairs(a: list, loop=False) -> list:
+    """
+    Returns a list of 2-tuples wherein each tuple is a pair of adjacent elements in the list ``a``.
+
+    :param a: A list of elements
+    :param loop: If True, returned list also contains a pair of last and first element of the list ``a``.
+    :return: A list of paired elements
+
+    Example:
+    .........
+
+    .. code-block:: python
+
+        >>> get_pairs([0, 1, 2, 3])
+        [(0, 1), (1, 2), (2, 3)]
+        >>> get_pairs([0, 1, 2, 3], loop=True)
+        [(0, 1), (1, 2), (2, 3), (3, 0)]
+
+    """
     if loop:
         a.append(a[0])
     return [i for i in zip(a[:-1], a[1:])]
@@ -37,6 +68,10 @@ def validated_num_cores(n):
         n = cpu_count()
     return n
 
+
+# ==================================
+#           Assertions
+# ==================================
 
 def assert_positivity(k, tag: str = None, val_type=float, absolute=True):
     assert isinstance(k, val_type), f"Invalid type of {tag}"
