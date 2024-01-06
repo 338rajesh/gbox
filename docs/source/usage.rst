@@ -1,5 +1,5 @@
-Usage
-======
+User Guide
+===========
 
 .. _installation:
 
@@ -11,13 +11,6 @@ To use the gbox, first install it using pip:
 .. code-block:: console
 
    pip install gbox
-
-
-.. toctree::
-   :caption: API reference
-   :maxdepth: 2
-
-   elements
 
 
 Creating Closed Shapes
@@ -44,4 +37,6 @@ Creating Closed Shapes
 
 It produces the following figure
 
-.. image:: ../media/shapes.png
+.. image:: _static/shapes.png
+
+

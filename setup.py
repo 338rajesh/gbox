@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-with open('README.md') as readme_file:
-    readme = readme_file.read()
+# with open('README.rst') as readme_file:
+#     readme = readme_file.read()
 
 setup(
     name='gbox',
@@ -9,7 +9,6 @@ setup(
     author='Rajesh Nakka',
     author_email='33rajesh@gmail.com',
     description='Geometry Box: A simple package for working with basic geometry shapes',
-    long_description=readme,
     long_description_content_type='text/markdown',
     packages=find_packages(),
     classifiers=[

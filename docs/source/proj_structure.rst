@@ -1,3 +1,5 @@
+Project Structure
+------------------
 
 - gbox
     - apps/
