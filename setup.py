@@ -1,5 +1,8 @@
 from setuptools import setup, find_packages
 
+with open("requirements.txt", "r") as fp:
+    pkg_requirements = [i.strip() for i in fp.readlines() if len(i.strip()) != 0]
+
 
 setup(
     name='gbox',
@@ -15,13 +18,5 @@ setup(
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.10.*',
-    instal_requires=[
-        "numpy~=1.24.3",
-        "matplotlib~=3.7.1",
-        "setuptools~=65.5.0",
-        "Pillow~=10.1.0",
-        "h5py~=3.10.0",
-        "scipy~=1.11.4",
-        "tqdm~=4.66.1",
-    ],
+    instal_requires=pkg_requirements,
 )
