@@ -1,7 +1,5 @@
 from setuptools import setup, find_packages
 
-# with open('README.rst') as readme_file:
-#     readme = readme_file.read()
 
 setup(
     name='gbox',
@@ -16,7 +14,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.9',
+    python_requires='>=3.10',
     instal_requires=[
         "numpy~=1.24.3",
         "matplotlib~=3.7.1",
