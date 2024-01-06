@@ -1,3 +1,5 @@
+.. _contents:
+
 *****
 gbox
 *****
@@ -14,7 +16,6 @@ gbox
 
    quick_intro
    usage
-   apps
    api
 
 .. include:: _common_bits/goals.rst
