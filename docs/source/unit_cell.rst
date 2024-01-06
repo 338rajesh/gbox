@@ -5,10 +5,3 @@ Though unit cell can be considered as any domain in arbitrary dimensions, in thi
 three dimensions.
 
 
-.. toctree::
-   :maxdepth: 3
-
-.. automodule:: gbox.apps.unit_cell
-   :members:
-   :undoc-members:
-   :show-inheritance:
