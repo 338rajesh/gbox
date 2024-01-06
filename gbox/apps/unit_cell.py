@@ -68,87 +68,87 @@ are of same shape then, simply provide that single shape information.
 
 """
 
-
-def parse_2d_unit_cell_file_data(
-        data_fp: str | list[str], periodic=False
-) -> dict[str, dict[str, tuple[list, dict[str, ndarray], bool]]]:
-    """ This function extracts the unit-cell information from various types of input files. The extracted information
-    is returned as a python dictionary with each key being the file name and the value being the extracted  information
-    of the unit cell(s). Here, the structure of the output is as follows,
-
-    - output is a dictionary with {file_name: uc_data} key, value pairs; wherein
-    - uc_data is a dictionary with {a_unit_cell_id: a_unit_cell_data} key, value pairs; wherein
-    - a_unit_cell_data is a 3-tuple with (bounds, a_uc_incl_data, periodicity); wherein
-    - bounds is a list of bounds
-    - a_uc_incl_data is a dictionary with {inclusion_shape: inclusion_data} key, value pairs
-
-    :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
-     list of file paths which contain single unit cell information.
-    :param periodic: Specify the default periodicity option, if raw data contains `periodic` key in `npz` or
-     `periodic` attribute in `.h5` file, it will preside over this setting.
-    :return: A dictionary with the key, value pairs as explained above.
-
-    """
-
-    def _npz_parser(_fp) -> dict[str, tuple[list, dict[str, ndarray], bool]]:
-        """
-            A *.npz expected to contain SINGLE UNIT CELL information
-        """
-        npz_data = dict(np_load(_fp))
-        _periodic = npz_data.pop('periodic') if 'periodic' in npz_data.keys() else periodic
-        assert 'bounds' in npz_data.keys(), (
-            f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
-        )
-        _bounds = list(npz_data.pop('bounds'))
-        return {'unit-cell': (_bounds, npz_data, _periodic)}
-
-    def _h5_parser(_fp) -> dict[str, tuple[list, dict[str, ndarray], bool]]:
-        """
-            It returns multiple unit cells information as a dictionary
-        """
-        _uc_info = {}
-        h5_fp = File(_fp, mode='r')
-        for (k, v) in h5_fp.items():
-            _uc_info[k] = (
-                [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
-                {ak: transpose(av) for (ak, av) in v.items()},
-                v.attrs['periodic'] if 'periodic' in v.attrs.keys() else periodic,
-            )
-        h5_fp.close()
-        return _uc_info
-
-    def _json_parser(_fp):
-        raise NotImplementedError("!! At present JSON file data is not supported !!")
-
-    def _dat_parser(_fp):
-        raise NotImplementedError("!! At present DAT file data is not supported !!")
-
-    def _a_single_file_parser(a_fp) -> dict[str, tuple[list, dict[str, ndarray], list]]:
-        f_extn = a_fp.split(".")[-1]
-        if f_extn == "h5":
-            return _h5_parser(a_fp)
-        elif f_extn == "npz":
-            return _npz_parser(a_fp)
-        elif f_extn == "json":
-            return _json_parser(a_fp)
-        elif f_extn in ("dat", "txt"):
-            return _dat_parser(a_fp)
-        else:
-            raise ValueError(f"Invalid file extension: {f_extn}")
-
-    uc_info = {}
-    if isinstance(data_fp, str):  # a single file path that contains data of all unit-cells
-        f_name, _ = path.basename(data_fp).split(".")
-        # Possible types: *.h5, *.json, *.npz, *.dat, *.txt
-        uc_info[f_name] = _a_single_file_parser(data_fp)
-    elif all(isinstance(i, str) for i in data_fp):
-        for a_data_fp in data_fp:
-            f_name, _ = path.basename(a_data_fp).split(".")
-            # Possible types: *.h5, *.json, *.npz, *.dat, *.txt
-            uc_info[f_name] = _a_single_file_parser(a_data_fp)
-    else:
-        raise TypeError(f"data must be either a single file path or list of file paths")
-    return uc_info
+#
+# def parse_2d_unit_cell_file_data(
+#         data_fp: str | list[str], periodic=False
+# ) -> dict[str, dict[str, tuple[list, dict[str, ndarray], bool]]]:
+#     """ This function extracts the unit-cell information from various types of input files. The extracted information
+#     is returned as a python dictionary with each key being the file name and the value being the extracted  information
+#     of the unit cell(s). Here, the structure of the output is as follows,
+#
+#     - output is a dictionary with {file_name: uc_data} key, value pairs; wherein
+#     - uc_data is a dictionary with {a_unit_cell_id: a_unit_cell_data} key, value pairs; wherein
+#     - a_unit_cell_data is a 3-tuple with (bounds, a_uc_incl_data, periodicity); wherein
+#     - bounds is a list of bounds
+#     - a_uc_incl_data is a dictionary with {inclusion_shape: inclusion_data} key, value pairs
+#
+#     :param data_fp: str | list[str], file path of the unit-cells data. This can be either a single .h5 file or a
+#      list of file paths which contain single unit cell information.
+#     :param periodic: Specify the default periodicity option, if raw data contains `periodic` key in `npz` or
+#      `periodic` attribute in `.h5` file, it will preside over this setting.
+#     :return: A dictionary with the key, value pairs as explained above.
+#
+#     """
+#
+#     def _npz_parser(_fp) -> dict[str, tuple[list, dict[str, ndarray], bool]]:
+#         """
+#             A *.npz expected to contain SINGLE UNIT CELL information
+#         """
+#         npz_data = dict(np_load(_fp))
+#         _periodic = npz_data.pop('periodic') if 'periodic' in npz_data.keys() else periodic
+#         assert 'bounds' in npz_data.keys(), (
+#             f"NPZ file must contain 'bounds' key with unit cell bounds as (x_min, y_min, x_max, y_max)."
+#         )
+#         _bounds = list(npz_data.pop('bounds'))
+#         return {'unit-cell': (_bounds, npz_data, _periodic)}
+#
+#     def _h5_parser(_fp) -> dict[str, tuple[list, dict[str, ndarray], bool]]:
+#         """
+#             It returns multiple unit cells information as a dictionary
+#         """
+#         _uc_info = {}
+#         h5_fp = File(_fp, mode='r')
+#         for (k, v) in h5_fp.items():
+#             _uc_info[k] = (
+#                 [v.attrs[i] for i in ('xlb', 'ylb', 'xub', 'yub')],
+#                 {ak: transpose(av) for (ak, av) in v.items()},
+#                 v.attrs['periodic'] if 'periodic' in v.attrs.keys() else periodic,
+#             )
+#         h5_fp.close()
+#         return _uc_info
+#
+#     def _json_parser(_fp):
+#         raise NotImplementedError("!! At present JSON file data is not supported !!")
+#
+#     def _dat_parser(_fp):
+#         raise NotImplementedError("!! At present DAT file data is not supported !!")
+#
+#     def _a_single_file_parser(a_fp) -> dict[str, tuple[list, dict[str, ndarray], list]]:
+#         f_extn = a_fp.split(".")[-1]
+#         if f_extn == "h5":
+#             return _h5_parser(a_fp)
+#         elif f_extn == "npz":
+#             return _npz_parser(a_fp)
+#         elif f_extn == "json":
+#             return _json_parser(a_fp)
+#         elif f_extn in ("dat", "txt"):
+#             return _dat_parser(a_fp)
+#         else:
+#             raise ValueError(f"Invalid file extension: {f_extn}")
+#
+#     uc_info = {}
+#     if isinstance(data_fp, str):  # a single file path that contains data of all unit-cells
+#         f_name, _ = path.basename(data_fp).split(".")
+#         # Possible types: *.h5, *.json, *.npz, *.dat, *.txt
+#         uc_info[f_name] = _a_single_file_parser(data_fp)
+#     elif all(isinstance(i, str) for i in data_fp):
+#         for a_data_fp in data_fp:
+#             f_name, _ = path.basename(a_data_fp).split(".")
+#             # Possible types: *.h5, *.json, *.npz, *.dat, *.txt
+#             uc_info[f_name] = _a_single_file_parser(a_data_fp)
+#     else:
+#         raise TypeError(f"data must be either a single file path or list of file paths")
+#     return uc_info
 
 
 class Inclusions:
@@ -336,6 +336,7 @@ class UnitCell2D(UnitCell):
     ):
         """
             Plots the voronoi diagram of the current unit cell
+
         :param axs:
         :param show_fig:
         :param file_path:
