@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+C Shape
+--------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: CShape
    :members:
 

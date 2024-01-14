@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+Ellipse
+--------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: Ellipse
    :members:
 

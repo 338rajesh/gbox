@@ -64,7 +64,7 @@ class Point:
         else:
             return (xlb < self.x < xub) and (ylb < self.y < yub)
 
-    def rotate(self, angle, xc=0.0, yc=0.0, ) -> tuple[float, float]:
+    def rotate(self, angle, xc=0.0, yc=0.0, ) -> tuple:
         return tuple((array([[self.x - xc, self.y - yc]]) @ rotational_matrix(angle)).ravel())
 
     def rotate_(self, angle, xc=0.0, yc=0.0, ):

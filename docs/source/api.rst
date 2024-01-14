@@ -2,8 +2,8 @@
 Reference
 **********
 
-gbox
-******
+gbox API
+*********
 
 .. toctree::
    :maxdepth: 1
@@ -17,30 +17,20 @@ gbox
    :maxdepth: 1
    :caption: Curves
 
-   reference/shapes.elliptical_arc
-   reference/shapes.circular_arc
    reference/shapes.straight_line
-
+   reference/shapes.circular_arc
+   reference/shapes.elliptical_arc
 
 .. toctree::
    :maxdepth: 1
    :caption: Closed Shapes
 
-
-
-Misc.
-======
-
-
-Applications
-*************
-
-
-
-Unit Cell
-===========
-
-
-
-.. include:: reference/proj_structure.rst
+   reference/shapes.ellipse
+   reference/shapes.circle
+   reference/shapes.polygon
+   reference/shapes.regular_polygon
+   reference/shapes.rectangle
+   reference/shapes.capsule
+   reference/shapes.c_shape
+   reference/shapes.n_lobe_shape
 

@@ -1,12 +1,9 @@
+:html_theme.sidebar_secondary.remove: true
+
 Elliptical Arc
-----------------
+--------------
 
-API
-^^^^
+.. currentmodule:: gbox
 
-.. autoclass:: gbox.shapes.EllipticalArc
-  :members:
-
-
-Examples
-^^^^^^^^^
+.. autoclass:: EllipticalArc
+   :members:

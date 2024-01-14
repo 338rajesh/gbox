@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+Polygon
+--------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: Polygon
    :members:
 

@@ -1,12 +1,9 @@
+:html_theme.sidebar_secondary.remove: true
+
 Circular Arc
 --------------
 
-API
-^^^^
+.. currentmodule:: gbox
 
-.. autoclass:: gbox.shapes.CircularArc
-  :members:
-
-
-Examples
-^^^^^^^^^
+.. autoclass:: CircularArc
+   :members:

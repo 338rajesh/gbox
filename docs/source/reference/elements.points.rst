@@ -1,12 +1,10 @@
+:html_theme.sidebar_secondary.remove: true
+
 Points
 -------
 
-API
-^^^^
+.. currentmodule:: gbox
 
-.. autoclass:: gbox.elements.Points
-  :members:
+.. autoclass:: Points
+   :members:
 
-
-Examples
-^^^^^^^^^

@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+Capsule
+--------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: Capsule
    :members:
 

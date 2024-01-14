@@ -3,7 +3,6 @@ from .elements import (
     Points,
     BoundingBox2D,
 )
-from .misc import VoronoiCells
 from .shapes import (
     #
     StraightLine,

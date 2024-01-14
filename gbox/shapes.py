@@ -23,7 +23,13 @@ from numpy import (
 )
 
 from .elements import Points
-from .utils import PLOT_OPTIONS, is_ordered, assert_range, assert_positivity, rotate
+from .utils import (
+    PLOT_OPTIONS,
+    is_ordered,
+    assert_range,
+    assert_positivity,
+    rotate
+)
 
 
 class Shape:
@@ -88,21 +94,21 @@ class StraightLine(Shape2D):
         Line segment, defined by its length, starting point and orientation with respect to the positive x-axs.
 
 
-        >>> line = StraightLine(5.0, (1.0, 1.0,), 0.25 * pi)
-        >>> line.length
+        >>>line = StraightLine(5.0, (1.0, 1.0,), 0.25 * pi)
+        >>>line.length
         ... 5.0
-        >>> line.slope
+        >>>line.slope
         ... 0.9999999999999999
-        >>> line.equation()
+        >>>line.equation()
         ... (0.9999999999999999, -1.0, 1.1102230246251565e-16)
-        >>> line.locus.points
-        ... array([[1., 1.],
-        ...      [1.03571246, 1.03571246],
-        ...      [1.07142493, 1.07142493],
-        ...      .
-        ...      .
-        ...      [4.49982144, 4.49982144],
-        ...      [4.53553391, 4.53553391]])
+        >>>line.locus.points
+        ...array([[1., 1.],
+        ...     [1.03571246, 1.03571246],
+        ...     [1.07142493, 1.07142493],
+        ...     .
+        ...     .
+        ...     [4.49982144, 4.49982144],
+        ...     [4.53553391, 4.53553391]])
 
     """
 

@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+Rectangle
+-----------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: Rectangle
    :members:
 

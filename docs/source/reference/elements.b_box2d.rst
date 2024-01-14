@@ -1,15 +1,9 @@
+:html_theme.sidebar_secondary.remove: true
 
 Bounding Box 2D
 ----------------
 
-It contains the API for the bounding box in 2D
+.. currentmodule:: gbox
 
-API
-^^^^
-
-.. autoclass:: gbox.elements.BoundingBox2D
-  :members:
-
-
-Examples
-^^^^^^^^^
+.. autoclass:: BoundingBox2D
+   :members:

@@ -1,12 +1,9 @@
+:html_theme.sidebar_secondary.remove: true
+
 Straight Line
 --------------
 
-API
-^^^^
+.. currentmodule:: gbox
 
-.. autoclass:: gbox.shapes.StraightLine
-  :members:
-
-
-Examples
-^^^^^^^^^
+.. autoclass:: StraightLine
+   :members:

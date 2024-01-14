@@ -1,5 +1,7 @@
 .. _contents:
 
+:html_theme.sidebar_secondary.remove: true
+
 *****
 gbox
 *****
@@ -10,12 +12,14 @@ gbox
 
    A sample collection of shapes plotted using this library
 
+
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
 
    quick_intro
-   usage
+   tutorial
    api
+   contributions_guide
 
-.. include:: _common_bits/goals.rst
+.. include:: bits/goals.rst

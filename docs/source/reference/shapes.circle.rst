@@ -1,10 +1,10 @@
 :html_theme.sidebar_secondary.remove: true
 
-Point
-------
+Circle
+-------
 
 .. currentmodule:: gbox
 
-.. autoclass:: Point
+.. autoclass:: Circle
    :members:
 

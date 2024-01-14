@@ -10,24 +10,7 @@ Installation
     pip install gbox
 
 
-.. code-block:: python
-
-   import gbox as gb
-   import matplotlib.pyplot as plt
-
-   circle = gb.Circle(radius=2.0, cent=(3.0, 6.0))
-   print(circle.area)  # prints circle area
-   print(circle.perimeter)  # prints circle perimeter
-   print(circle.shape_factor)  # returns shape factor: perimeter/equivalent circle perimeter.
-   print(circle.locus)  # prints 50 points along the locus of circle
-   # one can set the desired number of locus points as
-   circle.num_locus_points = 251
-   print(circle.locus)  # prints 251 points along the locus of the circle
-   circle.plot()  # plots a circle displays using `matplotlib.pyplot.show()`
-   circle.plot(f_path='/path/to/file')  # saves a plot at the specified path
-   _, axis = plt.subplots()[1]
-   circle.plot(axis=axis)  # plots circle on the axs object
-   gb.Rectangle().plot(axis=axis)  # adds rectangle to the same axs
+----
 
 A sample code for plotting various shapes, with default parameters, on the same figure
 
@@ -55,6 +38,7 @@ It produces the following figure.
 
 .. image:: _static/shapes.png
    :target: _static/shapes.png
+   :align: center
    :alt: Shape
 
 
@@ -124,6 +108,30 @@ For all the shapes the following four common properties are defined
 * ``shape_factor``\ : A non-dimensional number used to quantify the non-circularity of the shape. It is defined as the
   ratio of the respective shape perimeter to the perimeter of the circle containing equivalent area.
 
+The following snippet shows the various parameters or operations one can do on a closed shape, using the Circle as an example.
+
+.. code-block:: python
+
+   import gbox as gb
+   import matplotlib.pyplot as plt
+
+   circle = gb.Circle(radius=2.0, cent=(3.0, 6.0))
+   print(circle.area)  # prints circle area
+   print(circle.perimeter)  # prints circle perimeter
+   print(circle.shape_factor)  # returns shape factor: perimeter/equivalent circle perimeter.
+   print(circle.locus)  # prints 50 points along the locus of circle
+   # one can set the desired number of locus points as
+   circle.num_locus_points = 251
+   print(circle.locus)  # prints 251 points along the locus of the circle
+   circle.plot()  # plots a circle displays using `matplotlib.pyplot.show()`
+   circle.plot(f_path='/path/to/file')  # saves a plot at the specified path
+   _, axis = plt.subplots()[1]
+   circle.plot(axis=axis)  # plots circle on the axs object
+   gb.Rectangle().plot(axis=axis)  # adds rectangle to the same axs
+
+-------
+
+
 Shapes List
 ^^^^^^^^^^^
 
@@ -150,8 +158,3 @@ For example,
    print(circles.areas)  # evaluates all circles areas
    print(circles.perimeters)  # evaluates all circles perimeters
    print(circles.shape_factors)  # evaluates all circles shape_factors
-
-
-
-.. include:: _common_bits/goals.rst
-
