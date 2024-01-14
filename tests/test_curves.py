@@ -1,6 +1,8 @@
-from numpy import pi
-import gbox as gb
 import unittest
+
+from numpy import pi
+
+import gbox as gb
 
 
 class TestEllipticalArc(unittest.TestCase):

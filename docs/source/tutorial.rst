@@ -1,16 +1,6 @@
-Usage
-=====
-
-.. _installation:
-
-Installation
-------------
-
-To use the gbox, first install it using pip:
-
-.. code-block:: console
-
-   pip install gbox
+==========
+Tutorial
+==========
 
 Creating Closed Shapes
 ----------------------
@@ -36,4 +26,4 @@ Creating Closed Shapes
 
 It produces the following figure
 
-.. image:: ../media/shapes.png
+.. image:: _static/shapes.png

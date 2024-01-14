@@ -51,6 +51,6 @@ shapes = gb.ShapesList()
 shapes.extend(gb.Circles(circle_data))
 shapes.extend(gb.Capsules(capsule_data))
 shapes.extend(gb.RegularPolygons(nrp_data))
-shapes.plot(axis=axs, linewidth=1.0)
+shapes.plot(axs=axs, linewidth=1.0)
 #
 savefig(path.join(PLOT_DIR, "shapes.png"))

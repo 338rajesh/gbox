@@ -1,6 +1,6 @@
-import numpy as np
-import gbox as gb
 import unittest
+import gbox as gb
+import numpy as np
 
 
 class TestEllipse(unittest.TestCase):

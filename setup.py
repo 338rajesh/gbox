@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
 
-with open('README.md') as readme_file:
-    readme = readme_file.read()
+with open("requirements.txt", "r") as fp:
+    pkg_requirements = [i.strip() for i in fp.readlines() if len(i.strip()) != 0]
+
 
 setup(
     name='gbox',
@@ -9,7 +10,6 @@ setup(
     author='Rajesh Nakka',
     author_email='33rajesh@gmail.com',
     description='Geometry Box: A simple package for working with basic geometry shapes',
-    long_description=readme,
     long_description_content_type='text/markdown',
     packages=find_packages(),
     classifiers=[
@@ -17,10 +17,6 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.9',
-    instal_requires=[
-        "numpy~=1.24.3",
-        "matplotlib~=3.7.1",
-        "setuptools~=65.5.0",
-    ],
+    python_requires='>=3.10.*',
+    instal_requires=pkg_requirements,
 )

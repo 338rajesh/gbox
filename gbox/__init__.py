@@ -1,33 +1,35 @@
-"""
-Geometry Box
-============
-
-
-
-"""
-
-from .closed_shapes import (
-    Circle,
+from .elements import (
+    Point,
+    Points,
+    BoundingBox2D,
+)
+from .shapes import (
+    #
+    StraightLine,
+    EllipticalArc,
+    CircularArc,
+    #
+    ClosedShape2D,
+    ClosedShapesList,
+    #
     Ellipse,
+    Circle,
+    Polygon,
+    RegularPolygon,
     Rectangle,
     Capsule,
-    RegularPolygon,
     CShape,
     NLobeShape,
-    BoundingBox2D,
     #
     Circles,
-    Ellipses,
-    Rectangles,
     Capsules,
     RegularPolygons,
+    Ellipses,
+    Rectangles,
     CShapes,
     NLobeShapes,
 )
-from .curves import StraightLine, EllipticalArc, CircularArc
-from .gbox import ShapesList, ClosedShapesList, ClosedShape2D, Curve2D, ShapePlotter
-from .points import (
-    Point,
-    Points,
+from .utils import (
+    rotational_matrix,
+    PLOT_OPTIONS,
 )
-from .utils import PLOT_OPTIONS
