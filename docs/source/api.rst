@@ -2,9 +2,6 @@
 Reference
 **********
 
-gbox API
-*********
-
 .. toctree::
    :maxdepth: 1
    :caption: Basic Elements
