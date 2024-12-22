@@ -9,5 +9,4 @@ gbox :: Geometry Box
 A simple Python package for working with geometry related operations.
 For the extensive documentation see `gbox.readthedocs.io <https://gbox.readthedocs.io>`_
 
-
 .. include:: docs/source/quick_intro.rst
