@@ -91,7 +91,6 @@ class Assert:
             "ge": lambda x, y: x >= y,
             "eq": lambda x, y: x == y,
         }.get(key)
-
         if not all(op(i, j) for i, j in zip(a, b)):
             raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
 

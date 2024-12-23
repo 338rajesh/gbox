@@ -11,3 +11,4 @@ gbox_env
 *.egg-info
 .pytest_cache
 tests/__output
+.coverage
