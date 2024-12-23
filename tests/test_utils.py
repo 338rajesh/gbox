@@ -21,7 +21,9 @@ class TestTypeAssertions:
         assert isinstance((1.0, 2.0), utils.SEQUENCE)
         with pytest.raises(AssertionError):
             assert isinstance(1.0, utils.SEQUENCE)
+        with pytest.raises(AssertionError):
             assert isinstance({1.0, 2.0}, utils.SEQUENCE)
+        with pytest.raises(AssertionError):
             assert isinstance({1.0: 2.0}, utils.SEQUENCE)
 
 
@@ -31,27 +33,27 @@ class TestAssertion:
         utils.Assert([2, 3], [2, 3]).equal()
         with pytest.raises(AssertionError):
             utils.Assert(1, 2).equal()
-    
+
     def test_equal_lenths(self):
         utils.Assert([1, 2], [1, 2]).have_equal_lenths()
         with pytest.raises(AssertionError):
             utils.Assert([1, 2], [1, 2, 3]).have_equal_lenths()
-    
+
     def test_lt(self):
         utils.Assert([1, 2]).lt([2, 3])
         with pytest.raises(AssertionError):
             utils.Assert([2, 3]).lt([1, 2])
-    
+
     def test_le(self):
         utils.Assert([1, 2]).le([1, 2])
         with pytest.raises(AssertionError):
             utils.Assert([2, 3]).le([2, 1])
-    
+
     def test_ge(self):
         utils.Assert([1, 2]).ge([1, 2])
         with pytest.raises(AssertionError):
             utils.Assert([2, 1]).ge([2, 13])
-    
+
     def test_gt(self):
         utils.Assert([1, 2]).gt([0, 0])
         with pytest.raises(AssertionError):
@@ -60,8 +62,15 @@ class TestAssertion:
     def test_eq(self):
         utils.Assert([1, 2.0]).eq([1, 2.0])
         with pytest.raises(AssertionError):
-            utils.Assert([2, 1]).eq([2, 1.0])
             utils.Assert([2, 1]).eq([2, 13])
+
+    def test_between(self):
+        utils.Assert(np.pi * 0.5).between(0.0, np.pi, "Failed Between Test")
+        utils.Assert(1, 2.0, 3.0, 5.0, 10.0).between(-1.0, 11.0)
+        with pytest.raises(AssertionError):
+            utils.Assert(0.5).between(4.0, 0.0)  # order of min and max
+        with pytest.raises(AssertionError):
+            utils.Assert(1, 2.0, 3.0, 5.0, 10.0).between(4.0, 11.0)
 
     def test_of_type(self):
         utils.Assert(1, 2).of_type(int)
@@ -71,18 +80,19 @@ class TestAssertion:
         with pytest.raises(AssertionError):
             utils.Assert((1, 2), (3, 4)).of_type(list)
 
-
     def test_seq_of(self):
         utils.Assert([1, 2]).are_seq(utils.REAL_NUMBER)
         utils.Assert((1.0, 2.0)).are_seq(utils.REAL_NUMBER)
         with pytest.raises(AssertionError):
             utils.Assert([1, 2]).are_seq(float)
+        with pytest.raises(AssertionError):
             utils.Assert((1.0, 2.0)).are_seq(int)
 
     def test_seq_of_seq(self):
         utils.Assert([[1, 2], [3, 4]]).are_seq_of_seq(int)
         with pytest.raises(AssertionError):
             utils.Assert([[1, 2], [3, 4]]).are_seq_of_seq(float)
+
 
 # ------------------------------------------------
 

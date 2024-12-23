@@ -49,13 +49,13 @@ class TestBoundingBox:
             assert bounding_box(i).dim == i
 
     def test_vertices_2(self, bounding_box_two_dim):
-        vertices = bounding_box_two_dim.vertices
+        vertices = bounding_box_two_dim.vertices.coordinates
         assert np.array_equal(
             vertices, np.array([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)])
         )
 
     def test_vertices_3(self, bounding_box_three_dim):
-        vertices = bounding_box_three_dim.vertices
+        vertices = bounding_box_three_dim.vertices.coordinates
         expected_vertices = np.array(
             [
                 (-1.0, -1.0, -1.0),

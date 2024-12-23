@@ -2,9 +2,12 @@ tests/test_apps/unit_cell/_plots
 tests/_plots
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+__pycache__
 
 gbox_env
 .idea
 .vscode
 .venv
+*.egg-info
+.pytest_cache
+tests/__output

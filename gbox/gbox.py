@@ -29,76 +29,9 @@ from .utilities import Assert, rotation_matrix_2d
 
 PointType = Union[list, tuple]
 
-# # ===================================
-# #       PLOTTING UTILITIES
-# # ===================================
-# def get_fig_array(_fig):
-#     io_buffer = BytesIO()
-#     savefig(io_buffer, format="raw")
-#     io_buffer.seek(0)
-#     _image_array = reshape(
-#         frombuffer(io_buffer.getvalue(), dtype=uint8),
-#         newshape=(int(_fig.bbox.bounds[3]), int(_fig.bbox.bounds[2]), -1)
-#     )
-#     io_buffer.close()
-#     return _image_array
-
-
-# class PlotOptions:
-#     def __init__(self):
-#         self._face_color = 'g'
-#         self._edge_color = 'k'
-#         self._hide_axis = True
-#         self._show_grid = False
-#         self._linewidth = 2.0
-
-#     @property
-#     def face_color(self):
-#         return self._face_color
-
-#     @face_color.setter
-#     def face_color(self, val):
-#         self._face_color = val
-
-#     @property
-#     def edge_color(self):
-#         return self._edge_color
-
-#     @edge_color.setter
-#     def edge_color(self, val):
-#         self._edge_color = val
-
-#     @property
-#     def hide_axes(self):
-#         return self._hide_axis
-
-#     @hide_axes.setter
-#     def hide_axes(self, val):
-#         self._hide_axis = val
-
-#     @property
-#     def show_grid(self):
-#         return self._show_grid
-
-#     @show_grid.setter
-#     def show_grid(self, val):
-#         self._show_grid = val
-
-#     @property
-#     def linewidth(self):
-#         return self._linewidth
-
-#     @linewidth.setter
-#     def linewidth(self, val):
-#         self._linewidth = val
-
-
-# PLOT_OPTIONS = PlotOptions()
-
 # =======================================================
 #          BOUNDING BOX
 # =======================================================
-
 
 # create a class Point, subclassing tuple
 @dataclass
@@ -126,19 +59,19 @@ class BoundingBox:
         )
 
     @property
-    def vertices(self) -> list:
-        return np.array(list(product(*zip(self.lower_bound, self.upper_bound))))
+    def vertices(self) -> "Points":
+        return Points(list(product(*zip(self.lower_bound, self.upper_bound))))
 
     def __repr__(self) -> str:
         return f"Bounding Box:  {self.lower_bound}, {self.upper_bound}"
 
     @property
     def x(self):
-        return self.vertices[:, 0]
+        return self.vertices.coordinates[:, 0]
 
     @property
     def y(self):
-        return self.vertices[:, 1]
+        return self.vertices.coordinates[:, 1]
 
     @property
     def volume(self):
@@ -152,9 +85,15 @@ class BoundingBox:
             [l <= p <= u for l, p, u in zip(self.lower_bound, point, self.upper_bound)]
         )
 
-    def plot(self, axs, **plt_opt):
+    def plot(self, axs, cycle=True, **plt_opt):
         Assert(self.dim, 2).equal("Bounding Box can only be plotted in 2D")
-        axs.plot(self.x, self.y, **plt_opt)
+        (xl, yl), (xu, yu) = self.lower_bound, self.upper_bound
+        x = np.array([xl, xu, xu, xl])
+        y = np.array([yl, yl, yu, yu])
+        if cycle:
+            x = np.append(x, x[0])
+            y = np.append(y, y[0])
+        axs.plot(x, y, **plt_opt)
 
 
 class Point(tuple):
@@ -263,7 +202,7 @@ class Point2D(Point):
 class Points:
     """Collection of **ordered** points"""
 
-    def __init__(self, points):
+    def __init__(self, points: list | tuple | np.ndarray):
 
         # Validate inputs and convert to numpy array
         if not isinstance(points, np.ndarray):
@@ -276,6 +215,12 @@ class Points:
 
         self.coordinates = points
         self.dim = self.coordinates.shape[1]
+        self._cycle = False
+
+    @classmethod
+    def from_dimension_data(cls, *data):
+        dat = np.array(data).T
+        return cls(dat)
 
     def __len__(self):
         return self.coordinates.shape[0]
@@ -301,6 +246,15 @@ class Points:
         """Reflects the current points about a line connecting p1 and p2"""
         return NotImplementedError("reflect is not implemented")
 
+    @property
+    def cycle(self):
+        return self._cycle
+
+    @cycle.setter
+    def cycle(self, value):
+        Assert(value).of_type(bool, "cycle must be of type bool")
+        self._cycle = value
+
 
 class Points2D(Points):
 
@@ -322,10 +276,11 @@ class Points2D(Points):
         dx=0.0,
         dy=0.0,
     ):
-        """Transforms the points cluster by rotation and translation"""
-        self.coordinates[:] = (self.coordinates @ rotation_matrix_2d(angle)) + np.array(
-            [dx, dy]
-        )
+        """In-place transformation of the points cluster by rotation and translation"""
+        if angle != 0.0 or dx != 0.0 or dy != 0.0:
+            self.coordinates[:] = (
+                self.coordinates @ rotation_matrix_2d(angle)
+            ) + np.array([dx, dy])
         return self
 
     def reverse(self):
@@ -341,19 +296,26 @@ class Points2D(Points):
         """Plots the points"""
 
         Assert(self.dim, 2).equal("Plotting is supported only for 2D points")
-        _plt_opt = {"color": "blue", "marke1r": "o", "linestyle": "None"}
+        _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
         _b_box_line_opt = {"color": "red", "linewidth": 2}
 
         # Plot points
         if points_plt_opt is not None:
             _plt_opt.update(points_plt_opt)
-        axs.scatter(self.x, self.y, **points_plt_opt)
+
+        axs.plot(
+            self.x if not self.cycle else np.append(self.x, self.x[0]),
+            self.y if not self.cycle else np.append(self.y, self.y[0]),
+            **_plt_opt,
+        )
 
         # Add bounding box, if required
         if b_box:
             if b_box_plt_opt is not None:
                 _b_box_line_opt.update(b_box_plt_opt)
-            self.bounding_box.plot(axs, **b_box_plt_opt)
+            self.bounding_box.plot(axs, **_b_box_line_opt)
+
+        axs.axis("equal")
 
 
 class Points3D(Points):
@@ -381,13 +343,25 @@ class Points3D(Points):
 class TopologicalCurve:
     """Base class for all topological curves"""
 
-    pass
+    def __init__(self):
+        self.points: Points = None
+
+    def plot(
+        self, axs, b_box=False, cycle=False, b_box_plt_opt=None, points_plt_opt=None
+    ):
+        self.points.cycle = cycle
+        self.points.plot(axs, b_box, b_box_plt_opt, points_plt_opt)
 
 
 class TopologicalShape:
     """Base class for all topological shapes"""
 
-    pass
+    def __init__(self):
+        pass
+
+    @property
+    def bounding_box(self):
+        return NotImplementedError("bounding_box is not implemented")
 
 
 class TopologicalShape2D(TopologicalShape):
@@ -396,185 +370,68 @@ class TopologicalShape2D(TopologicalShape):
     def __init__(self):
         super(TopologicalShape2D, self).__init__()
 
+    def curve_length(self):
+        return NotImplementedError("curve_length is not implemented")
+
 
 class StraightLine(TopologicalCurve):
+    """Base class for all straight lines"""
+
     def __init__(self):
         super(StraightLine, self).__init__()
 
 
 class EllipticalArc(TopologicalCurve):
-    pass
+    def __init__(
+        self,
+        smj: float,
+        smn: float,
+        theta_1: float = 0.0,
+        theta_2: float = np.pi / 2,
+        mjx_angle: float = 0.0,
+        centre=(0.0, 0.0),
+    ):
+        super(EllipticalArc, self).__init__()
+
+        # Assertions
+        Assert(smj).ge(smn, "Semi-major axis must be greater than semi-minor axis")
+        Assert(smn).ge(0, "Semi-minor axis must be greater than zero")
+        Assert(theta_1).lt(theta_2, "Theta 1 must be less than theta 2")
+        Assert(theta_1, theta_2).between(
+            -np.pi, np.pi, "Theta 1 and theta 2 must be between -pi and pi"
+        )
+
+        self.smj = smj
+        self.smn = smn
+        self.theta_1 = theta_1
+        self.theta_2 = theta_2
+        self.centre = Point2D(*centre)
+        self.mjx_angle = mjx_angle
+
+    def eval_boundary(self, num_points=100):
+        theta = np.linspace(self.theta_1, self.theta_2, num_points)
+        x = self.smj * np.cos(theta)
+        y = self.smn * np.sin(theta)
+        self.points = Points2D.from_dimension_data(x, y).transform(
+            self.mjx_angle, self.centre.x, self.centre.y
+        )
+        return self
+
+    @property
+    def aspect_ratio(self):
+        return self.smj / self.smn
+
+    @property
+    def eccentricity(self):
+        return np.sqrt(1 - (self.smn / self.smj) ** 2)
 
 
-class CircularArc(TopologicalCurve):
-    pass
-
-
-class Shape:
-    """Base class for all shapes"""
-
-    pass
-
-
-# class Shape2D(Shape):
-#     """ Base class for the two-dimensional shapes """
-
-#     def __init__(self):
-#         self._locus: Points = Points()
-#         self._num_locus_points: int = 100
-#         self._b_box: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
-
-#     @property
-#     def num_locus_points(self) -> int:
-#         """
-#             Number of points along the locus of the shape
-
-#         :rtype: Points
-
-#         """
-#         return self._num_locus_points
-
-#     @num_locus_points.setter
-#     def num_locus_points(self, val):
-#         self._num_locus_points = val
-
-#     @property
-#     def locus(self):
-#         """
-#             The locus of 2D shapes
-
-#          :rtype: Points
-
-#         """
-#         return self._locus
-
-#     @locus.setter
-#     def locus(self, value):
-#         if isinstance(value, ndarray):
-#             self._locus = Points(value)
-#         elif isinstance(value, Points):
-#             self._locus = value
-#         else:
-#             raise TypeError(f"locus must be either 'numpy.ndarray' or 'Points' type but not {type(value)}")
-
-#     @property
-#     def bounding_box(self):
-#         return self._b_box
-
-#     @bounding_box.setter
-#     def bounding_box(self, val):
-#         assert len(val) == 4, "Bounds must be supplied as a tuple / list of four real numbers"
-#         assert (val[2] > val[0] and val[3] > val[1]), "bounds must be in the order of x_min, y_min, x_max, y_max"
-#         self._b_box = val
-
-
-# class StraightLine(Shape2D):
-#     """
-#     Line segment, defined by its length, starting point and orientation with respect to the positive x-axs.
-
-
-#     >>>line = StraightLine(5.0, (1.0, 1.0,), 0.25 * pi)
-#     >>>line.length
-#     ... 5.0
-#     >>>line.slope
-#     ... 0.9999999999999999
-#     >>>line.equation()
-#     ... (0.9999999999999999, -1.0, 1.1102230246251565e-16)
-#     >>>line.locus.points
-#     ...array([[1., 1.],
-#     ...     [1.03571246, 1.03571246],
-#     ...     [1.07142493, 1.07142493],
-#     ...     .
-#     ...     .
-#     ...     [4.49982144, 4.49982144],
-#     ...     [4.53553391, 4.53553391]])
-
-#     """
-
-#     def __init__(
-#         self,
-#         length: float = 2.0,
-#         start_point: tuple[float, float] = (0.0, 0.0),
-#         angle: float = 0.0,
-#     ):
-#         super(StraightLine, self).__init__()
-#         self.length = length
-#         self.x0, self.y0 = start_point
-#         self.angle = angle
-
-#         self._slope = 0.0
-
-#     @property
-#     def slope(self):
-#         self._slope = tan(self.angle)
-#         return self._slope
-
-#     def equation(self):
-#         """Returns a, b, c of the line equation in the form of ax + by + c = 0"""
-#         return self.slope, -1.0, (self.y0 - (self.slope * self.x0))
-
-#     @property
-#     def locus(self):
-#         xi = linspace(0.0, self.length, self.num_locus_points)
-#         self._locus = Points(stack((xi, zeros_like(xi)), axis=1))
-#         self._locus.transform(self.angle, self.x0, self.y0)
-#         return self._locus
-
-
-# class EllipticalArc(Shape2D):
-#     """
-#     >>> ellipse_arc = EllipticalArc(2.0, 1.0, 0.0, pi * 0.5, (2.0, 5.0), 0.4 * pi )
-#     >>> ellipse_arc.locus.points
-#     >>> ellipse_arc.locus.points  # returns locus with 100 points by default
-#     ... array([[2.61803399, 6.90211303],
-#     ...        [2.60286677, 6.90677646],
-#     ...        [2.58754778, 6.91095987],
-#     ...        .
-#     ...        .
-#     ...        .
-#     ...        [1.0588689 , 5.33915695],
-#     ...        [1.04894348, 5.30901699]])
-#     >>> ellipse_arc.num_locus_points = 6
-#     >>> ellipse_arc.locus.points
-#     ... array([[2.61803399, 6.90211303],
-#     ...        [2.29389263, 6.9045085 ],
-#     ...        [1.94098301, 6.7204774 ],
-#     ...        [1.59385038, 6.36803399],
-#     ...        [1.28647451, 5.88167788],
-#     ...        [1.04894348, 5.30901699]])
-#     """
-
-#     def __init__(
-#         self,
-#         smj: float = 2.0,
-#         smn: float = 1.0,
-#         theta_1: float = 0.0,
-#         theta_2: float = pi / 2,
-#         centre=(0.0, 0.0),
-#         smj_angle: float = 0.0,
-#     ):
-#         super(EllipticalArc, self).__init__()
-#         self.smj = smj
-#         self.smn = smn
-#         self.theta_1 = theta_1
-#         self.theta_2 = theta_2
-#         self.xc, self.yc = self.centre = centre
-#         self.smj_angle = smj_angle
-#         # self.locus: Points = Points()
-
-#     @property
-#     def locus(self):
-#         theta = linspace(self.theta_1, self.theta_2, self.num_locus_points)
-#         self._locus = Points(
-#             stack((self.smj * cos(theta), self.smn * sin(theta)), axis=1)
-#         )
-#         self._locus.transform(self.smj_angle, self.xc, self.yc)
-#         return self._locus
-
-
-# class CircularArc(EllipticalArc):
-#     def __init__(self, r=1.0, theta_1=0.0, theta_2=2.0 * pi, centre=(0.0, 0.0)):
-#         super(CircularArc, self).__init__(r, r, theta_1, theta_2, centre, 0.0)
+class CircularArc(EllipticalArc):
+    def __init__(self, radius, theta_1, theta_2, centre=(0.0, 0.0)):
+        super(CircularArc, self).__init__(
+            radius, radius, theta_1, theta_2, centre=centre
+        )
+        self.radius = radius
 
 
 # # ======================================================================================================================

@@ -1,5 +1,9 @@
+from contextlib import contextmanager
+import pathlib
+
 from multiprocessing import cpu_count
 import numpy as np
+import matplotlib.pyplot as plt
 
 SEQUENCE = (list, tuple)
 REAL_NUMBER = (int, float)
@@ -18,17 +22,6 @@ def rotation_matrix_2d(angle: float, unit="rad") -> np.ndarray:
             [np.sin(angle), np.cos(angle)],
         ]
     )
-
-
-# def rotate(
-#     x: float,
-#     y: float,
-#     angle: float,
-#     xc: float = 0.0,
-#     yc: float = 0.0,
-# ):
-#     """Rotate the points `x` and `y` by specified angle about the point (xc, yc)."""
-#     return tuple((np.array([[x - xc, y - yc]]) @ rotation_matrix_2d(angle)).ravel())
 
 
 def validated_num_cores(n):
@@ -97,9 +90,9 @@ class Assert:
             "gt": lambda x, y: x > y,
             "ge": lambda x, y: x >= y,
             "eq": lambda x, y: x == y,
-        }
+        }.get(key)
 
-        if not all(op[key](i, j) for i, j in zip(a, b)):
+        if not all(op(i, j) for i, j in zip(a, b)):
             raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
 
     def lt(self, *b, err_msg=None):
@@ -116,3 +109,24 @@ class Assert:
 
     def eq(self, *b, err_msg=None):
         self._compare(*b, key="eq", err_msg=err_msg)
+
+    def between(self, min_, max_, err_msg=None):
+        Assert(min_, max_).of_type(REAL_NUMBER)
+        Assert(min_).le(max_)
+        for i in self.args:
+            if i <= min_ or i >= max_:
+                raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
+
+
+
+@contextmanager
+def plot_context(file_path=None, **kwargs):
+
+    fig, axs = plt.subplots(1, 1)
+
+    try:
+        yield fig, axs
+    finally:
+        fig.savefig(file_path, **kwargs)
+        assert file_path.is_file(), f"File {file_path} is not saved!"
+        plt.close(fig)

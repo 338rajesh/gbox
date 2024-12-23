@@ -121,6 +121,17 @@ class TestPoints:
     def test_points_bounding_box(self, points):
         assert points.bounding_box == gb.BoundingBox([1.0, 2.0], [7.0, 8.0])
 
+    def test_points_from_dimension_data(self, points):
+        new_points = gb.Points.from_dimension_data(
+            np.array([1.0, 3.0, 5.0, 7.0]), 
+            np.array([2.0, 4.0, 6.0, 8.0])
+        )
+        assert new_points == points
+        assert new_points.dim == 2
+        assert len(new_points) == 4
+
+    def test_points_cycle(self, points):
+        pass
 
 class TestPoints2D:
     def test_constructor(self, points_2d):
