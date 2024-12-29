@@ -95,7 +95,6 @@ class TestEllipse:
         assert len(ell.boundary) == n
         assert ell.boundary.dim == 2
         assert ell.boundary.coordinates.shape == (n, 2)
-        print(f">>**<< {ell.boundary.x[0]} \t {xc + a * np.cos(tht)}")
         assert ell.boundary.x[0] == pytest.approx(xc + a * np.cos(tht))
         assert ell.boundary.x[-1] == pytest.approx(xc + a * np.cos(tht))
         assert ell.boundary.y[0] == pytest.approx(yc + a * np.sin(tht))

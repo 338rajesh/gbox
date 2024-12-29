@@ -430,10 +430,10 @@ class Points2D(Points):
         dy: float = 0.0,
     ) -> "Points2D":
         """In-place transformation of the points cluster by rotation and translation"""
-        if angle != 0.0 or dx != 0.0 or dy != 0.0:
-            self.coordinates[:] = (
-                self.coordinates @ rotation_matrix_2d(angle)
-            ) + np.array([dx, dy])
+        x_ = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
+        y_ = (self.x * np.sin(angle) + self.y * np.cos(angle)) + dy
+        self.coordinates[:, 0] = x_
+        self.coordinates[:, 1] = y_
         return self
 
     def reverse(self) -> "Points2D":
@@ -853,39 +853,24 @@ class Ellipse(TopologicalClosedShape2D):
         ratio = self.smn / self.smj
         return np.sqrt(1 - (ratio * ratio))
 
-    def eval_boundary(self, num_points=100, theta_1=0.0, theta_2=TWO_PI, cycle=True, incl_theta_2=True):
+    def eval_boundary(
+        self, num_points=100, theta_1=0.0, theta_2=TWO_PI, cycle=True, incl_theta_2=True
+    ):
         # TODO finding the optimal number of points based on ellipse properties
 
         t = np.linspace(theta_1, theta_2, num_points, endpoint=incl_theta_2)
-        cos_t, sin_t = np.cos(t), np.sin(t)
-        cos_tht, sin_tht = np.cos(self.mjx_angle), np.sin(self.mjx_angle)
 
         xy = np.empty((t.shape[0], 2))
-
-        xy[:, 0] = self.smj * cos_t 
-        xy[:, 1] = self.smn * sin_t
+        xy[:, 0] = self.smj * np.cos(t)
+        xy[:, 1] = self.smn * np.sin(t)
 
         points = Points2D(xy)
-        print("AFTER TRANSFORMATION\n>>--")
-        print(xy[:5])
-        print("\n>>**")
-        print(points.coordinates[:5])
-        print("\n\n")
 
         points.transform(self.mjx_angle, self.centre.x, self.centre.y)
-        
-        # x_pr = xy[:, 0] * cos_tht - xy[:, 1] * sin_tht + self.centre.x
-        # y_pr = xy[:, 0] * sin_tht + xy[:, 1] * cos_tht + self.centre.y
 
         self.boundary = points
         self.boundary._cycle = cycle
         return self
-
-        # xy[:, 0] = self.smj * cos_t * cos_tht - self.smn * sin_t * sin_tht + self.centre.x
-        # xy[:, 1] = self.smj * cos_t * sin_tht + self.smn * sin_t * cos_tht + self.centre.y
-        # self.boundary = Points2D(xy)
-        # self.boundary._cycle = cycle
-        # return self
 
     def contains_point(self, p: PointType, tol=1e-8) -> Literal[-1, 0, 1]:
         # Rotating back to the standrd poistion where ell align with x-axis
