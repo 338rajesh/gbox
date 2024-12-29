@@ -1,5 +1,7 @@
 from contextlib import contextmanager
 import pathlib
+import shutil
+import operator as op
 
 from multiprocessing import cpu_count
 import numpy as np
@@ -7,6 +9,55 @@ import matplotlib.pyplot as plt
 
 SEQUENCE = (list, tuple)
 REAL_NUMBER = (int, float)
+
+operators = {
+    "add": op.add,
+    "sub": op.sub,
+    "mul": op.mul,
+    "div": op.truediv,
+    "floor_div": op.floordiv,
+    "eq": op.eq,
+    "lt": op.lt,
+    "le": op.le,
+    "gt": op.gt,
+    "ge": op.ge,
+    "ne": op.ne,
+    "and": op.and_,
+    "or": op.or_,
+    "not": op.not_,
+}
+
+
+def get_output_dir(dir_path) -> pathlib.Path:
+    dir_path = pathlib.Path(dir_path)
+    if dir_path.exists():
+        print(f"Cleaning existing output directory... {dir_path}")
+        shutil.rmtree(dir_path)
+    dir_path.mkdir(parents=True)
+    return dir_path
+
+
+@contextmanager
+def gb_plotter(file_path=None, **kwargs):
+
+    fig, axs = plt.subplots(1, 1)
+    exception_raised = False
+    try:
+        yield fig, axs
+    except Exception as e:
+        exception_raised = True
+        raise e
+    finally:
+        # Add legend if labels are present
+        handles, labels = axs.get_legend_handles_labels()
+        if labels:  # Check if any labels exist
+            axs.legend(handles, labels)
+
+        if not exception_raised:
+            fig.tight_layout()
+            fig.savefig(file_path, **kwargs)
+            assert file_path.is_file(), f"File {file_path} is not saved!"
+        plt.close(fig)
 
 
 def rotation_matrix_2d(angle: float, unit="rad") -> np.ndarray:
@@ -24,108 +75,39 @@ def rotation_matrix_2d(angle: float, unit="rad") -> np.ndarray:
     )
 
 
-def validated_num_cores(n):
+def validated_num_cores(n) -> int:
     assert isinstance(n, int), "Number of cores must be an integer"
-    if n > cpu_count():
-        print("Given number of cores greater than available, setting to maximum.")
-        n = cpu_count()
-    return n
+    assert n > 0, "Number of cores must be greater than 0"
+    max_cpus = cpu_count()
+    return n if n <= max_cpus else max_cpus
 
 
-def make_sequence_if_not(*args):
-    return [a if isinstance(a, SEQUENCE) else [a] for a in args]
+class LineStyles:
 
+    THEME_1 = {
+        "color": "blue",
+        "linewidth": 1.2,
+        "linestyle": "solid",
+        "marker": "None",
+    }
 
-class Assert:
-    def __init__(self, *args, err_msg=None):
-        self.args = args
-        self.types = [type(a) for a in args]
-        # self.lens = [len(a) for a in args]
-        self.err_msg = err_msg
+    THEME_2 = {
+        "color": "red",
+        "linewidth": 2.1,
+        "linestyle": "dashed",
+        "marker": "None",
+    }
 
-    # ==================================================================
-    # ===                   Assertions for type checking             ===
-    # ==================================================================
+    THEME_3 = {
+        "color": "green",
+        "linewidth": 1.2,
+        "linestyle": "dotted",
+        "marker": "None",
+    }
 
-    @staticmethod
-    def assert_same_type_of_a_seq(a, type_):
-        assert all(isinstance(i, type_) for i in a)
-
-    def of_type(self, type_, err_msg=None):
-        self.assert_same_type_of_a_seq(self.args, type_)
-
-    def are_seq(self, type_=None, err_msg=None):
-        self.assert_same_type_of_a_seq(self.args, SEQUENCE)
-        if type_ is not None:
-            for i in self.args:
-                self.assert_same_type_of_a_seq(i, type_)
-        return True
-
-    def are_seq_of_seq(self, type_=None, err_msg=None):
-        self.are_seq(SEQUENCE, err_msg)
-        if type_ is not None:
-            for i in self.args:
-                for j in i:
-                    self.assert_same_type_of_a_seq(j, type_)
-        return True
-
-    # -----------------------------------------------------------------
-
-    def equal(self, err_msg=None):
-        if not all(i == self.args[0] for i in self.args[1:]):
-            raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
-        return self
-
-    def have_equal_lenths(self, err_msg=None):
-        assert self.are_seq(), f"Given elements are not sequences"
-        if len(set(len(i) for i in self.args)) > 1:
-            raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
-
-    def _compare(self, *b, key="eq", err_msg=None):
-        a, b = make_sequence_if_not(self.args, b)
-
-        op = {
-            "lt": lambda x, y: x < y,
-            "le": lambda x, y: x <= y,
-            "gt": lambda x, y: x > y,
-            "ge": lambda x, y: x >= y,
-            "eq": lambda x, y: x == y,
-        }.get(key)
-        if not all(op(i, j) for i, j in zip(a, b)):
-            raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
-
-    def lt(self, *b, err_msg=None):
-        self._compare(*b, key="lt", err_msg=err_msg)
-
-    def le(self, *b, err_msg=None):
-        self._compare(*b, key="le", err_msg=err_msg)
-
-    def gt(self, *b, err_msg=None):
-        self._compare(*b, key="gt", err_msg=err_msg)
-
-    def ge(self, *b, err_msg=None):
-        self._compare(*b, key="ge", err_msg=err_msg)
-
-    def eq(self, *b, err_msg=None):
-        self._compare(*b, key="eq", err_msg=err_msg)
-
-    def between(self, min_, max_, err_msg=None):
-        Assert(min_, max_).of_type(REAL_NUMBER)
-        Assert(min_).le(max_)
-        for i in self.args:
-            if i <= min_ or i >= max_:
-                raise AssertionError(f"Assertion Error: {self.err_msg or err_msg}")
-
-
-
-@contextmanager
-def plot_context(file_path=None, **kwargs):
-
-    fig, axs = plt.subplots(1, 1)
-
-    try:
-        yield fig, axs
-    finally:
-        fig.savefig(file_path, **kwargs)
-        assert file_path.is_file(), f"File {file_path} is not saved!"
-        plt.close(fig)
+    THEME_4 = {
+        "color": "black",
+        "linewidth": 1.6,
+        "linestyle": "dotted",
+        "marker": "None",
+    }

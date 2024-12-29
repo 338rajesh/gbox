@@ -6,8 +6,13 @@ from .gbox import (
     Point,
     Point2D,
     Points,
+    Points1D,
     Points2D,
     #
-    EllipticalArc,
-    CircularArc,
+    StraightLine,
+    StraightLine2D,
+    #
+    Circle,
+    Circles,
+    Ellipse,
 )

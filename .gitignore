@@ -12,3 +12,4 @@ gbox_env
 .pytest_cache
 tests/__output
 .coverage
+.hypothesis

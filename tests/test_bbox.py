@@ -1,94 +1,103 @@
-import gbox as gb
+import pathlib
+import shutil
+
 import pytest
 import numpy as np
+from hypothesis import given, strategies as st, settings as hypothesis_settings
 
-# ==================== FIXTURES ====================
-
-
-@pytest.fixture
-def bounding_box():
-    def _bbox(a):
-        return gb.BoundingBox(
-            lower_bound=[0.0] * a,
-            upper_bound=[1.0] * a,
-        )
-
-    return _bbox
+from gbox import BoundingBox
+from gbox.utilities import gb_plotter, get_output_dir
 
 
-@pytest.fixture
-def bounding_box_two_dim():
-    return gb.BoundingBox(
-        lower_bound=[0.0, 0.0],
-        upper_bound=[1.0, 1.0],
-    )
+# ==============================================
 
-
-@pytest.fixture
-def bounding_box_three_dim():
-    return gb.BoundingBox(
-        lower_bound=[-1.0, -1.0, -1.0],
-        upper_bound=[1.0, 1.0, 1.0],
-    )
-
-
-@pytest.fixture
-def bounding_box_five_dim():
-    return gb.BoundingBox(
-        lower_bound=[0.0, 0.0, 0.0, 0.0, 0.0],
-        upper_bound=[1.0, 1.0, 1.0, 1.0, 1.0],
-    )
+OUTPUT_DIR = get_output_dir(pathlib.Path(__file__).parent / "__output" / "test_bbox")
 
 
 # ==================== TESTS ====================
 
 
 class TestBoundingBox:
-    def test_dim(self, bounding_box):
-        for i in range(1, 6):
-            assert bounding_box(i).dim == i
+    @hypothesis_settings(max_examples=10)
+    @given(
+        n=st.integers(min_value=2, max_value=10),
+        l=st.floats(min_value=-10.0, max_value=0.0),
+        u=st.floats(min_value=0.1, max_value=10.0),
+    )
+    def test_b_box(self, n, l, u):
+        lbl, ubl = [l] * n, [u] * n
+        bb = BoundingBox(lower_bound=lbl, upper_bound=ubl)
+        bb_t = BoundingBox(lower_bound=tuple(lbl), upper_bound=tuple(ubl))
+        bb_a = BoundingBox(lower_bound=np.array(lbl), upper_bound=np.array(ubl))
+        #
+        assert bb == bb_t
+        assert bb == bb_a
+        assert bb.dim == n
+        assert bb.vertices is not None
 
-    def test_vertices_2(self, bounding_box_two_dim):
-        vertices = bounding_box_two_dim.vertices.coordinates
-        assert np.array_equal(
-            vertices, np.array([(0.0, 0.0), (0.0, 1.0), (1.0, 0.0), (1.0, 1.0)])
-        )
+        assert bb.has_point([(l + u) * 0.5] * n)
+        assert not bb.has_point([l - 1.0] * n)
 
-    def test_vertices_3(self, bounding_box_three_dim):
-        vertices = bounding_box_three_dim.vertices.coordinates
-        expected_vertices = np.array(
-            [
-                (-1.0, -1.0, -1.0),
-                (-1.0, -1.0, 1.0),
-                (-1.0, 1.0, -1.0),
-                (-1.0, 1.0, 1.0),
-                (1.0, -1.0, -1.0),
-                (1.0, -1.0, 1.0),
-                (1.0, 1.0, -1.0),
-                (1.0, 1.0, 1.0),
-            ]
-        )
-        assert np.array_equal(vertices, expected_vertices)
-
-    def test_has_point_2(self, bounding_box_two_dim):
-        assert bounding_box_two_dim.has_point((0.5, 0.5))
-
-    def test_has_no_point_2(self, bounding_box_two_dim):
-        assert not bounding_box_two_dim.has_point((1.5, 1.5))
-
-    def test_has_no_point_3(self, bounding_box_three_dim):
-        assert not bounding_box_three_dim.has_point((1.5, 1.5, 1.5))
-
-    def test_bounds_length_equality(self):
         with pytest.raises(AssertionError):
-            gb.BoundingBox(
-                lower_bound=[0.0, 0.0],
-                upper_bound=[1.0, 1.0, 1.0],
-            )
+            BoundingBox(lower_bound=[l] * (n + 1), upper_bound=[u] * n)
 
-    def test_bounds_order(self):
         with pytest.raises(AssertionError):
-            gb.BoundingBox(
-                lower_bound=[1.0, 1.0],
-                upper_bound=[0.0, 0.0],
-            )
+            BoundingBox(lower_bound=ubl, upper_bound=lbl)
+
+    def test_bounds_ele_type(self):
+        with pytest.raises(AssertionError):
+            BoundingBox(lower_bound=[1.0, 1.0], upper_bound=[0.0, "0.0"])
+
+    @given(
+        st.integers(min_value=1, max_value=6),
+        st.floats(min_value=-10.0, max_value=0.0, allow_nan=False),
+        st.floats(min_value=1.0, max_value=10.0, allow_nan=False),
+    )
+    def test_volume(self, n, l, u):
+        b_box = BoundingBox([l for _ in range(n)], [u for _ in range(n)])
+        assert all(np.isclose(b_box.side_lengths(), [u - l for _ in range(n)]))
+        assert np.isclose(b_box.volume, (u - l) ** n)
+
+    def test_full_overlap(self):
+        # Test case where the boxes are identical, so they fully overlap
+        bb1 = BoundingBox([0, 0], [5, 5])
+        bb2 = BoundingBox([0, 0], [5, 5])
+        bb3 = BoundingBox([1, 1], [3, 3])
+        assert bb1.overlaps_with(bb2)
+        assert bb1.overlaps_with(bb3)
+
+    def test_partial_overlap(self):
+        # Test case where the boxes partially overlap
+        bb1 = BoundingBox([0, 0], [5, 5])
+        bb2 = BoundingBox([3, 3], [7, 7])
+        bb3 = BoundingBox([-3, -3], [1, 1])
+        bb4 = BoundingBox([-3, 2], [1, 7])
+        assert bb1.overlaps_with(bb2)
+        assert bb1.overlaps_with(bb3)
+        assert bb1.overlaps_with(bb4)
+
+    def test_no_overlap(self):
+        # Test case where the boxes don't overlap at all
+        bb1 = BoundingBox([0, 0], [5, 5])
+        bb2 = BoundingBox([6, 6], [10, 10])
+        assert not bb1.overlaps_with(bb2)
+
+    def test_edge_touching_overlap(self):
+        # Test case where boxes touch at the edge but don't overlap
+        bb1 = BoundingBox([0, 0], [5, 5])
+        bb2 = BoundingBox([5, 0], [10, 5])
+        assert bb1.overlaps_with(bb2, incl_bounds=True)
+        assert not bb1.overlaps_with(bb2, incl_bounds=False)
+
+    def test_bbox_plots(self, test_plots):
+        if not test_plots:
+            pytest.skip()
+
+        with gb_plotter(OUTPUT_DIR / "bbox.png") as (fig, axs):
+            bb = BoundingBox([0, 0], [5, 5])
+            bb.plot(axs)
+            axs.set_title("Bounding Box")
+
+        with pytest.raises(AssertionError):
+            with gb_plotter(OUTPUT_DIR / "bbox_1.png") as (fig, axs):
+                BoundingBox([0, 0, 1], [5, 5, 10]).plot(axs)

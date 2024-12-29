@@ -15,95 +15,122 @@ License: MIT
 
 """
 
-from dataclasses import dataclass
 from io import BytesIO
 from math import inf
 from itertools import product
-from typing import Sequence, Union
+from typing import Sequence, Union, Literal, Iterable
+from functools import lru_cache
+import math
+import warnings
 
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .utilities import Assert, rotation_matrix_2d
+from .utilities import (
+    rotation_matrix_2d,
+    REAL_NUMBER,
+    operators,
+)
 
-PointType = Union[list, tuple]
+PI = np.pi
+TWO_PI = 2 * PI
+NDArray = np.ndarray
+PointType = Union[list, tuple, "Point", NDArray]
 
 # =======================================================
 #          BOUNDING BOX
 # =======================================================
 
+
 # create a class Point, subclassing tuple
-@dataclass
 class BoundingBox:
-    lower_bound: list | tuple
-    upper_bound: list | tuple
+    def __init__(self, lower_bound: list | tuple, upper_bound: list | tuple):
+
+        assert len(lower_bound) == len(
+            upper_bound
+        ), "lower bound and upper bound must have same length"
+
+        for i, j in zip(lower_bound, upper_bound):
+            assert isinstance(
+                i, REAL_NUMBER
+            ), f"Expecting real number, got {i} in lower bound"
+            assert isinstance(
+                j, REAL_NUMBER
+            ), f"Expecting real number, got {j} in upper bound"
+            assert (
+                i < j
+            ), f"Expecting lower bounds to be less than upper bounds. But, {i} of lower bound is greater than {j} of upper bound"
+
+        self.lb = np.array(lower_bound)
+        self.ub = np.array(upper_bound)
 
     @property
     def dim(self):
-        return len(self.lower_bound)
+        return self.lb.size
 
-    def __post_init__(self):
-        Assert(self.lower_bound, self.upper_bound).have_equal_lenths(
-            "Lower Bound and Upper Bound must have same length"
-        )
-        Assert(self.lower_bound).lt(
-            self.upper_bound, "Lower Bound must be less than Upper Bound"
-        )
+    def __eq__(self, bb_2: "BoundingBox") -> bool:
 
-    def __eq__(self, other) -> bool:
-        Assert(other).of_type(BoundingBox, "Bounding Box must be of same type")
-        return (
-            self.lower_bound == other.lower_bound
-            and self.upper_bound == other.upper_bound
-        )
+        assert isinstance(bb_2, BoundingBox), f"bounding boxes must be of same type"
+        for i, j in zip(self.lb, bb_2.lb):
+            assert i == j, f"Elements {i} and {j} are not equal"
+        return True
 
     @property
     def vertices(self) -> "Points":
-        return Points(list(product(*zip(self.lower_bound, self.upper_bound))))
+        return Points(list(product(*zip(self.lb, self.ub))))
 
     def __repr__(self) -> str:
-        return f"Bounding Box:  {self.lower_bound}, {self.upper_bound}"
+        return f"Bounding Box:  {self.lb}, {self.ub}"
 
     @property
-    def x(self):
+    def x(self) -> NDArray:
         return self.vertices.coordinates[:, 0]
 
     @property
-    def y(self):
+    def y(self) -> NDArray:
         return self.vertices.coordinates[:, 1]
 
     @property
-    def volume(self):
-        return np.prod(np.array(self.upper_bound) - np.array(self.lower_bound))
+    def volume(self) -> float:
+        return np.prod(self.side_lengths())
 
-    def has_point(self, point: list | tuple) -> bool:
-        Assert(len(point), self.dim).equal(
-            "Point must have same dimension as Bounding Box"
-        )
+    def side_lengths(self) -> NDArray:
+        return self.ub - self.lb
+
+    def has_point(self, p: list | tuple) -> bool:
+        assert self.dim == len(p), f"point 'p' must have dimension has bounding box"
+        return all([l <= p <= u for l, p, u in zip(self.lb, p, self.ub)])
+
+    def overlaps_with(self, bb: "BoundingBox", incl_bounds=False) -> bool:
         return all(
-            [l <= p <= u for l, p, u in zip(self.lower_bound, point, self.upper_bound)]
+            lb1 <= ub2 and ub1 >= lb2 if incl_bounds else lb1 < ub2 and ub1 > lb2
+            for lb1, ub1, lb2, ub2 in zip(self.lb, self.ub, bb.lb, bb.ub)
         )
 
-    def plot(self, axs, cycle=True, **plt_opt):
-        Assert(self.dim, 2).equal("Bounding Box can only be plotted in 2D")
-        (xl, yl), (xu, yu) = self.lower_bound, self.upper_bound
+    def plot(self, axs, cycle=True, **plt_opt) -> None:
+
+        assert (
+            self.dim == 2
+        ), "Bounding Box can only be plotted in 2D, but {self.dim} found"
+
+        (xl, yl), (xu, yu) = self.lb, self.ub
+
         x = np.array([xl, xu, xu, xl])
         y = np.array([yl, yl, yu, yu])
+
         if cycle:
             x = np.append(x, x[0])
             y = np.append(y, y[0])
+
         axs.plot(x, y, **plt_opt)
 
 
 class Point(tuple):
 
-    def _assert_compatibility(self, other):
-        Assert(other).of_type(Point, "Points must be of same type")
-        Assert(len(other), len(self)).equal("Points must have same length")
-
     def __new__(cls, *coords) -> "Point":
-        Assert(*coords).of_type(float, "Coordinates must be of float type")
+        for coord in coords:
+            assert isinstance(coord, REAL_NUMBER), "Coordinates must be real numbers"
         return super().__new__(cls, coords)
 
     def __repr__(self) -> str:
@@ -113,20 +140,51 @@ class Point(tuple):
     def dim(self):
         return len(self)
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, Point):
-            return ValueError("Can only compare points")
-        return all([a == b for a, b in zip(self, other)])
+    @classmethod
+    def from_seq(cls, seq):
+        if isinstance(seq, Point):
+            return seq
 
-    def __add__(self, other) -> "Point":
-        self._assert_compatibility(other)
-        return Point(*(a + b for a, b in zip(self, other)))
+        if isinstance(seq, (list, tuple, NDArray)):
+            if hasattr(seq, "ndim") and seq.ndim > 1:
+                warnings.warn(f"unravelling {seq.ndim}D array to a 1D array")
+                seq = seq.ravel()
+        else:
+            raise TypeError(
+                "Points must be given as NumpyArray or sequence of sequences of floats"
+            )
+        return cls(*seq)
 
-    def __sub__(self, other) -> "Point":
-        self._assert_compatibility(other)
-        return Point(*(a - b for a, b in zip(self, other)))
+    def operation(self, p, op: str) -> "Point":
 
-    def distance_to(self, other) -> float:
+        assert isinstance(
+            p, (Point, REAL_NUMBER)
+        ), "Only points and real numbers are supported"
+        assert op in operators, f"Operation {op} is not supported"
+
+        op = operators.get(op)
+
+        if isinstance(p, Point):
+            assert (
+                p.dim == self.dim
+            ), "Operations can be performed only only between a point and a point of same dimension or a float."
+            return Point(*(op(i, j) for i, j in zip(self, p)))
+        else:
+            return Point(*(op(i, p) for i in self))
+
+    def __add__(self, p: Union["Point", float]) -> "Point":
+        return self.operation(p, "add")
+
+    def __sub__(self, p: Union["Point", float]) -> "Point":
+        return self.operation(p, "sub")
+
+    def __mul__(self, p: Union["Point", float]) -> "Point":
+        return self.operation(p, "mul")
+
+    def __eq__(self, p: "Point") -> bool:
+        return all([a == b for a, b in zip(self, p)])
+
+    def distance_to(self, p: "Point") -> float:
         """Evaluates the distance between the current point and (x_2, y_2)
 
         Attributes
@@ -140,37 +198,40 @@ class Point(tuple):
         5.0
 
         """
-        self._assert_compatibility(other)
-        return np.sqrt(sum((a - b) ** 2 for a, b in zip(self, other)))
+        assert isinstance(p, Point), "other point 'p' must be of type 'Point'"
+        assert self.dim == p.dim, "Points must have same dimension"
+        return np.sqrt(sum((a - b) ** 2 for a, b in zip(self, p)))
 
-    def in_bounds(self, bounds: BoundingBox | tuple, include_bounds=False):
-        if isinstance(bounds, BoundingBox):
-            lb, ub = bounds.lower_bound, bounds.upper_bound
-        else:
-            Assert(len(bounds), 2).equal(
-                "Bounds must be a tuple of lower & upper bounds"
-            )
-            lb, ub = bounds
-            Assert(lb, self, ub).have_equal_lenths(
-                "Lower, Upper and Point must have same dimension"
-            )
+    def in_bounds(
+        self,
+        bounds: BoundingBox | list | tuple,
+        include_bounds=False,
+    ) -> bool:
+        """Checks if the current point is within the bounds."""
+        if isinstance(bounds, (list, tuple)):
+            assert (
+                len(bounds) == 2
+            ), "Bounds must have length 2 if supplied as list or tuple"
+            bounds = BoundingBox(*bounds)
+
+        assert isinstance(bounds, BoundingBox), "bounds are expected to be BoundingBox"
+        assert self.dim == bounds.dim, "Points and Bounds must have same dimension"
+
         if include_bounds:
-            return all([l <= p <= u for l, p, u in zip(lb, self, ub)])
+            for l, p, u in zip(bounds.lb, self, bounds.ub):
+                if not (l <= p <= u):
+                    return False
         else:
-            return all([l < p < u for l, p, u in zip(lb, self, ub)])
+            for l, p, u in zip(bounds.lb, self, bounds.ub):
+                if not (l < p < u):
+                    return False
+        return True
 
     def as_array(self):
         return np.array(self)
 
-    def line_eqn(self, q: PointType):
-        Assert(q).of_type(Point, "other point must be of type Point")
-        p, q = np.array(self), np.array(q)
-        direction = q - p
-
-        def _line_eqn(t):
-            return p + t * direction
-
-        return _line_eqn
+    def as_list(self):
+        return list(self)
 
     def reflection(self, q: "Point", p1: PointType, p2: PointType):
         """Reflects the current point about a line connecting p1 and p2"""
@@ -183,6 +244,14 @@ class Point(tuple):
         # reflected_point = 2 * projections - q
         # return Point(*reflected_point)
 
+    def is_close_to(self, p: "Point", eps: float = 1e-16) -> bool:
+        """Checks if the current point is close to other point 'p'"""
+        assert isinstance(p, Point), "other point 'p' must be of type 'Point'"
+        for a, b in zip(self, p):
+            if abs(a - b) > eps:
+                return False
+        return True
+
 
 class Point2D(Point):
     def __new__(cls, x: float, y: float) -> "Point2D":
@@ -192,35 +261,64 @@ class Point2D(Point):
         self.x = x
         self.y = y
 
-    def slope(self, q, eps=1e-16):
+    def slope(self, q: "Point2D", eps: float = 1e-16) -> float:
         """ """
-        Assert(q).of_type(Point2D, "other point must be of type Point2D")
+        assert isinstance(q, Point2D), "other point 'q' must be of type 'Point2D'"
         eps = eps if q.x == self.x else 0.0
         return (q.y - self.y) / (q.x - self.x + eps)
+
+    def angle(self, p2: "Point2D", rad=True) -> float:
+        assert isinstance(p2, Point2D), "other point must be of type Point2D"
+        dy: float = p2.y - self.y
+        dx: float = p2.x - self.x
+        ang: float = np.arctan2(dy, dx)
+        if ang < 0:
+            ang += TWO_PI
+        return ang if rad else np.rad2deg(ang)
+
+    def transform(self, angle: float = 0.0, dx: float = 0.0, dy: float = 0.0):
+        """Returns a new point transformed by rotation and translation"""
+        new_x = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
+        new_y = (self.x * np.sin(angle) + self.y * np.cos(angle)) + dy
+        return Point2D(new_x, new_y)
 
 
 class Points:
     """Collection of **ordered** points"""
 
-    def __init__(self, points: list | tuple | np.ndarray):
+    def __init__(self, points: list | tuple | NDArray):
 
         # Validate inputs and convert to numpy array
-        if not isinstance(points, np.ndarray):
-            Assert(points).are_seq_of_seq(
-                float,
-                "Points must be given as NumpyArray or sequence of sequences of floats",
-            )
+        if not isinstance(points, NDArray):
+            if not isinstance(points, (list, tuple)):
+                raise TypeError(
+                    "Points must be given as NumpyArray or sequence of sequences of floats"
+                )
             points = np.array(points)
-        Assert(points.ndim, 2).equal("Points must form a two-dimensional array")
+        assert (
+            points.ndim == 2
+        ), f"Points must form a two-dimensional array, but {points.ndim} found"
+        assert isinstance(
+            points, np.ndarray
+        ), f"Points must be of type NumpyArray, but {type(points)} found"
 
         self.coordinates = points
         self.dim = self.coordinates.shape[1]
         self._cycle = False
 
     @classmethod
-    def from_dimension_data(cls, *data):
+    def from_dimension_data(cls, *data: Iterable[float]) -> "Points":
         dat = np.array(data).T
         return cls(dat)
+
+    @classmethod
+    def from_points(cls, *points: Point) -> "Points":
+        for a_p in points:
+            assert isinstance(
+                a_p, Point
+            ), f"Supplied points must be of type Point, but {type(a_p)} found"
+
+        return cls(tuple(p.as_array() for p in points))
 
     def __len__(self):
         return self.coordinates.shape[0]
@@ -228,9 +326,9 @@ class Points:
     def __repr__(self):
         return f"Points:\n{self.coordinates}"
 
-    def __eq__(self, value):
-        Assert(value).of_type(Points, "Points must be of same type")
-        return np.array_equal(self.coordinates, value.coordinates)
+    def __eq__(self, p: "Points"):
+        assert isinstance(p, Points), "Equality can be performed only between Points"
+        return np.array_equal(self.coordinates, p.coordinates)
 
     def copy(self):
         return Points(self.coordinates.copy())
@@ -251,39 +349,36 @@ class Points:
         return self._cycle
 
     @cycle.setter
-    def cycle(self, value):
-        Assert(value).of_type(bool, "cycle must be of type bool")
-        self._cycle = value
+    def cycle(self, val: bool):
+        assert isinstance(val, bool), "cycle must be of type bool"
+        self._cycle = val
 
 
-class Points2D(Points):
+class PointsCollection:
+    def __init__(self, *points: Points):
+        self._data = np.array([p.coordinates for p in points])
 
-    def __init__(self, points, **kwargs):
-        super(Points2D, self).__init__(points, **kwargs)
-        Assert(self.dim, 2).equal("Points must be in two dimensions")
+
+class Points1D(Points):
+
+    def __init__(self, points: list | tuple | NDArray, **kwargs):
+        assert len(points) > 0, "Points1D must have at least one point"
+        if len(points) == 1:
+            points = [[i] for i in points]
+        super(Points1D, self).__init__(points, **kwargs)
+        assert self.dim == 1, "Constructing 'Points1D' requires one dimensional points"
 
     @property
-    def x(self):
+    def x(self) -> NDArray:
         return self.coordinates[:, 0]
 
-    @property
-    def y(self):
-        return self.coordinates[:, 1]
-
-    def transform(
-        self,
-        angle=0.0,
-        dx=0.0,
-        dy=0.0,
-    ):
+    def transform(self, dx: float = 0.0) -> "Points2D":
         """In-place transformation of the points cluster by rotation and translation"""
-        if angle != 0.0 or dx != 0.0 or dy != 0.0:
-            self.coordinates[:] = (
-                self.coordinates @ rotation_matrix_2d(angle)
-            ) + np.array([dx, dy])
+        if dx != 0.0:
+            self.coordinates[:] = self.coordinates[:] + dx
         return self
 
-    def reverse(self):
+    def reverse(self) -> "Points1D":
         """Reverses the order of points **in-place**"""
         self.coordinates[:] = np.flip(self.coordinates, axis=0)
         return self
@@ -292,10 +387,74 @@ class Points2D(Points):
         """Returns tiled copy of the points about the current position"""
         raise NotImplementedError("make_periodic_tiles is not implemented")
 
-    def plot(self, axs, b_box=False, b_box_plt_opt=None, points_plt_opt=None):
+    def plot(
+        self,
+        axs,
+        points_plt_opt: dict = None,
+    ):
         """Plots the points"""
 
-        Assert(self.dim, 2).equal("Plotting is supported only for 2D points")
+        assert self.dim == 1, "Points Plotting is supported only for 1D and 2D points"
+        _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
+
+        # Plot points
+        if points_plt_opt is not None:
+            _plt_opt.update(points_plt_opt)
+
+        axs.plot(
+            self.x if not self.cycle else np.append(self.x, self.x[0]),
+            **_plt_opt,
+        )
+
+        axs.axis("equal")
+
+
+class Points2D(Points):
+
+    def __init__(self, points: list | tuple | NDArray, **kwargs):
+        super(Points2D, self).__init__(points, **kwargs)
+        assert self.dim == 2, "Constructing 'Points2D' requires two dimensional points"
+
+    @property
+    def x(self) -> NDArray:
+        return self.coordinates[:, 0]
+
+    @property
+    def y(self) -> NDArray:
+        return self.coordinates[:, 1]
+
+    def transform(
+        self,
+        angle: float = 0.0,
+        dx: float = 0.0,
+        dy: float = 0.0,
+    ) -> "Points2D":
+        """In-place transformation of the points cluster by rotation and translation"""
+        if angle != 0.0 or dx != 0.0 or dy != 0.0:
+            self.coordinates[:] = (
+                self.coordinates @ rotation_matrix_2d(angle)
+            ) + np.array([dx, dy])
+        return self
+
+    def reverse(self) -> "Points2D":
+        """Reverses the order of points **in-place**"""
+        self.coordinates[:] = np.flip(self.coordinates, axis=0)
+        return self
+
+    def make_periodic_tiles(self, bounds: list = None, order: int = 1):
+        """Returns tiled copy of the points about the current position"""
+        raise NotImplementedError("make_periodic_tiles is not implemented")
+
+    def plot(
+        self,
+        axs,
+        b_box: bool = False,
+        b_box_plt_opt: dict = None,
+        points_plt_opt: dict = None,
+    ):
+        """Plots the points"""
+
+        assert self.dim <= 2, "Points Plotting is supported only for 1D and 2D points"
         _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
         _b_box_line_opt = {"color": "red", "linewidth": 2}
 
@@ -319,25 +478,33 @@ class Points2D(Points):
 
 
 class Points3D(Points):
+    # TODO implement tests
     def __init__(self, points, **kwargs):
         super(Points3D, self).__init__(points, **kwargs)
-        Assert(self.dim, 3).equal("For Point3D, Points must be in three dimensions")
+        assert (
+            self.dim == 3
+        ), "Constructing 'Points3D' requires three dimensional points"
 
     @property
-    def x(self):
+    def x(self) -> NDArray:
         return self.points[:, 0]
 
     @property
-    def y(self):
+    def y(self) -> NDArray:
         return self.points[:, 1]
 
     @property
-    def z(self):
+    def z(self) -> NDArray:
         return self.points[:, 2]
 
     def make_periodic_tiles(self, bounds: list = None, order: int = 1):
         """ """
         raise NotImplementedError("make_periodic_tiles is not implemented")
+
+
+# =============================================================================
+#                           TOPOLOGICAL CURVES
+# =============================================================================
 
 
 class TopologicalCurve:
@@ -353,90 +520,420 @@ class TopologicalCurve:
         self.points.plot(axs, b_box, b_box_plt_opt, points_plt_opt)
 
 
-class TopologicalShape:
-    """Base class for all topological shapes"""
+class StraightLine(TopologicalCurve):
+    """Base class for all straight lines"""
+
+    def __init__(self, p1: PointType, p2: PointType):
+        super(StraightLine, self).__init__()
+
+        self.p1 = Point.from_seq(p1)
+        self.p2 = Point.from_seq(p2)
+
+    def length(self) -> float:
+        return self.p1.distance_to(self.p2)
+
+    def equation(self):
+        p, q = self.p1.as_array(), self.p2.as_array()
+        direction = q - p
+
+        def _line_eqn(t):
+            return p + t * direction
+
+        return _line_eqn
+
+
+class StraightLine2D(StraightLine):
+    def __init__(self, p1: PointType, p2: PointType):
+        assert len(p1) == 2 and len(p2) == 2, "Expecting 2D points"
+        super(StraightLine2D, self).__init__(p1, p2)
+
+        self.p1 = Point2D.from_seq(p1)
+        self.p2 = Point2D.from_seq(p2)
+
+    def angle(self, rad=True) -> float:
+        """Returns the angle of the line w.r.t positive x-axis in [0, 2 * pi]"""
+        return self.p1.angle(self.p2, rad)
+
+
+# =============================================================================
+#                       TOPOLOGICAL SHAPES
+# =============================================================================
+
+
+class TopologicalClosedShape:
+    """Base class for all topological shapes in n-dimensions and closed"""
 
     def __init__(self):
-        pass
+        self.boundary: Points = None
 
     @property
     def bounding_box(self):
         return NotImplementedError("bounding_box is not implemented")
 
 
-class TopologicalShape2D(TopologicalShape):
+class TopologicalClosedShape2D(TopologicalClosedShape):
     """Base class for the two-dimensional topological shapes"""
 
     def __init__(self):
-        super(TopologicalShape2D, self).__init__()
+        super(TopologicalClosedShape2D, self).__init__()
+        self._area = None
+        self._perimeter = None
 
-    def curve_length(self):
-        return NotImplementedError("curve_length is not implemented")
+    @property
+    def area(self):
+        return self._area
+
+    @area.setter
+    def area(self, a: float):
+        assert a > 0, "Area must be greater than zero"
+        self._area = a
+
+    @property
+    def perimeter(self):
+        return self._perimeter
+
+    @perimeter.setter
+    def perimeter(self, p: float):
+        assert p > 0, "Perimeter must be greater than zero"
+        self._perimeter = p
+
+    @property
+    def shape_factor(self):
+        return self.perimeter / math.sqrt(4.0 * math.pi * self.area)
+
+    @property
+    def eq_radius(self):
+        return np.sqrt(self.area / math.pi)
+
+    def plot(
+        self,
+        axs,
+        b_box=False,
+        b_box_plt_opt=None,
+        points_plt_opt=None,
+        cycle=True,
+    ):
+        assert (
+            self.boundary.dim == 2
+        ), f"Plot is supported for boundary in 2D only, but {self.boundary.dim}D points were provided"
+        self.boundary.cycle = cycle
+        self.boundary.plot(axs, b_box, b_box_plt_opt, points_plt_opt)
 
 
-class StraightLine(TopologicalCurve):
-    """Base class for all straight lines"""
-
-    def __init__(self):
-        super(StraightLine, self).__init__()
+# -------------------------------------------------------------------
 
 
-class EllipticalArc(TopologicalCurve):
+class Circle(TopologicalClosedShape2D):
     def __init__(
         self,
-        smj: float,
-        smn: float,
-        theta_1: float = 0.0,
-        theta_2: float = np.pi / 2,
-        mjx_angle: float = 0.0,
+        radius,
         centre=(0.0, 0.0),
+        theta_1: float = 0.0,
+        theta_2: float = 2.0 * math.pi,
     ):
-        super(EllipticalArc, self).__init__()
+        assert radius > 0, "Radius must be greater than zero"
+        assert theta_1 < theta_2, "Theta 1 must be less than theta 2"
+        assert (
+            theta_1 >= 0.0 and theta_2 <= 2.0 * np.pi
+        ), "Theta 1 and theta 2 must be between 0 and 2.0 * pi"
+
+        super(Circle, self).__init__()
+
+        self.radius = radius
+        self.centre = Point2D(*centre)
+        self.boundary: Points2D = None
+        self.theta_1 = theta_1
+        self.theta_2 = theta_2
+
+        self.area = math.pi * radius * radius
+        self.perimeter = 2 * math.pi * radius
+
+    def eval_boundary(self, num_points=None, arc_length=0.1, min_points=100):
+        if num_points is None:
+            num_points = max(
+                int(math.ceil(2.0 * np.pi * self.radius / arc_length)), min_points
+            )
+
+        theta = np.linspace(self.theta_1, self.theta_2, num_points)
+
+        xy = np.empty((num_points, 2))
+        xy[:, 0] = self.radius * np.cos(theta)
+        xy[:, 1] = self.radius * np.sin(theta)
+
+        xy[:, 0] += self.centre.x
+        xy[:, 1] += self.centre.y
+
+        self.boundary = Points2D(xy)
+
+        return self
+
+    def contains_point(self, p: PointType, tol=1e-8) -> Literal[-1, 0, 1]:
+        p = Point2D.from_seq(p)
+        assert p.dim == 2, "Expecting 2D points"
+        dist: float = self.centre.distance_to(p)
+        if dist > self.radius + tol:
+            return -1
+        elif dist < self.radius - tol:
+            return 1
+        else:
+            return 0
+
+    def distance_to(self, c: "Circle") -> float:
+        assert isinstance(c, Circle), "'c' must be of Circle type"
+        return self.centre.distance_to(c.centre)
+
+    def plot(
+        self, axs, b_box=False, b_box_plt_opt=None, points_plt_opt=None, cycle=True
+    ) -> None:
+        if self.boundary is None:
+            self.eval_boundary()
+        return super().plot(axs, b_box, b_box_plt_opt, points_plt_opt, cycle)
+
+
+class Circles:
+    def __init__(self, *circles: Circle, initial_capacity: int = 100):
+        if len(circles) == 0:
+            raise ValueError("Must have at least one circle")
+        for a_c in circles:
+            if not isinstance(a_c, Circle):
+                raise TypeError("All elements must be of type Circle")
+
+        # Pre-allocating memory
+        self.capacity: int = initial_capacity
+        self._data: NDArray = np.empty((self.capacity, 3))
+        self.size: int = 0
+        self.boundaries: list[Points2D] = []
+
+        self.add_circles(*circles)
+
+    def add_circles(self, *c: Circle) -> None:
+
+        # Check, if the pre-allocated memory is sufficient
+        req_size = len(c) + self.size
+        if req_size > self.capacity:
+            self._grow_to(req_size)
+
+        new_data = np.array([c.centre.as_list() + [c.radius] for c in c])
+
+        # Adding the new circles
+        self._data[self.size : len(c) + self.size] = new_data
+
+        self.size += len(c)
+
+    def _grow_to(self, new_size: int) -> None:
+        while self.capacity < new_size:
+            self.capacity = int(self.capacity * 1.5)
+
+        new_data = np.empty((self.capacity, 3))
+        new_data[: self.size] = self._data[: self.size]
+        self._data = new_data
+
+    @property
+    def data(self) -> NDArray:
+        return self._data[: self.size]
+
+    @property
+    def centres(self) -> NDArray:
+        return self._data[: self.size, :2]
+
+    @property
+    def xc(self) -> NDArray:
+        return self._data[: self.size, 0]
+
+    @property
+    def yc(self) -> NDArray:
+        return self._data[: self.size, 1]
+
+    @property
+    def radii(self) -> NDArray:
+        return self._data[: self.size, 2]
+
+    def __len__(self) -> int:
+        return self.size
+
+    def __repr__(self) -> str:
+        return f"Circles:\n{self.size} circles"
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def clip(self, r_min, r_max):
+        raise NotImplementedError("clip is not implemented")
+
+    def evaluate_boundaries(self, num_points=None, arc_length=0.1, min_points=100):
+        if num_points is None:
+            num_points = max(
+                int(np.ceil(TWO_PI * np.max(self.radii) / arc_length)), min_points
+            )
+
+        theta = np.linspace(0, TWO_PI, num_points)
+        xy = np.empty((self.size, num_points, 2))
+        xy[:, :, 0] = self.radii[:, None] * np.cos(theta)
+        xy[:, :, 1] = self.radii[:, None] * np.sin(theta)
+
+        xy[:, :, 0] = xy[:, :, 0] + self.xc[:, None]
+        xy[:, :, 1] = xy[:, :, 1] + self.yc[:, None]
+
+        self.boundaries = [Points2D(a_xy) for a_xy in xy]
+        return self
+
+    def bounding_box(self) -> BoundingBox:
+        xlb = np.min(self.xc - self.radii)
+        xub = np.max(self.xc + self.radii)
+        ylb = np.min(self.yc - self.radii)
+        yub = np.max(self.yc + self.radii)
+        return BoundingBox([xlb, ylb], [xub, yub])
+
+    def perimeters(self):
+        return TWO_PI * self.radii
+
+    def areas(self):
+        return PI * self.radii * self.radii
+
+    def distances_to(self, p: PointType) -> NDArray:
+        p = Point2D.from_seq(p)
+        assert p.dim == 2, "other point must be of dimension 2"
+        return np.linalg.norm(self.centres - p.as_array(), axis=1)
+
+    # TODO: If it can be implemented using __contains__ special method
+    def contains_point(self, p: PointType, tol=1e-8) -> Literal[-1, 0, 1]:
+        p = Point2D.from_seq(p)
+        assert p.dim == 2, "other point must be of dimension 2"
+        distances = self.distances_to(p)
+        if np.any(distances < self.radii - tol):
+            return 1
+        elif np.all(distances > self.radii + tol):
+            return -1
+        return 0
+
+    def plot(
+        self, axs, b_box=False, b_box_plt_opt=None, points_plt_opt=None, cycle=True
+    ) -> None:
+        self.evaluate_boundaries()
+        if b_box:
+            self.bounding_box().plot(axs, **b_box_plt_opt)
+        for a_boundary in self.boundaries:
+            a_boundary.plot(axs, points_plt_opt=points_plt_opt)
+
+
+class Ellipse(TopologicalClosedShape2D):
+    def __init__(self, smj, smn, mjx_angle=0.0, centre=(0.0, 0.0)):
+        super(Ellipse, self).__init__()
 
         # Assertions
-        Assert(smj).ge(smn, "Semi-major axis must be greater than semi-minor axis")
-        Assert(smn).ge(0, "Semi-minor axis must be greater than zero")
-        Assert(theta_1).lt(theta_2, "Theta 1 must be less than theta 2")
-        Assert(theta_1, theta_2).between(
-            -np.pi, np.pi, "Theta 1 and theta 2 must be between -pi and pi"
-        )
+        assert smj >= smn, "Semi-major axis must be >= semi-minor axis"
+        assert smn >= 0, "Semi-minor axis must be >= zero"
 
         self.smj = smj
         self.smn = smn
-        self.theta_1 = theta_1
-        self.theta_2 = theta_2
-        self.centre = Point2D(*centre)
         self.mjx_angle = mjx_angle
+        self.centre = Point2D(*centre)
 
-    def eval_boundary(self, num_points=100):
-        theta = np.linspace(self.theta_1, self.theta_2, num_points)
-        x = self.smj * np.cos(theta)
-        y = self.smn * np.sin(theta)
-        self.points = Points2D.from_dimension_data(x, y).transform(
-            self.mjx_angle, self.centre.x, self.centre.y
+    @property
+    @lru_cache(maxsize=1)
+    def perimeter(self) -> float:
+        self._perimeter = math.pi * (
+            (3.0 * (self.smj + self.smn))
+            - math.sqrt(((3.0 * self.smj) + self.smn) * (self.smj + (3.0 * self.smn)))
         )
-        return self
+        return self._perimeter
+
+    @property
+    @lru_cache(maxsize=1)
+    def area(self) -> float:
+        self._area = math.pi * self.smj * self.smn
+        return self._area
 
     @property
     def aspect_ratio(self):
         return self.smj / self.smn
 
     @property
-    def eccentricity(self):
-        return np.sqrt(1 - (self.smn / self.smj) ** 2)
+    def eccentricity(self) -> float:
+        ratio = self.smn / self.smj
+        return np.sqrt(1 - (ratio * ratio))
 
+    def eval_boundary(self, num_points=100, theta_1=0.0, theta_2=TWO_PI, cycle=True, incl_theta_2=True):
+        # TODO finding the optimal number of points based on ellipse properties
 
-class CircularArc(EllipticalArc):
-    def __init__(self, radius, theta_1, theta_2, centre=(0.0, 0.0)):
-        super(CircularArc, self).__init__(
-            radius, radius, theta_1, theta_2, centre=centre
+        t = np.linspace(theta_1, theta_2, num_points, endpoint=incl_theta_2)
+        cos_t, sin_t = np.cos(t), np.sin(t)
+        cos_tht, sin_tht = np.cos(self.mjx_angle), np.sin(self.mjx_angle)
+
+        xy = np.empty((t.shape[0], 2))
+
+        xy[:, 0] = self.smj * cos_t 
+        xy[:, 1] = self.smn * sin_t
+
+        points = Points2D(xy)
+        print("AFTER TRANSFORMATION\n>>--")
+        print(xy[:5])
+        print("\n>>**")
+        print(points.coordinates[:5])
+        print("\n\n")
+
+        points.transform(self.mjx_angle, self.centre.x, self.centre.y)
+        
+        # x_pr = xy[:, 0] * cos_tht - xy[:, 1] * sin_tht + self.centre.x
+        # y_pr = xy[:, 0] * sin_tht + xy[:, 1] * cos_tht + self.centre.y
+
+        self.boundary = points
+        self.boundary._cycle = cycle
+        return self
+
+        # xy[:, 0] = self.smj * cos_t * cos_tht - self.smn * sin_t * sin_tht + self.centre.x
+        # xy[:, 1] = self.smj * cos_t * sin_tht + self.smn * sin_t * cos_tht + self.centre.y
+        # self.boundary = Points2D(xy)
+        # self.boundary._cycle = cycle
+        # return self
+
+    def contains_point(self, p: PointType, tol=1e-8) -> Literal[-1, 0, 1]:
+        # Rotating back to the standrd poistion where ell align with x-axis
+        p = Point2D.from_seq((p[0] - self.centre.x, p[1] - self.centre.y)).transform(
+            -self.mjx_angle
         )
-        self.radius = radius
+        val = (p.x**2 / self.smj**2) + (p.y**2 / self.smn**2)
+        if val > 1.0 + tol:
+            return -1.0
+        elif val < 1.0 - tol:
+            return 1.0
+        else:
+            return 0
 
+    def r_shortest(self, xi: float) -> float:
+        """Evaluates the shortest distance to the ellipse locus from a point on the major axis
+        located at a distance xi from the centre of the ellipse.
+        """
+        return self.smn * math.sqrt(
+            1.0 - ((xi * xi) / (self.smj * self.smj - self.smn * self.smn))
+        )
 
-# # ======================================================================================================================
-# #                                             CLOSED SHAPES
-# # ======================================================================================================================
+    def uns(self, dh=0.0) -> Circles:
+        if self.aspect_ratio == 1.0:
+            return Circles(Circle(self.smj, self.centre))
+
+        assert dh >= 0, "dh, ie., buffer, must be greater than or equal to zero"
+
+        ell_outer = Ellipse(self.smj + dh, self.smn + dh, self.mjx_angle, self.centre)
+        e_i: float = self.eccentricity
+        e_o: float = ell_outer.eccentricity
+        m: float = 2.0 * e_o * e_o / (e_i * e_i)
+
+        x_max, r_min = self.smj * e_i * e_i, self.smn / self.aspect_ratio
+        last_circle: Circle = Circle(r_min, (x_max, 0.0))
+        x_i = -1.0 * x_max
+        circles: list[Circle] = []
+        while True:
+            if x_i > x_max:
+                circles.append(last_circle)
+                break
+            r_i = self.r_shortest(x_i)
+            circles.append(Circle(r_i, (x_i, 0.0)))
+
+            r_o = ell_outer.r_shortest(x_i)
+
+            x_i = (x_i * (m - 1.0)) + (m * e_i * math.sqrt(r_o * r_o - r_i * r_i))
+        return Circles(*circles)
 
 
 # class ShapePlotter:
@@ -585,56 +1082,6 @@ class CircularArc(EllipticalArc):
 #         ).line_plot(title=title, **plt_opt)
 
 
-# class ClosedShape2D(Shape2D):
-#     """
-#     Closed Shape in the two-dimensional space or a plane is defined by
-#     the locus of points, pivot point (lying on or inside or outside) the locus and angle made by a pivot axs.
-#     The pivot point and axs are used for convenience and are set to `(0.0, 0.0)` and 0.0 degrees by default.
-#     """
-
-#     def __init__(
-#         self,
-#         pivot_point=(0.0, 0.0),
-#         pivot_angle=0.0,
-#     ):
-#         super(ClosedShape2D, self).__init__()
-#         self.pxc, self.pyc = self.pivot_point = pivot_point
-#         self.pivot_angle = pivot_angle
-#         #
-#         self._area = 0.0
-#         self._perimeter = 0.0
-#         self._sf = 1.0
-
-#     @property
-#     def area(self):
-#         """
-
-#         :rtype: float
-
-#         """
-#         return self._area
-
-#     @property
-#     def perimeter(self):
-#         """
-
-#         :rtype: float
-
-#         """
-#         return self._perimeter
-
-#     @property
-#     def shape_factor(self):
-#         """
-
-#         :rtype: float
-
-#         """
-#         assert_positivity(self.area, "Area")
-#         assert_positivity(self.perimeter, "Perimeter")
-#         self._sf = self.perimeter / sqrt(4.0 * pi * self.area)
-#         return self._sf
-
 #     def plot(
 #         self,
 #         axs=None,
@@ -757,122 +1204,6 @@ class CircularArc(EllipticalArc):
 #         ), f"Incorrect number of columns, found {a.shape[1]} instead of {n}"
 #         return
 
-
-# class Ellipse(ClosedShape2D):
-#     """
-#     Ellipse defined its centre, orientation of semi-major axs with the positive x-axs, starting and ending points
-#     (defined by the parametric values theta_1 and theta_2), semi-major and semi-minor axs lengths. It has perimeter,
-#     area, shape factor, locus, bounding box and union of circles representation properties.
-
-#     >>> ellipse = Ellipse()
-#     >>> ellipse.smj  # prints semi-major axs length, a
-#     >>> ellipse.smn  # prints semi-minor axs length, b
-#     >>> ellipse.pivot_point  # prints centre of the ellipse
-#     >>> ellipse.pivot_angle  # prints orientation of the semi-major axs of the ellipse
-#     >>> ellipse.shape_factor  # prints shape factor of the ellipse
-
-#     """
-
-#     def __init__(
-#         self,
-#         smj: float = 2.0,
-#         smn: float = 1.0,
-#         theta_1=0.0,
-#         theta_2=2.0 * pi,
-#         centre=(0.0, 0.0),
-#         smj_angle=0.0,
-#     ):
-#         is_ordered(smn, smj, "Semi minor axs", "Semi major axs")
-#         self.smj = smj
-#         self.smn = smn
-#         self.theta_1 = theta_1
-#         self.theta_2 = theta_2
-#         super(Ellipse, self).__init__(centre, smj_angle)
-#         self._ecc = 1.0
-
-#     @property
-#     def perimeter(self):
-#         """
-#         Perimeter is approximated using the following Ramanujan formula
-
-#         .. math::
-#             p = \\pi[3(a+b) - \\sqrt{(3a + b)(a + 3b)}]
-
-#         """
-#         self._perimeter = pi * (
-#             (3.0 * (self.smj + self.smn))
-#             - sqrt(((3.0 * self.smj) + self.smn) * (self.smj + (3.0 * self.smn)))
-#         )
-#         return self._perimeter
-
-#     @property
-#     def area(self):
-#         """
-#         Area is evaluated using the following formula,
-
-#         .. math::
-#             A = \\pi a b
-
-#         """
-#         self._area = pi * self.smj * self.smn
-#         return self._area
-
-#     @staticmethod
-#     def _eval_eccentricity(_a: float, _b: float) -> float:
-#         return sqrt(1 - (_b * _b) / (_a * _a))
-
-#     @property
-#     def eccentricity(self):
-#         """
-#         Eccentricity of the ellipse, evaluated using
-
-#         .. math::
-#             e = \\sqrt{1 - \\frac{b^2}{a^2}}
-
-#         """
-#         self._ecc = self._eval_eccentricity(self.smj, self.smn)
-#         return self._ecc
-
-#     @property
-#     def locus(self):
-#         """
-#         Determines the points along the locus of the ellipse.
-
-#         .. math::
-#             x = a \\cos{ \\theta },  y = b \\sin{ \\theta }; \\;\\; \\theta \\in [\\theta_1, \\theta_2]
-#         """
-#         #
-#         self._locus = EllipticalArc(
-#             self.smj,
-#             self.smn,
-#             self.theta_1,
-#             self.theta_2,
-#             self.pivot_point,
-#             self.pivot_angle,
-#         ).locus
-#         return self._locus
-
-#     @property
-#     def bounding_box(self):
-#         """
-#         Returns the coordinate-axs aligned bounds of the ellipse using the following formulae
-
-#         .. math::
-#             x = x_c \\pm \\sqrt{a^2 \\cos^2 \\theta + b^2 \\sin^2 \\theta}
-
-#             y = y_c \\pm \\sqrt{a^2 \\sin^2 \\theta + b^2 \\cos^2 \\theta}
-
-#         """
-#         k1 = sqrt(
-#             (self.smj**2) * (cos(self.pivot_angle) ** 2)
-#             + (self.smj**2) * (sin(self.pivot_angle) ** 2)
-#         )
-#         k2 = sqrt(
-#             (self.smj**2) * (sin(self.pivot_angle) ** 2)
-#             + (self.smj**2) * (cos(self.pivot_angle) ** 2)
-#         )
-#         self._b_box = self.pxc - k1, self.pyc - k2, self.pxc + k1, self.pyc + k2
-#         return self._b_box
 
 #     def union_of_circles(self, buffer: float = 0.01) -> ClosedShapesList:
 #         """
@@ -1085,8 +1416,8 @@ class CircularArc(EllipticalArc):
 #             CircularArc(r, 0.5 * pi, 1.0 * pi, (r - a, b - r)),
 #             StraightLine(bb, (-a, b - r), 1.5 * pi),
 #             CircularArc(r, 1.0 * pi, 1.5 * pi, (r - a, r - b)),
-#             StraightLine(aa, (-a + r, -b), 2.0 * pi),
-#             CircularArc(r, 1.5 * pi, 2.0 * pi, (a - r, r - b)),
+#             StraightLine(aa, (-a + r, -b), TWO_PI),
+#             CircularArc(r, 1.5 * pi, TWO_PI, (a - r, r - b)),
 #         ]
 #         self._locus = Points(
 #             concatenate([a_curve.locus.points[:-1, :] for a_curve in curves], axis=0)
@@ -1128,7 +1459,7 @@ class CircularArc(EllipticalArc):
 
 #     @property
 #     def perimeter(self):
-#         self._perimeter = (2.0 * pi * self.r_tip) + (2.0 * self.theta_c * self.r_mean)
+#         self._perimeter = (TWO_PI * self.r_tip) + (2.0 * self.theta_c * self.r_mean)
 #         return self._perimeter
 
 #     @property
@@ -1145,7 +1476,7 @@ class CircularArc(EllipticalArc):
 #             CircularArc(
 #                 self.r_tip,
 #                 pi,
-#                 2.0 * pi,
+#                 TWO_PI,
 #                 (self.r_mean, 0.0),
 #             ),
 #             CircularArc(
