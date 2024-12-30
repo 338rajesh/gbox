@@ -152,7 +152,7 @@ For example,
      [2.0, 4.0, 1.2],
    ])  # (4, 3) shaped array containing four circles information with first two columns (x, y) coordinates of
    # their centres and the last column contains radii.
-   circles = gb.Circles(circles_data)
+   circles = gb.CircleSet1D(circles_data)
    circles.plot()  # plots circles on a given axs or to new axs (which can be saved or displayed using plt.show())
    print(circles.loci.points.shape)  # (num_circles, num_locus_points, 2) shaped array
    print(circles.areas)  # evaluates all circles areas

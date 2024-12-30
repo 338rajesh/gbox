@@ -1,35 +1,18 @@
-from .elements import (
+from . import utilities
+
+from .gbox import (
+    BoundingBox,
+    #
     Point,
-    Points,
-    BoundingBox2D,
-)
-from .shapes import (
+    Point2D,
+    PointSet,
+    PointSet1D,
+    PointSet2D,
     #
     StraightLine,
-    EllipticalArc,
-    CircularArc,
+    StraightLine2D,
     #
-    ClosedShape2D,
-    ClosedShapesList,
-    #
-    Ellipse,
     Circle,
-    Polygon,
-    RegularPolygon,
-    Rectangle,
-    Capsule,
-    CShape,
-    NLobeShape,
-    #
-    Circles,
-    Capsules,
-    RegularPolygons,
-    Ellipses,
-    Rectangles,
-    CShapes,
-    NLobeShapes,
-)
-from .utils import (
-    rotational_matrix,
-    PLOT_OPTIONS,
+    CircleSet,
+    Ellipse,
 )
