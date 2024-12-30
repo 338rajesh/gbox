@@ -27,9 +27,7 @@ theta_strategy = st.tuples(
 
 PI = np.pi
 TWO_PI = 2.0 * PI
-OUTPUT_DIR = get_output_dir(
-    pathlib.Path(__file__).parent / "__output" / "test_circles"
-)
+OUTPUT_DIR = get_output_dir(pathlib.Path(__file__).parent / "__output" / "test_circles")
 
 # ---------------------------------------------------------------------------
 
@@ -135,7 +133,7 @@ class TestCircle:
             axs.axis("off")
 
 
-class TestCircles:
+class TestCircleSet:
 
     def test_empty_circles_construction(self):
         with pytest.raises(ValueError):
@@ -223,6 +221,29 @@ class TestCircles:
                     "linestyle": "solid",
                 },
             )
+
+    def test_circles_transformation(self):
+        r, m = 0.1, 10
+
+        for i in range(50):
+            xc_yc = np.random.uniform(-5.0, 5.0, (m, 2))
+            r = np.random.uniform(1.0, 5.0, m)
+            (dx, dy) = np.random.uniform(-5.0, 5.0, 2)
+            tht = np.random.uniform(-np.pi, np.pi)
+            sc = np.random.uniform(-2.0, 2.0)
+
+            circles = gb.CircleSet(
+                *[gb.Circle(r[k], (xc, yc)) for k, (xc, yc) in enumerate(xc_yc)]
+            )
+            circles.transform(dx, dy, tht, sc)
+            assert np.allclose(
+                circles.radii, np.array([r * sc for j in range(m)])
+            ), "Radii do not match"
+
+            x_ = xc_yc[:, 0] * np.cos(tht) - xc_yc[:, 1] * np.sin(tht) + dx
+            y_ = xc_yc[:, 0] * np.sin(tht) + xc_yc[:, 1] * np.cos(tht) + dy
+            assert np.allclose(circles.xc, x_), "X coordinates do not match"
+            assert np.allclose(circles.yc, y_), "Y coordinates do not match"
 
     def test_circles_have_point(self):
         r, m = 0.1, 10

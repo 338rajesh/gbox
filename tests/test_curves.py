@@ -2,16 +2,6 @@ import pytest
 
 import numpy as np
 import gbox as gb
-import matplotlib.pyplot as plt
-
-import pathlib
-import shutil
-
-from gbox.utilities import get_output_dir, gb_plotter, LineStyles as lst
-
-
-OUTPUT_DIR = get_output_dir(pathlib.Path(__file__).parent / "__output" / "test_curves")
-
 
 # ==================== FIXTURES =====================
 
@@ -59,6 +49,7 @@ def ell_arc_2():
 
 # # ==================== TESTS ========================
 
+
 class TestStraightLine:
     def test_straight_line_1(self):
         line = gb.StraightLine((0.0, 0.0), (1.0, 1.0))
@@ -79,7 +70,6 @@ class TestStraightLine:
         assert np.array_equal(line.equation()(0.5), (0.5, 0.5, 0.0))
         assert np.array_equal(line.equation()(1.0), (1.0, 1.0, -1.0))
 
-
     def test_straight_line_2d(self):
         line = gb.StraightLine2D((1.0, 2.0), (3.0, 4.0))
         with pytest.raises(AssertionError):
@@ -91,34 +81,56 @@ class TestStraightLine:
         assert np.array_equal(line.equation()(0.0), (1.0, 2.0))
 
     def test_straight_line_2d_angle(self):
-        
+
         assert gb.StraightLine2D((0.0, 0.0), (1.0, 0.0)).angle() == 0.0
         assert gb.StraightLine2D((0.0, 0.0), (1.0, 0.0)).angle(rad=False) == 0.0
 
         assert gb.StraightLine2D((0.0, 0.0), (1.0, 1.0)).angle() == np.pi * 0.25
         assert gb.StraightLine2D((0.0, 0.0), (1.0, 1.0)).angle(rad=False) == 45.0
 
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 + np.sqrt(3.0))).angle(), np.pi / 3)
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 + np.sqrt(3.0))).angle(rad=False), 60.0)
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 + np.sqrt(3.0))).angle(), np.pi / 3
+        )
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 + np.sqrt(3.0))).angle(rad=False),
+            60.0,
+        )
 
         assert gb.StraightLine2D((0.0, 0.0), (0.0, 1.0)).angle() == np.pi * 0.5
         assert gb.StraightLine2D((0.0, 0.0), (0.0, 1.0)).angle(rad=False) == 90.0
 
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (-2.0, 5.0)).angle(), np.pi * 0.75)
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (-2.0, 5.0)).angle(rad=False), 135.0)
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (-2.0, 5.0)).angle(), np.pi * 0.75
+        )
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (-2.0, 5.0)).angle(rad=False), 135.0
+        )
 
         assert gb.StraightLine2D((0.0, 0.0), (-0.5, 0.0)).angle() == np.pi
         assert gb.StraightLine2D((0.0, 0.0), (-0.5, 0.0)).angle(rad=False) == 180.0
 
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (-2.0, -1.0)).angle(), np.pi * 1.25)
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (-2.0, -1.0)).angle(rad=False), 225.0)
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (-2.0, -1.0)).angle(), np.pi * 1.25
+        )
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (-2.0, -1.0)).angle(rad=False), 225.0
+        )
 
         assert gb.StraightLine2D((0.0, 0.0), (0.0, -1.0)).angle() == np.pi * 1.5
         assert gb.StraightLine2D((0.0, 0.0), (0.0, -1.0)).angle(rad=False) == 270.0
 
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (4.0, -1.0)).angle(), np.pi * 1.75)
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (4.0, -1.0)).angle(rad=False), 315.0)
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (4.0, -1.0)).angle(), np.pi * 1.75
+        )
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (4.0, -1.0)).angle(rad=False), 315.0
+        )
 
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 - np.sqrt(3.0))).angle(), np.pi * 5.0 / 3.0)
-        assert np.isclose(gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 - np.sqrt(3.0))).angle(rad=False), 300.0)
-
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 - np.sqrt(3.0))).angle(),
+            np.pi * 5.0 / 3.0,
+        )
+        assert np.isclose(
+            gb.StraightLine2D((1.0, 2.0), (2.0, 2.0 - np.sqrt(3.0))).angle(rad=False),
+            300.0,
+        )

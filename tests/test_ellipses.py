@@ -2,7 +2,7 @@ import pathlib
 import math
 
 import pytest
-from hypothesis import given, strategies as st
+from hypothesis import given, strategies as st, settings as hypothesis_settings
 import numpy as np
 
 import gbox as gb
@@ -133,12 +133,16 @@ class TestEllipse:
             ell = gb.Ellipse(a, b, tht, (xc, yc))
             ell.eval_boundary(n)
 
-            xi_ = xc + (a * np.cos(t)  * np.cos(tht)) - (b * np.sin(t) * np.sin(tht))
-            yi_ = yc + (a * np.cos(t)  * np.sin(tht)) + (b * np.sin(t) * np.cos(tht))
+            xi_ = xc + (a * np.cos(t) * np.cos(tht)) - (b * np.sin(t) * np.sin(tht))
+            yi_ = yc + (a * np.cos(t) * np.sin(tht)) + (b * np.sin(t) * np.cos(tht))
             with gb.utilities.gb_plotter(OUTPUT_DIR / f"ellipse_{i}.png") as (fig, axs):
-                ell.plot(axs, True, lst.THEME_2, {**lst.THEME_1, 'label': 'Test Ellipse'})
+                ell.plot(
+                    axs, True, lst.THEME_2, {**lst.THEME_1, "label": "Test Ellipse"}
+                )
 
-                axs.plot(xi_, yi_, "k", linestyle='--', linewidth=2, label='Target Ellipse')
+                axs.plot(
+                    xi_, yi_, "k", linestyle="--", linewidth=2, label="Target Ellipse"
+                )
                 axs.plot([xc, xc + a * np.cos(tht)], [yc, yc + a * np.sin(tht)], "g-")
 
                 axs.grid()
@@ -156,7 +160,6 @@ class TestEllipse:
                 )
                 axs.axis("equal")
 
-
     def test_ellipse_r_shortest(self):
         ell = gb.Ellipse(1.0, 0.5, math.pi * 0.25, (0.0, 0.0))
         xi = ell.smj * ell.eccentricity**2
@@ -164,6 +167,29 @@ class TestEllipse:
         assert ell.r_shortest(xi) == pytest.approx(ell.smn / ell.aspect_ratio)
         assert ell.r_shortest(-xi) == pytest.approx(ell.smn / ell.aspect_ratio)
 
-    # def test_ellipse_uns(self):
-    #     # TODO ellipse uns
-    #     pass
+    def test_ellipse_uns(self):
+        for i in range(20):
+            a = np.random.uniform(5.0, 8.0)
+            b = np.random.uniform(1.0, 4.0)
+            tht = np.random.uniform(0.0, TWO_PI)
+            xc = np.random.uniform(-5.0, 5.0)
+            yc = np.random.uniform(-5.0, 5.0)
+            dh = np.random.uniform(0.01, 0.02)
+            ell = gb.Ellipse(a, b, tht, (xc, yc))
+            circles: gb.CircleSet = ell.uns(dh)
+            file_path = OUTPUT_DIR / f"uns_{i}.png"
+            with gb.utilities.gb_plotter(file_path) as (fig, axs):
+                ell.plot(
+                    axs,
+                    True,
+                    lst.THEME_3,
+                    {"linewidth": 2, "color": "k", "label": "Test Ellipse"},
+                )
+                circles.plot(
+                    axs, False, points_plt_opt={**lst.THEME_1, "label": "Test Circles"}
+                )
+                axs.set_title(
+                    f"Ellipse: a={a:4.3f},  b={b:4.3f}, tht={np.rad2deg(tht):4.3f}, dh={dh:4.3f}, N={circles.size}"
+                )
+                axs.plot(xc, yc, "ro")  # Add the point as a red dot
+                axs.axis("equal")

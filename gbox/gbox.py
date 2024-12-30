@@ -483,7 +483,6 @@ class PointSet2D(PointSet):
 
 
 class Points3D(PointSet):
-    # TODO implement tests
     def __init__(self, points, **kwargs):
         super(Points3D, self).__init__(points, **kwargs)
         assert (
@@ -618,6 +617,7 @@ class TopologicalClosedShape2D(TopologicalClosedShape):
         points_plt_opt=None,
         cycle=True,
     ):
+        assert self.boundary is not None, "Boundary is not defined"
         assert (
             self.boundary.dim == 2
         ), f"Plot is supported for boundary in 2D only, but {self.boundary.dim}D points were provided"
@@ -733,6 +733,44 @@ class CircleSet:
         new_data[: self.size] = self._data[: self.size]
         self._data = new_data
 
+    def transform(
+        self,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        angle: float = 0.0,
+        scale: float | NDArray = 1.0,
+        pivot: tuple[float, float] = (0.0, 0.0),
+    ) -> "CircleSet":
+        """Updates the current circle set by transformation"""
+
+        # Scaling the Radius
+        if not isinstance(scale, (float, list, tuple, NDArray)):
+            raise TypeError("Scale must be of type: float, list, tuple or NDArray")
+        scale = np.atleast_1d(scale)
+        assert scale.ndim == 1, "Scale must be a 1D array"
+        if scale.size not in (1, self.size):
+            raise ValueError(
+                "Scale must be a float or have same length as the number of circles"
+            )
+        self._data[: self.size, 2] = self._data[: self.size, 2] * scale
+
+        # Applying Rotation and Translation, if required
+        if angle != 0.0:
+            x = self._data[: self.size, 0] - pivot[0]
+            y = self._data[: self.size, 1] - pivot[1]
+            x_ = x * np.cos(angle) - y * np.sin(angle) + pivot[0]
+            y_ = x * np.sin(angle) + y * np.cos(angle) + pivot[1]
+            self._data[: self.size, 0] = x_
+            self._data[: self.size, 1] = y_
+
+        if dx != 0.0:
+            self._data[: self.size, 0] += dx
+
+        if dy != 0.0:
+            self._data[: self.size, 1] += dy
+
+        return self
+
     @property
     def data(self) -> NDArray:
         return self._data[: self.size]
@@ -771,10 +809,10 @@ class CircleSet:
                 int(np.ceil(TWO_PI * np.max(self.radii) / arc_length)), min_points
             )
 
-        theta = np.linspace(0, TWO_PI, num_points)
+        t = np.linspace(0.0, TWO_PI, num_points)
         xy = np.empty((self.size, num_points, 2))
-        xy[:, :, 0] = self.radii[:, None] * np.cos(theta)
-        xy[:, :, 1] = self.radii[:, None] * np.sin(theta)
+        xy[:, :, 0] = self.radii[:, None] * np.cos(t)
+        xy[:, :, 1] = self.radii[:, None] * np.sin(t)
 
         xy[:, :, 0] = xy[:, :, 0] + self.xc[:, None]
         xy[:, :, 1] = xy[:, :, 1] + self.yc[:, None]
@@ -800,7 +838,6 @@ class CircleSet:
         assert p.dim == 2, "other point must be of dimension 2"
         return np.linalg.norm(self.centres - p.as_array(), axis=1)
 
-    # TODO: If it can be implemented using __contains__ special method
     def contains_point(self, p: PointType, tol=1e-8) -> Literal[-1, 0, 1]:
         p = Point2D.from_seq(p)
         assert p.dim == 2, "other point must be of dimension 2"
@@ -817,7 +854,9 @@ class CircleSet:
         self.evaluate_boundaries()
         if b_box:
             self.bounding_box().plot(axs, **b_box_plt_opt)
-        for a_boundary in self.boundaries:
+        for (idx, a_boundary) in enumerate(self.boundaries):
+            if "label" in points_plt_opt and idx > 0:
+                del points_plt_opt["label"]
             a_boundary.plot(axs, points_plt_opt=points_plt_opt)
 
 
@@ -861,7 +900,6 @@ class Ellipse(TopologicalClosedShape2D):
     def eval_boundary(
         self, num_points=100, theta_1=0.0, theta_2=TWO_PI, cycle=True, incl_theta_2=True
     ):
-        # TODO finding the optimal number of points based on ellipse properties
 
         t = np.linspace(theta_1, theta_2, num_points, endpoint=incl_theta_2)
 
@@ -898,6 +936,13 @@ class Ellipse(TopologicalClosedShape2D):
             1.0 - ((xi * xi) / (self.smj * self.smj - self.smn * self.smn))
         )
 
+    def plot(
+        self, axs, b_box=False, b_box_plt_opt=None, points_plt_opt=None, cycle=True
+    ):
+        if self.boundary is None:
+            self.eval_boundary()
+        return super().plot(axs, b_box, b_box_plt_opt, points_plt_opt, cycle)
+
     def uns(self, dh=0.0) -> CircleSet:
         if self.aspect_ratio == 1.0:
             return CircleSet(Circle(self.smj, self.centre))
@@ -923,7 +968,9 @@ class Ellipse(TopologicalClosedShape2D):
             r_o = ell_outer.r_shortest(x_i)
 
             x_i = (x_i * (m - 1.0)) + (m * e_i * math.sqrt(r_o * r_o - r_i * r_i))
-        return CircleSet(*circles)
+        circles_set = CircleSet(*circles)
+        circles_set.transform(self.centre.x, self.centre.y, self.mjx_angle)
+        return circles_set
 
 
 class Polygon(TopologicalClosedShape2D):
