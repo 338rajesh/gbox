@@ -37,37 +37,22 @@ def point_2d():
 
 @pytest.fixture
 def points():
-    return gb.Points([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+    return gb.PointSet([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
 
 
 @pytest.fixture
 def points_1d():
-    return gb.Points1D(
-        [
-            [
-                1.0,
-            ],
-            [
-                3.0,
-            ],
-            [
-                5.0,
-            ],
-            [
-                7.0,
-            ],
-        ]
-    )
+    return gb.PointSet1D(np.array([1.0, 3.0, 5.0, 7.0]).reshape(-1, 1))
 
 
 @pytest.fixture
 def points_2d():
-    return gb.Points2D([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+    return gb.PointSet2D([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
 
 
-@pytest.fixture(params=[0.0, 0.2, 1.24, 2.7, 3.14, 4.0])
-def transformation_triplet(request):
-    return (np.pi * 0.5 * request.param, np.random.rand(), np.random.rand())
+# @pytest.fixture(params=[0.0, 0.2, 1.24, 2.7, 3.14, 4.0])
+# def transformation_triplet(request):
+#     return (np.pi * 0.5 * request.param, np.random.rand(), np.random.rand())
 
 
 # ==================== TESTS =====================
@@ -145,7 +130,7 @@ class TestPoint:
     def test_point_conversions(self, point):
         assert np.array_equal(point.as_array(), np.array([1.0, 2.0]))
         assert point.as_list() == [1.0, 2.0]
-    
+
     def test_point_is_close(self):
         assert gb.Point(1.0, 2.0).is_close_to(gb.Point(1.0, 2.0))
         assert not gb.Point(1.0, 2.0).is_close_to(gb.Point(1.0, 3.0))
@@ -178,34 +163,40 @@ class TestPoint2D:
         )
 
     def test_transform(self):
-        assert gb.Point2D(0.0, 1.0).transform(
-            angle=np.pi * 1.5, dx=5.0, dy=6.0
-        ).is_close_to(gb.Point2D(6.0, 6.0), eps=1e-5)
-        assert gb.Point2D(-3.0, -3.0).transform(
-            angle=np.pi * 1.0, dx=-3.0, dy=-3.0
-        ).is_close_to(gb.Point2D(0.0, 0.0), eps=1e-5)
-        assert gb.Point2D(3.0, -3.0).transform(
-            angle=np.pi * 0.25, dx=-3.0*np.sqrt(2.0), dy=0.0
-        ).is_close_to(gb.Point2D(0.0, 0.0), eps=1e-5)
+        assert (
+            gb.Point2D(0.0, 1.0)
+            .transform(angle=np.pi * 1.5, dx=5.0, dy=6.0)
+            .is_close_to(gb.Point2D(6.0, 6.0), eps=1e-5)
+        )
+        assert (
+            gb.Point2D(-3.0, -3.0)
+            .transform(angle=np.pi * 1.0, dx=-3.0, dy=-3.0)
+            .is_close_to(gb.Point2D(0.0, 0.0), eps=1e-5)
+        )
+        assert (
+            gb.Point2D(3.0, -3.0)
+            .transform(angle=np.pi * 0.25, dx=-3.0 * np.sqrt(2.0), dy=0.0)
+            .is_close_to(gb.Point2D(0.0, 0.0), eps=1e-5)
+        )
 
 
 class TestPoints:
     def test_points_constructor(self):
-        gb.Points(np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
-        gb.Points([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
-        gb.Points(([1.0, 2.0], [3.0, 4.0], [5.0, 6.0]))
-        gb.Points(((1.0, 2.0), (3.0, 4.0), (5.0, 6.0)))
+        gb.PointSet(np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]))
+        gb.PointSet([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        gb.PointSet(([1.0, 2.0], [3.0, 4.0], [5.0, 6.0]))
+        gb.PointSet(((1.0, 2.0), (3.0, 4.0), (5.0, 6.0)))
 
     def test_points_properties(self, points):
         assert points.dim == 2
         assert len(points) == 4
 
     def test_points_repr(self, points):
-        out = "Points:\n[[1. 2.]\n [3. 4.]\n [5. 6.]\n [7. 8.]]"
+        out = "PointSet:\n[[1. 2.]\n [3. 4.]\n [5. 6.]\n [7. 8.]]"
         assert str(points) == out
 
     def test_points_eq(self, points):
-        assert points == gb.Points([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+        assert points == gb.PointSet([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
 
     def test_points_copy(self, points):
         assert points.copy() == points
@@ -216,7 +207,7 @@ class TestPoints:
         assert points.bounding_box == gb.BoundingBox([1.0, 2.0], [7.0, 8.0])
 
     def test_points_from_dimension_data(self, points):
-        new_points = gb.Points.from_dimension_data(
+        new_points = gb.PointSet.from_dimension_data(
             np.array([1.0, 3.0, 5.0, 7.0]), np.array([2.0, 4.0, 6.0, 8.0])
         )
         assert new_points == points
@@ -227,15 +218,16 @@ class TestPoints:
         points.cycle = True
 
 
-class TestPoints1D:
+class TestPointSet1D:
     def test_constructor(self):
-        p_1d = gb.Points1D([[1.0], [2.0], [3.0]])
+        p_1d = gb.PointSet1D([[1.0], [2.0], [3.0]])
         assert p_1d.dim == 1
         assert np.array_equal(p_1d.x, [1.0, 2.0, 3.0])
 
     def test_transform(self, points_1d):
         assert np.array_equal(
-            points_1d.transform(dx=0.25).coordinates, [[1.25], [3.25], [5.25], [7.25]]
+            points_1d.transform(dx=0.25).coordinates,
+            np.array([[1.25], [3.25], [5.25], [7.25]]),
         )
 
     def test_reverse(self, points_1d):
@@ -249,24 +241,32 @@ class TestPoints1D:
         with utilities.gb_plotter(OUTPUT_DIR / "points_1d_simple.png") as (fig, axs):
             points_1d.plot(axs)
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")
 
 
-class TestPoints2D:
+class TestPointSet1D:
     def test_constructor(self, points_2d):
         assert points_2d.dim == 2
         assert np.array_equal(points_2d.x, [1.0, 3.0, 5.0, 7.0])
         assert np.array_equal(points_2d.y, [2.0, 4.0, 6.0, 8.0])
 
-    # TODO FIXME 
-    # def test_transform(self, points_2d, transformation_triplet):
-    #     dth, dx, dy = transformation_triplet
-    #     old_point_coordinates = points_2d.copy().coordinates
-    #     trasnformed_old_coordinates = old_point_coordinates @ np.array(
-    #         [[np.cos(dth), -np.sin(dth)], [np.sin(dth), np.cos(dth)]]
-    #     ) + [dx, dy]
-    #     new_point_coordinates = points_2d.transform(dth, dx, dy).coordinates
-    #     assert np.allclose(trasnformed_old_coordinates, new_point_coordinates)
+
+    @given(
+            dth=st.floats(min_value=0.0, max_value=np.pi * 2.0),
+            dx=st.floats(min_value=-1.0, max_value=1.0),
+            dy=st.floats(min_value=-1.0, max_value=1.0),
+    )
+    def test_transform(self, dth, dx, dy):
+        dth = float(np.random.choice([0.0, np.pi * 2.0]))
+        init_xy = np.random.rand(10, 2)
+        trasnformed_x = init_xy[:, 0] * np.cos(dth) - init_xy[:, 1] * np.sin(dth) + dx
+        trasnformed_y = init_xy[:, 0] * np.sin(dth) + init_xy[:, 1] * np.cos(dth) + dy
+        trasnformed_xy = np.column_stack((trasnformed_x, trasnformed_y))
+        # 
+        points_ = gb.PointSet2D(init_xy)
+        new_point_coordinates = points_.transform(dth, dx, dy).coordinates
+        assert np.allclose(trasnformed_xy, new_point_coordinates)
+
 
     def test_points_2d_angle(self, point_2d):
         assert point_2d.angle(gb.Point2D(2.0, 3.0)) == pytest.approx(
@@ -285,12 +285,12 @@ class TestPoints2D:
         with utilities.gb_plotter(OUTPUT_DIR / "points_simple.png") as (fig, axs):
             points_2d.plot(axs)
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")
 
         with utilities.gb_plotter(OUTPUT_DIR / "points_bb.png") as (fig, axs):
             points_2d.plot(axs, b_box=True)
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")
 
         with utilities.gb_plotter(OUTPUT_DIR / "points_bb_black_dashed.png") as (
             fig,
@@ -302,7 +302,7 @@ class TestPoints2D:
                 b_box_plt_opt={"color": "k", "linewidth": 2, "linestyle": "dashed"},
             )
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")
 
         with utilities.gb_plotter(OUTPUT_DIR / "points_blue_color_cross.png") as (
             fig,
@@ -318,7 +318,7 @@ class TestPoints2D:
                 },
             )
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")
 
         with utilities.gb_plotter(OUTPUT_DIR / "points_as_line.png") as (fig, axs):
             points_2d.plot(
@@ -331,4 +331,4 @@ class TestPoints2D:
                 },
             )
             axs.grid()
-            axs.set_title("Points")
+            axs.set_title("PointSet")

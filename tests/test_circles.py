@@ -139,9 +139,9 @@ class TestCircles:
 
     def test_empty_circles_construction(self):
         with pytest.raises(ValueError):
-            gb.Circles()  # Must have at least one circle
+            gb.CircleSet()  # Must have at least one circle
         with pytest.raises(TypeError):
-            gb.Circles(
+            gb.CircleSet(
                 1.0, 2.0, 3.0
             )  # 'Circle' type of elements are expected not floats
 
@@ -153,14 +153,14 @@ class TestCircles:
         x_c = [xc + np.random.rand() for i in range(1, n)]
         y_c = [yc + np.random.rand() for i in range(1, n)]
         m = n - 1
-        circles = gb.Circles(
+        circles = gb.CircleSet(
             *[gb.Circle(radii[i], (x_c[i], y_c[i]), th_1, th_2) for i in range(m)]
         )
 
         # Check number of circles
         assert circles.size == m, "Number of circles does not match"
         assert len(circles) == m, "Number of circles does not match"
-        assert circles.data.shape == (m, 3), "Circles data shape does not match"
+        assert circles.data.shape == (m, 3), "CircleSet data shape does not match"
 
     @hypothesis_settings(
         max_examples=20,
@@ -174,7 +174,7 @@ class TestCircles:
         y_c = [yc + np.random.rand() for i in range(1, n)]
         xy_c = np.stack((x_c, y_c), axis=1)
         m = n - 1
-        circles = gb.Circles(
+        circles = gb.CircleSet(
             *[gb.Circle(radii[i], (x_c[i], y_c[i]), *angles) for i in range(m)]
         )
         # check iteration
@@ -200,7 +200,7 @@ class TestCircles:
     def test_circles_plotting(self, test_plots):
         if not test_plots:
             pytest.skip("Skipping test because test_plots is False")
-        circles = gb.Circles(
+        circles = gb.CircleSet(
             gb.Circle(1.0, (0.0, 1.0)),
             gb.Circle(0.8, (0.0, 0.0)),
             gb.Circle(0.6, (1.0, 0.0)),
@@ -227,7 +227,7 @@ class TestCircles:
     def test_circles_have_point(self):
         r, m = 0.1, 10
 
-        circles = gb.Circles(*[gb.Circle(r, (-i, i)) for i in range(m)])
+        circles = gb.CircleSet(*[gb.Circle(r, (-i, i)) for i in range(m)])
 
         for i in range(m):
             for j, check in [(0.2, 1.0), (1.0, 0.0), (2.0, -1.0)]:
@@ -243,7 +243,7 @@ class TestCircles:
         m = 10
         px, py = point
 
-        circles = gb.Circles(*[gb.Circle(r, (-i, i)) for i in range(m)])
+        circles = gb.CircleSet(*[gb.Circle(r, (-i, i)) for i in range(m)])
 
         assert np.array_equal(
             circles.distances_to((px, py)),
@@ -254,7 +254,7 @@ class TestCircles:
     def test_circles_eval_boundaries(self, point, r):
         (px, py), m = point, 10
         circles_list = [gb.Circle(r, (-i, i)) for i in range(m)]
-        circles = gb.Circles(*circles_list)
+        circles = gb.CircleSet(*circles_list)
         circles.evaluate_boundaries(num_points=123)
         circles_boundaries = circles.boundaries
         for idx, a_circ in enumerate(circles_list):

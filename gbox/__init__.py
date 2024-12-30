@@ -5,14 +5,14 @@ from .gbox import (
     #
     Point,
     Point2D,
-    Points,
-    Points1D,
-    Points2D,
+    PointSet,
+    PointSet1D,
+    PointSet2D,
     #
     StraightLine,
     StraightLine2D,
     #
     Circle,
-    Circles,
+    CircleSet,
     Ellipse,
 )
