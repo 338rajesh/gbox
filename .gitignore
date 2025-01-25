@@ -8,3 +8,4 @@ gbox_env
 tests/__output
 .coverage
 .hypothesis
+build

@@ -7,14 +7,18 @@ from gbox import (
     BoundingBox,
 )
 from gbox.core import get_type, cast_to
-from gbox.base import PointArray1D
+from gbox.base import PointArray1D, PointArray2D
 import numpy as np
 from utils import gb_plotter, get_output_dir
 import pathlib
 
+from hypothesis import given
+from hypothesis import strategies as st
 
 PI = cast_to(np.pi, "float")
-OUTPUT_DIR = get_output_dir(pathlib.Path(__file__).parent / "__output" / "test_base_point")
+OUTPUT_DIR = get_output_dir(
+    pathlib.Path(__file__).parent / "__output" / "test_base_point"
+)
 
 
 def _test_floats_approx_equality_(a, b, message=""):
@@ -44,9 +48,17 @@ def point_3d():
 def point_array_4x2():
     return PointArray.from_sequences([1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0])
 
+
 @pytest.fixture
 def point_array_4x1():
     return PointArray1D.from_sequences([2], [4], [6], [8])
+
+
+@pytest.fixture
+def point_array_5x2():
+    return PointArray2D.from_sequences(
+        [1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0], [9.0, 10.0]
+    )
 
 
 class TestPoint:
@@ -342,89 +354,86 @@ class TestPointArray1D:
             axs.set_title("PointSet")
 
 
-# class TestPointSet1D:
-#     def test_constructor(self, points_2d):
-#         assert points_2d.dim == 2
-#         assert np.array_equal(points_2d.x, [1.0, 3.0, 5.0, 7.0])
-#         assert np.array_equal(points_2d.y, [2.0, 4.0, 6.0, 8.0])
+class TestPointArray2D:
+    def test_constructor(self, point_array_5x2):
+        assert point_array_5x2.dim == 2
+        assert np.array_equal(point_array_5x2.x, [1.0, 3.0, 5.0, 7.0, 9.0])
+        assert np.array_equal(point_array_5x2.y, [2.0, 4.0, 6.0, 8.0, 10.0])
 
-#     @given(
-#         dth=st.floats(min_value=0.0, max_value=np.pi * 2.0),
-#         dx=st.floats(min_value=-1.0, max_value=1.0),
-#         dy=st.floats(min_value=-1.0, max_value=1.0),
-#     )
-#     def test_transform(self, dth, dx, dy):
-#         dth = float(np.random.choice([0.0, np.pi * 2.0]))
-#         init_xy = np.random.rand(10, 2)
-#         trasnformed_x = init_xy[:, 0] * np.cos(dth) - init_xy[:, 1] * np.sin(dth) + dx
-#         trasnformed_y = init_xy[:, 0] * np.sin(dth) + init_xy[:, 1] * np.cos(dth) + dy
-#         trasnformed_xy = np.column_stack((trasnformed_x, trasnformed_y))
-#         #
-#         points_ = PointSet2D(init_xy)
-#         new_point_coordinates = points_.transform(dth, dx, dy).coordinates
-#         assert np.allclose(trasnformed_xy, new_point_coordinates)
+    @given(
+        dth=st.floats(min_value=0.0, max_value=np.pi * 2.0),
+        dx=st.floats(min_value=-1.0, max_value=1.0),
+        dy=st.floats(min_value=-1.0, max_value=1.0),
+    )
+    def test_transform(self, dth, dx, dy):
+        dth = float(np.random.choice([0.0, np.pi * 2.0]))
+        init_xy = np.random.rand(10, 2)
+        trasnformed_x = init_xy[:, 0] * np.cos(dth) - init_xy[:, 1] * np.sin(dth) + dx
+        trasnformed_y = init_xy[:, 0] * np.sin(dth) + init_xy[:, 1] * np.cos(dth) + dy
+        trasnformed_xy = np.column_stack((trasnformed_x, trasnformed_y))
+        #
+        points_ = PointArray2D(init_xy)
+        new_point_coordinates = points_.transform(dth, dx, dy).coordinates
+        assert np.allclose(trasnformed_xy, new_point_coordinates)
 
-#     def test_points_2d_angle(self, point_2d):
-#         assert point_2d.angle(Point2D(2.0, 3.0)) == pytest.approx(
-#             np.pi * 0.25, rel=1e-5
-#         )
 
-#     def test_reverse(self, points_2d):
-#         points_2d.reverse()
-#         assert np.array_equal(points_2d.x, [7.0, 5.0, 3.0, 1.0])
-#         assert np.array_equal(points_2d.y, [8.0, 6.0, 4.0, 2.0])
+    def test_reverse(self, point_array_5x2):
+        point_array_5x2.reverse()
+        assert np.array_equal(point_array_5x2.x, [9.0, 7.0, 5.0, 3.0, 1.0])
+        assert np.array_equal(point_array_5x2.y, [10.0, 8.0, 6.0, 4.0, 2.0])
 
-#     def test_plots(self, points_2d, test_plots):
-#         if not test_plots:
-#             pytest.skip()
+    def test_plots(self, test_plots):
+        point_array = PointArray2D(np.random.rand(100, 2))
+        if not test_plots:
+            pytest.skip()
 
-#         with gb_plotter(OUTPUT_DIR / "points_simple.png") as (fig, axs):
-#             points_2d.plot(axs)
-#             axs.grid()
-#             axs.set_title("PointSet")
+        with gb_plotter(OUTPUT_DIR / "points_simple.png") as (fig, axs):
+            point_array.plot(axs)
+            axs.grid()
+            axs.set_title("PointSet")
 
-#         with gb_plotter(OUTPUT_DIR / "points_bb.png") as (fig, axs):
-#             points_2d.plot(axs, b_box=True)
-#             axs.grid()
-#             axs.set_title("PointSet")
+        with gb_plotter(OUTPUT_DIR / "points_bb.png") as (fig, axs):
+            point_array.plot(axs, b_box=True)
+            axs.grid()
+            axs.set_title("PointSet")
 
-#         with gb_plotter(OUTPUT_DIR / "points_bb_black_dashed.png") as (
-#             fig,
-#             axs,
-#         ):
-#             points_2d.plot(
-#                 axs,
-#                 b_box=True,
-#                 b_box_plt_opt={"color": "k", "linewidth": 2, "linestyle": "dashed"},
-#             )
-#             axs.grid()
-#             axs.set_title("PointSet")
+        with gb_plotter(OUTPUT_DIR / "points_bb_black_dashed.png") as (
+            fig,
+            axs,
+        ):
+            point_array.plot(
+                axs,
+                b_box=True,
+                b_box_plt_opt={"color": "k", "linewidth": 2, "linestyle": "dashed"},
+            )
+            axs.grid()
+            axs.set_title("PointSet")
 
-#         with gb_plotter(OUTPUT_DIR / "points_blue_color_cross.png") as (
-#             fig,
-#             axs,
-#         ):
-#             points_2d.plot(
-#                 axs,
-#                 points_plt_opt={
-#                     "color": "blue",
-#                     "marker": "x",
-#                     "linestyle": "None",
-#                     "markersize": 10,
-#                 },
-#             )
-#             axs.grid()
-#             axs.set_title("PointSet")
+        with gb_plotter(OUTPUT_DIR / "points_blue_color_cross.png") as (
+            fig,
+            axs,
+        ):
+            point_array.plot(
+                axs,
+                points_plt_opt={
+                    "color": "blue",
+                    "marker": "x",
+                    "linestyle": "None",
+                    "markersize": 10,
+                },
+            )
+            axs.grid()
+            axs.set_title("PointSet")
 
-#         with gb.gb_plotter(OUTPUT_DIR / "points_as_line.png") as (fig, axs):
-#             points_2d.plot(
-#                 axs,
-#                 points_plt_opt={
-#                     "color": "blue",
-#                     "marker": "x",
-#                     "linestyle": "solid",
-#                     "markersize": 10,
-#                 },
-#             )
-#             axs.grid()
-#             axs.set_title("PointSet")
+        with gb_plotter(OUTPUT_DIR / "points_as_line.png") as (fig, axs):
+            point_array.plot(
+                axs,
+                points_plt_opt={
+                    "color": "blue",
+                    "marker": "x",
+                    "linestyle": "solid",
+                    "markersize": 10,
+                },
+            )
+            axs.grid()
+            axs.set_title("PointSet")

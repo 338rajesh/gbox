@@ -13,7 +13,7 @@ from .base import (
     Point2D,
     PointArray,
     PointArray1D,
-    PointSet2D,
+    PointArray2D,
     TopologicalCurve,
 )
 

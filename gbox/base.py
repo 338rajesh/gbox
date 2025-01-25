@@ -569,8 +569,42 @@ class PointArray:
 
 
 class PointArray1D(PointArray):
+    """
+    PointArray1D, a subclass of PointArray, with one dimension
+
+    Attributes:
+    -----------
+    coordinates: np.ndarray
+        Array of point coordinates
+    dim: int
+        Dimension of the points
+    dtype: np.dtype
+        Data type of the points
+    x: NDArray
+        Array of x coordinates
+
+    """
 
     def __init__(self, points: np.ndarray, dtype=None, **kwargs):
+        """Constructs a PointArray1D from a NumpyArray
+
+        Args:
+        -----
+        points: NDArray
+            One dimensional Numpy array or 2D Numpy array with one column
+        dtype: np.dtype
+            Data type of the points
+
+        Raises:
+        -------
+        TypeError
+            If points is not a NumpyArray
+        NotImplementedError
+            If points is a numpy array with more than 2 dimensions
+        ValueError
+            If points is a numpy array with more than one column
+
+        """
 
         if not isinstance(points, np.ndarray):
             raise TypeError("PointArray is construction requred a NumpyArray")
@@ -595,8 +629,19 @@ class PointArray1D(PointArray):
     def x(self) -> NDArray:
         return self.coordinates[:, 0]
 
-    def transform(self, dx: float = 0.0) -> "PointSet2D":
-        """In-place transformation of the points cluster by rotation and translation"""
+    def transform(self, dx: float = 0.0) -> "PointArray1D":
+        """In-place transformation of the points cluster by rotation and translation
+
+        Args:
+        -----
+        dx: float
+            Translation along x axis
+
+        Returns:
+        --------
+        PointArray1D
+
+        """
         if dx != 0.0:
             self.coordinates[:] = self.coordinates[:] + dx
         return self
@@ -630,13 +675,49 @@ class PointArray1D(PointArray):
         axs.axis("equal")
 
 
-class PointSet2D(PointArray):
+class PointArray2D(PointArray):
+    """
+    PointArray2D, a subclass of PointArray, with two dimensions
 
-    def __init__(self, points: list | tuple | NDArray, **kwargs):
-        super(PointSet2D, self).__init__(points, **kwargs)
+    Attributes:
+    -----------
+    coordinates: np.ndarray
+        Array of point coordinates
+    dim: int
+        Dimension of the points
+    dtype: np.dtype
+        Data type of the points
+    x: NDArray
+        Array of x coordinates
+    y: NDArray
+        Array of y coordinates
+
+    """
+
+    def __init__(self, points: np.ndarray, dtype=None, **kwargs):
+        """Constructs a PointArray2D from a NumpyArray
+
+        Args:
+        -----
+        points: NDArray
+            Two dimensional Numpy array of point coordinates, with one point per row
+        dtype: np.dtype
+            Data type of the points, defaults to FloatType
+
+        Raises:
+        -------
+        TypeError
+            If points is not a NumpyArray
+        NotImplementedError
+            If points is not two-dimensional
+
+        """
+
+        super(PointArray2D, self).__init__(points, dtype=dtype, **kwargs)
+
         assert (
             self.dim == 2
-        ), "Constructing 'PointSet2D' requires two dimensional points"
+        ), "PonitArray2D construction produced a PointArray with dimension != 2"
 
     @property
     def x(self) -> NDArray:
@@ -651,15 +732,29 @@ class PointSet2D(PointArray):
         angle: float = 0.0,
         dx: float = 0.0,
         dy: float = 0.0,
-    ) -> "PointSet2D":
-        """In-place transformation of the points cluster by rotation and translation"""
+    ) -> "PointArray2D":
+        """In-place transformation of the points cluster by rotation and translation
+        
+        Args:
+        -----
+        angle: float
+            Angle of rotation in radians, default: 0.0
+        dx: float
+            Translation along x axis, default: 0.0
+        dy: float
+            Translation along y axis, default: 0.0
+
+        Returns:
+        --------
+        PointArray2D        
+        """
         x_ = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
         y_ = (self.x * np.sin(angle) + self.y * np.cos(angle)) + dy
         self.coordinates[:, 0] = x_
         self.coordinates[:, 1] = y_
         return self
 
-    def reverse(self) -> "PointSet2D":
+    def reverse(self) -> "PointArray2D":
         """Reverses the order of points **in-place**"""
         self.coordinates[:] = np.flip(self.coordinates, axis=0)
         return self
@@ -667,6 +762,9 @@ class PointSet2D(PointArray):
     def make_periodic_tiles(self, bounds: list = None, order: int = 1):
         """Returns tiled copy of the points about the current position"""
         raise NotImplementedError("make_periodic_tiles is not implemented")
+
+    def sort(self) -> "PointArray2D":
+        raise NotImplementedError("sort is not implemented")
 
     def plot(
         self,
@@ -676,10 +774,11 @@ class PointSet2D(PointArray):
         points_plt_opt: dict = None,
     ):
         """Plots the points"""
-
-        assert (
-            self.dim <= 2
-        ), "PointArray Plotting is supported only for 1D and 2D points"
+        if self.dim > 2:
+            raise NotImplementedError(
+                "PointArray Plotting is supported only for 1D and 2D points"
+            )
+        
         _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
         _b_box_line_opt = {"color": "red", "linewidth": 2}
 
