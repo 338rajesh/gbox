@@ -1,18 +1,19 @@
-from . import utilities
+# =================================================================
+#                     Exporting classes and functions
+# =================================================================
 
-from .gbox import (
+from .core import (
+    TypeConfig
+)
+
+
+from .base import (
     BoundingBox,
-    #
     Point,
     Point2D,
-    PointSet,
-    PointSet1D,
+    PointArray,
+    PointArray1D,
     PointSet2D,
-    #
-    StraightLine,
-    StraightLine2D,
-    #
-    Circle,
-    CircleSet,
-    Ellipse,
+    TopologicalCurve,
 )
+

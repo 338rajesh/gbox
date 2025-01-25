@@ -11,3 +11,8 @@ For the extensive documentation, see [gbox.readthedocs.io](https://gbox.readthed
 * In `m` dimensional space, a group of `n` Points are represented
     as a `m x n` matrix. That is each column is a point in `m` dimensions
     and each row represents a single dimension.
+* Starting with np.float32 for all computations.
+  * Later it should be made possible to use float or np.float64
+* Perform all operations in np.float32 unless otherwise specified
+* Perform in-place operations unless otherwise specified
+  
