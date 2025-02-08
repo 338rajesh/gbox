@@ -2,18 +2,28 @@
 #                     Exporting classes and functions
 # =================================================================
 
-from .core import (
-    TypeConfig
-)
-
+from .core import TypeConfig
 
 from .base import (
     BoundingBox,
-    Point,
+    PointND,
     Point2D,
-    PointArray,
+    PointArrayND,
     PointArray1D,
     PointArray2D,
-    TopologicalCurve,
+    TopologicalClosedShape2D,
 )
 
+
+_all_ = [
+    TypeConfig,
+    BoundingBox,
+    #
+    PointND,
+    Point2D,
+    PointArrayND,
+    PointArray1D,
+    PointArray2D,
+    #
+    TopologicalClosedShape2D,
+]

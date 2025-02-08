@@ -1,13 +1,13 @@
 import pytest
 from gbox import (
     TypeConfig,
-    Point,
+    PointND,
     Point2D,
-    PointArray,
+    PointArrayND,
     BoundingBox,
 )
 from gbox.core import get_type, cast_to
-from gbox.base import PointArray1D, PointArray2D
+from gbox.base import PointArray1D, PointArray2D, PointArray3D
 import numpy as np
 from utils import gb_plotter, get_output_dir
 import pathlib
@@ -31,22 +31,22 @@ def _test_floats_approx_equality_(a, b, message=""):
 
 @pytest.fixture(scope="module")
 def point_2d():
-    return Point(1.0, 2.0)
+    return PointND(1.0, 2.0)
 
 
 @pytest.fixture
 def origin():
-    return Point(0.0, 0.0)
+    return PointND(0.0, 0.0)
 
 
 @pytest.fixture
 def point_3d():
-    return Point(1.0, 2.0, -3.0)
+    return PointND(1.0, 2.0, -3.0)
 
 
 @pytest.fixture
 def point_array_4x2():
-    return PointArray.from_sequences([1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0])
+    return PointArrayND.from_sequences([1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0])
 
 
 @pytest.fixture
@@ -61,27 +61,37 @@ def point_array_5x2():
     )
 
 
-class TestPoint:
+@pytest.fixture
+def point_array_5x3():
+    return PointArray3D.from_sequences(
+        [1.0, 2.0, 3.0],
+        [4.0, 5.0, 6.0],
+        [7.0, 8.0, 9.0],
+        [10.0, 11.0, 12.0],
+        [13.0, 14.0, 15.0],
+    )
 
+
+class TestPointND:
     def test_point(self):
         """Tests Point class constructor"""
-        p = Point(1.0, 2.0)
+        p = PointND(1.0, 2.0)
         assert p.dim == 2, "Point dimension should be 2"
 
-        p1 = Point._make_with_(p)
+        p1 = PointND._make_with_(p)
         assert p == p1, "p and p1 should be equal"
 
-        p2 = Point._make_with_([1.0, 2.0])
+        p2 = PointND._make_with_([1.0, 2.0])
         assert p == p2
 
-        p3 = Point._make_with_((1.0, 2.0))
+        p3 = PointND._make_with_((1.0, 2.0))
         assert p == p3
 
-        p4 = Point._make_with_(np.array([1.0, 2.0]))
+        p4 = PointND._make_with_(np.array([1.0, 2.0]))
         assert p == p4
 
         with pytest.raises(ValueError):
-            p5 = Point._make_with_(np.array([[1.0, 2.0, 3.0]]))
+            PointND._make_with_(np.array([[1.0, 2.0, 3.0]]))
 
     def test_point_repr(self, point_2d):
         """Tests Point.__repr__ method"""
@@ -91,20 +101,20 @@ class TestPoint:
 
     def test_point_equality(self, point_2d):
         """Tests Point.__eq__ method"""
-        assert point_2d == Point(1.0, 2.0)
+        assert point_2d == PointND(1.0, 2.0)
 
     def test_point_dimension(self, point_2d):
         """Tests Point.dim attribute"""
         assert point_2d.dim == 2
-        assert Point(1.0, 2.0, 3.0).dim == 3
+        assert PointND(1.0, 2.0, 3.0).dim == 3
 
     def test_points_compatibility(self, point_2d, origin, point_3d):
         """Tests Point._assert_points_compatibility_ method"""
-        Point._assert_points_compatibility_(point_2d, origin)
+        PointND._assert_points_compatibility_(point_2d, origin)
         with pytest.raises(ValueError):
-            Point._assert_points_compatibility_(point_2d, point_3d)
+            PointND._assert_points_compatibility_(point_2d, point_3d)
         with pytest.raises(TypeError):
-            Point._assert_points_compatibility_(point_2d, 1.0)
+            PointND._assert_points_compatibility_(point_2d, 1.0)
 
     def test_distance_to(self, point_2d, origin):
         _test_floats_approx_equality_(
@@ -119,32 +129,32 @@ class TestPoint:
     def test_distance_data_type(self, point_2d):
         TypeConfig.set_float_type(np.float32)
         d1 = point_2d.distance_to((0.0, 0.0))
-        assert type(d1) == np.float32
+        assert type(d1) is np.float32
 
         TypeConfig.set_float_type(np.float64)
-        point_2d = Point(1.0, 2.0)
+        point_2d = PointND(1.0, 2.0)
         d2 = point_2d.distance_to((0.0, 0.0))
-        assert type(d2) == np.float64, "d2 is expected to be np.float64"
+        assert type(d2) is np.float64, "d2 is expected to be np.float64"
 
         TypeConfig.set_float_type(np.float16)
         d3 = point_2d.distance_to((0.0, 0.0))
-        assert type(d3) == np.float16
+        assert type(d3) is np.float16
 
     def test_point_in_bounds(self):
-        p, q, r, s = (
-            Point(1.0, 2.0),
-            Point(13.0, 14.0),
-            Point(0.0, 0.0),
-            Point(10.0, 10.0),
+        p, q, r, _ = (
+            PointND(1.0, 2.0),
+            PointND(13.0, 14.0),
+            PointND(0.0, 0.0),
+            PointND(10.0, 10.0),
         )
-        l, u = (0.0, 0.0), (10.0, 10.0)
+        lb, ub = (0.0, 0.0), (10.0, 10.0)
 
         # testing if point is within bounds with valid bounds
-        assert p.in_bounds(BoundingBox(l, u))
-        assert p.in_bounds((l, u))
-        assert not q.in_bounds(BoundingBox(l, u))
-        assert r.in_bounds(BoundingBox(l, u), include_bounds=True)
-        assert not r.in_bounds(BoundingBox(l, u))
+        assert p.in_bounds(BoundingBox(lb, ub))
+        assert p.in_bounds((lb, ub))
+        assert not q.in_bounds(BoundingBox(lb, ub))
+        assert r.in_bounds(BoundingBox(lb, ub), include_bounds=True)
+        assert not r.in_bounds(BoundingBox(lb, ub))
 
         # testing if bounds type mismatch causes error
         with pytest.raises(TypeError):
@@ -177,7 +187,6 @@ class TestPoint:
 
 
 class TestPoint2D:
-
     def test_point_2d_constructor(self):
         point2d = Point2D(1.0, 2.0)
         assert point2d.dim == 2
@@ -192,7 +201,7 @@ class TestPoint2D:
 
     def test_point_inheritance(self):
         p_2d = Point2D(1.0, 2.0)
-        assert isinstance(p_2d, Point)
+        assert isinstance(p_2d, PointND)
         assert isinstance(p_2d, Point2D)
         assert p_2d.distance_to((1.0, 2.0)) == 0.0
 
@@ -237,29 +246,29 @@ class TestPointArray:
 
     def test_point_array_constructor(self):
         p = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
-        p_arr = PointArray(p)
-        assert isinstance(p_arr, PointArray)
+        p_arr = PointArrayND(p)
+        assert isinstance(p_arr, PointArrayND)
         assert p_arr.dim == 2
         assert p_arr.dtype == TypeConfig.float_type().dtype
         assert p_arr.coordinates.shape == (3, 2)
-        p_arr = PointArray(p, dtype=np.int32)
+        p_arr = PointArrayND(p, dtype=np.int32)
         assert p_arr.dtype == np.int32
 
         with pytest.raises(TypeError):
-            PointArray([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+            PointArrayND([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
 
         with pytest.raises(NotImplementedError):
-            PointArray(np.random.rand(4, 3, 2))
+            PointArrayND(np.random.rand(4, 3, 2))
 
     def test_point_array_from_sequence(self):
         p = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]
         r = ((1.0, 2.0), (3.0, 4.0), (5.0, 6.0), (7.0, 8.0))
 
         with pytest.raises(ValueError):
-            PointArray.from_sequences()
+            PointArrayND.from_sequences()
 
         with pytest.raises(ValueError):
-            PointArray.from_sequences(
+            PointArrayND.from_sequences(
                 [1.0, 2.0],
                 [3.0, 4.0],
                 [
@@ -268,8 +277,8 @@ class TestPointArray:
             )
 
         for a in (p, r):
-            point_arr = PointArray.from_sequences(*a)
-            assert isinstance(point_arr, PointArray)
+            point_arr = PointArrayND.from_sequences(*a)
+            assert isinstance(point_arr, PointArrayND)
             assert point_arr.dim == 2
             assert point_arr.coordinates.shape == (4, 2)
             assert point_arr.dtype == TypeConfig.float_type().dtype
@@ -278,22 +287,22 @@ class TestPointArray:
         px = [1.0, 2.0, 3.0, 4.0, 5.0]
         py = [2.0, 3.0, 4.0, 5.0, 6.0]
         TypeConfig.set_float_type(np.float16)
-        point_arr = PointArray.from_dimensions_data(px, py)
-        assert isinstance(point_arr, PointArray)
+        point_arr = PointArrayND.from_dimensions_data(px, py)
+        assert isinstance(point_arr, PointArrayND)
         assert point_arr.dim == 2
         assert point_arr.coordinates.shape == (5, 2)
         assert len(point_arr) == 5
         assert point_arr.dtype == np.float16
         TypeConfig.set_float_type(np.float32)
-        point_arr = PointArray.from_dimensions_data(px, py)
+        point_arr = PointArrayND.from_dimensions_data(px, py)
         assert point_arr.dtype == np.float32
 
     def test_point_array_from_points(self):
         p = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
         TypeConfig.set_float_type(float)
-        points = [Point(*x) for x in p]
-        point_arr = PointArray.from_points(*points)
-        assert isinstance(point_arr, PointArray)
+        points = [PointND(*x) for x in p]
+        point_arr = PointArrayND.from_points(*points)
+        assert isinstance(point_arr, PointArrayND)
         assert point_arr.dim == 3
         assert point_arr.coordinates.shape == (4, 3)
         assert point_arr.dtype == float
@@ -304,7 +313,9 @@ class TestPointArray:
         assert str(point_array_4x2) == out
 
     def test_point_array_eq(self, point_array_4x2):
-        q = PointArray.from_dimensions_data([1.0, 3.0, 5.0, 7.0], [2.0, 4.0, 6.0, 8.0])
+        q = PointArrayND.from_dimensions_data(
+            [1.0, 3.0, 5.0, 7.0], [2.0, 4.0, 6.0, 8.0]
+        )
         assert point_array_4x2 == q
 
     def test_point_array_copy(self, point_array_4x2):
@@ -312,24 +323,21 @@ class TestPointArray:
         assert point_array_4x2.copy() is not point_array_4x2
 
     def test_point_array_bounding_box(self, point_array_4x2):
-        assert point_array_4x2.bounding_box == BoundingBox(
-            [1.0, 2.0, 3.0, 4.0],
-            [5.0, 6.0, 7.0, 8.0],
-        )
+        assert point_array_4x2.bounding_box == BoundingBox([1.0, 2.0], [7.0, 8.0])
 
     def test_point_array_reflection(self, point_array_4x2, origin, point_2d):
         with pytest.raises(NotImplementedError):
             point_array_4x2.reflection(origin, point_2d)
 
     def test_points_cycle(self, point_array_4x2):
-        assert point_array_4x2.cycle == False
+        assert point_array_4x2.cycle is False
         point_array_4x2.cycle = True
-        assert point_array_4x2.cycle == True
+        assert point_array_4x2.cycle is True
 
 
 class TestPointArray1D:
     def test_constructor(self, point_array_4x1):
-        assert isinstance(point_array_4x1, PointArray)
+        assert isinstance(point_array_4x1, PointArrayND)
         assert isinstance(point_array_4x1, PointArray1D)
         assert point_array_4x1.dim == 1
         assert np.array_equal(point_array_4x1.x, [2.0, 4.0, 6.0, 8.0])
@@ -375,7 +383,6 @@ class TestPointArray2D:
         points_ = PointArray2D(init_xy)
         new_point_coordinates = points_.transform(dth, dx, dy).coordinates
         assert np.allclose(trasnformed_xy, new_point_coordinates)
-
 
     def test_reverse(self, point_array_5x2):
         point_array_5x2.reverse()
@@ -437,3 +444,12 @@ class TestPointArray2D:
             )
             axs.grid()
             axs.set_title("PointSet")
+
+
+class TestPointArray3D:
+    def test_constructor(self, point_array_5x3):
+        assert point_array_5x3.dim == 3
+        assert np.array_equal(point_array_5x3.x, [1.0, 4.0, 7.0, 10.0, 13.0])
+        assert np.array_equal(point_array_5x3.y, [2.0, 5.0, 8.0, 11.0, 14.0])
+        assert np.array_equal(point_array_5x3.z, [3.0, 6.0, 9.0, 12.0, 15.0])
+        assert point_array_5x3.dtype == TypeConfig.float_type().dtype
