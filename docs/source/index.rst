@@ -6,11 +6,8 @@
 gbox
 *****
 
-**gbox** is a simple and small python package intended to perform mathematical operations on elementary shapes.
-
-.. figure:: _static/shapes.png
-
-   A sample collection of shapes plotted using this library
+**gbox**, geometry box, is a python package intended to perform mathematical 
+operations of basic geometry.
 
 
 .. toctree::
