@@ -1,18 +1,29 @@
-from . import utilities
+# =================================================================
+#                     Exporting classes and functions
+# =================================================================
 
-from .gbox import (
+from .core import TypeConfig
+
+from .base import (
+    BoundingBox,
+    PointND,
+    Point2D,
+    PointArrayND,
+    PointArray1D,
+    PointArray2D,
+    TopologicalClosedShape2D,
+)
+
+
+_all_ = [
+    TypeConfig,
     BoundingBox,
     #
-    Point,
+    PointND,
     Point2D,
-    PointSet,
-    PointSet1D,
-    PointSet2D,
+    PointArrayND,
+    PointArray1D,
+    PointArray2D,
     #
-    StraightLine,
-    StraightLine2D,
-    #
-    Circle,
-    CircleSet,
-    Ellipse,
-)
+    TopologicalClosedShape2D,
+]

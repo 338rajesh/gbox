@@ -1,9 +1,4 @@
-tests/test_apps/unit_cell/_plots
-tests/_plots
-
-# Byte-compiled / optimized / DLL files
 __pycache__
-
 gbox_env
 .idea
 .vscode
@@ -13,3 +8,4 @@ gbox_env
 tests/__output
 .coverage
 .hypothesis
+build

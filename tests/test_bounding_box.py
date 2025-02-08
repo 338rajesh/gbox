@@ -1,31 +1,25 @@
-import pathlib
-import shutil
-
+from hypothesis import given, strategies as st, settings as hypothesis_settings
+from gbox import BoundingBox, TypeConfig
 import pytest
 import numpy as np
-from hypothesis import given, strategies as st, settings as hypothesis_settings
-
-from gbox import BoundingBox
-from gbox.utilities import gb_plotter, get_output_dir
+from utils import get_output_dir, gb_plotter
+import pathlib
 
 
-# ==============================================
-
-OUTPUT_DIR = get_output_dir(pathlib.Path(__file__).parent / "__output" / "test_bbox")
-
-
-# ==================== TESTS ====================
+OUTPUT_DIR = get_output_dir(
+    pathlib.Path(__file__).parent / "__output" / "test_base_point"
+)
 
 
 class TestBoundingBox:
     @hypothesis_settings(max_examples=10)
     @given(
         n=st.integers(min_value=2, max_value=10),
-        l=st.floats(min_value=-10.0, max_value=0.0),
-        u=st.floats(min_value=0.1, max_value=10.0),
+        lb=st.floats(min_value=-10.0, max_value=0.0),
+        ub=st.floats(min_value=0.1, max_value=10.0),
     )
-    def test_b_box(self, n, l, u):
-        lbl, ubl = [l] * n, [u] * n
+    def test_b_box(self, n, lb, ub):
+        lbl, ubl = [lb] * n, [ub] * n
         bb = BoundingBox(lower_bound=lbl, upper_bound=ubl)
         bb_t = BoundingBox(lower_bound=tuple(lbl), upper_bound=tuple(ubl))
         bb_a = BoundingBox(lower_bound=np.array(lbl), upper_bound=np.array(ubl))
@@ -35,28 +29,28 @@ class TestBoundingBox:
         assert bb.dim == n
         assert bb.vertices is not None
 
-        assert bb.has_point([(l + u) * 0.5] * n)
-        assert not bb.has_point([l - 1.0] * n)
+        assert bb.has_point([(lb + ub) * 0.5] * n)
+        assert not bb.has_point([lb - 1.0] * n)
 
-        with pytest.raises(AssertionError):
-            BoundingBox(lower_bound=[l] * (n + 1), upper_bound=[u] * n)
+        with pytest.raises(ValueError):
+            BoundingBox(lower_bound=[lb] * (n + 1), upper_bound=[ub] * n)
 
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             BoundingBox(lower_bound=ubl, upper_bound=lbl)
 
     def test_bounds_ele_type(self):
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             BoundingBox(lower_bound=[1.0, 1.0], upper_bound=[0.0, "0.0"])
 
-    @given(
-        st.integers(min_value=1, max_value=6),
-        st.floats(min_value=-10.0, max_value=0.0, allow_nan=False),
-        st.floats(min_value=1.0, max_value=10.0, allow_nan=False),
-    )
-    def test_volume(self, n, l, u):
-        b_box = BoundingBox([l for _ in range(n)], [u for _ in range(n)])
-        assert all(np.isclose(b_box.side_lengths(), [u - l for _ in range(n)]))
-        assert np.isclose(b_box.volume, (u - l) ** n)
+    def test_volume(self):
+        bb = BoundingBox(lower_bound=[0.2, 0.1], upper_bound=[1.0, 1.6])
+        bb_vol = 1.2
+        assert bb.volume == pytest.approx(bb_vol)
+
+        for i in [np.float64, np.float32, np.float16]:
+            TypeConfig.set_float_type(i)
+            bb = BoundingBox(lower_bound=[0.2, 0.1], upper_bound=[1.0, 1.6])
+            assert type(bb.volume) is i
 
     def test_full_overlap(self):
         # Test case where the boxes are identical, so they fully overlap
@@ -98,6 +92,6 @@ class TestBoundingBox:
             bb.plot(axs)
             axs.set_title("Bounding Box")
 
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             with gb_plotter(OUTPUT_DIR / "bbox_1.png") as (fig, axs):
                 BoundingBox([0, 0, 1], [5, 5, 10]).plot(axs)
