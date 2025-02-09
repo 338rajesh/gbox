@@ -1,3 +1,22 @@
+from .. import (
+    Point,
+    TopologicalCurve,
+    PointND,
+    Point2D,
+)
+from ..base import PointType
+
+
+class ConicCurve(TopologicalCurve):
+    pass
+
+
+class EllipticalArc(ConicCurve):
+    pass
+
+
+class CircularArc(EllipticalArc):
+    pass
 
 
 class Circle(TopologicalClosedShape2D):
@@ -345,27 +364,9 @@ class Ellipse(TopologicalClosedShape2D):
         return circles_set
 
 
-class Polygon(TopologicalClosedShape2D):
-    def __init__(self, vertices: NDArray = None):
-        super(Polygon, self).__init__()
-        self.vertices = vertices
-
-
-class RegularPolygon(Polygon):
+class ParabolicArc(ConicCurve):
     pass
 
 
-class Rectangle(TopologicalClosedShape2D):
-    pass
-
-
-class Capsule(TopologicalClosedShape2D):
-    pass
-
-
-class CShape(TopologicalClosedShape2D):
-    pass
-
-
-class NLobeShape(TopologicalClosedShape2D):
+class HyperbolicArc(ConicCurve):
     pass
