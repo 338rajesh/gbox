@@ -1,13 +1,14 @@
 """
 
-Geometry Box
-============
+gbox: Geometry Box
+==================
+
+gbox is a python package intended to perform mathematical operations of basic 
+geometry. It is currently under development. Please check back for updates
 
 
-Assumptions:
-------------
 
-- All the angular units are in the radians
+
 
 Author: Rajesh Nakka
 License: MIT
