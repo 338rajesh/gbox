@@ -1,17 +1,19 @@
 from .. import (
     Point,
     TopologicalCurve,
+    PointND,
     Point2D,
 )
+from ..base import PointType
+
 
 class StraightLine(TopologicalCurve):
     """Base class for all straight lines"""
 
     def __init__(self, p1: PointType, p2: PointType):
         super(StraightLine, self).__init__()
-
-        self.p1 = Point.from_seq(p1)
-        self.p2 = Point.from_seq(p2)
+        self.p1: PointND = Point.from_seq(p1)
+        self.p2: PointND = Point.from_seq(p2)
 
     def length(self) -> float:
         return self.p1.distance_to(self.p2)

@@ -11,12 +11,10 @@ operations of basic geometry.
 
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    :caption: Contents:
 
    quick_intro
    tutorial
    api
    contributions_guide
-
-.. include:: bits/goals.rst
