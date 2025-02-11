@@ -18,5 +18,3 @@ operations of basic geometry.
    tutorial
    api
    contributions_guide
-
-.. include:: bits/goals.rst
