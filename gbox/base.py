@@ -34,7 +34,7 @@ class PointND(tuple):
         """Returns the dimension of the point
 
         Returns
-        --------
+        -------
         IntType
             Dimension of the point
 
@@ -47,9 +47,9 @@ class PointND(tuple):
 
         Supported types: list, tuple, numpy.ndarray of one dimension
 
-        Args
-        ----
-        seq: PointType
+        Parameters
+        ----------
+        seq : PointType
             Point or sequence of FloatType
 
         Returns
@@ -92,11 +92,11 @@ class PointND(tuple):
     def _assert_points_compatibility_(p: "PointND", q: "PointND") -> None:
         """Checks if the given arguments are of Point type and have same dimension
 
-        Args
-        ----
-        p: Point
+        Parameters
+        ----------
+        p : Point
             First Point
-        q: Point
+        q : Point
             Second Point
 
         Raises
@@ -116,9 +116,9 @@ class PointND(tuple):
     def distance_to(self, p: PointType) -> FloatType:
         """Evaluates the distance between the current point and point 'p'
 
-        Args
-        ----
-        p: PointType
+        Parameters
+        ----------
+        p : PointType
             Point or sequence of FloatType
 
         Returns
@@ -145,11 +145,11 @@ class PointND(tuple):
     ) -> bool:
         """Checks if the current point is within the bounds.
 
-        Args
-        ----
-        bounds: Union["BoundingBox", list, tuple]
+        Parameters
+        ----------
+        bounds : Union["BoundingBox", list, tuple]
             Bounding box or list/tuple of bounds
-        include_bounds: bool
+        include_bounds : bool
             If True, the point is considered within and on the bounds.
             Default: False
 
@@ -215,11 +215,11 @@ class PointND(tuple):
     def is_close_to(self, p: PointType, eps: FloatType = 1e-16) -> bool:
         """Checks if the current point is close to other point 'p'
 
-        Args
-        ----
-        p: PointType
+        Parameters
+        ----------
+        p : PointType
             Point or sequence of FloatType
-        eps: FloatType
+        eps : FloatType
             Tolerance, default: 1e-16
 
         Returns
@@ -256,11 +256,11 @@ class Point2D(PointND):
     def slope(self, q: PointType, eps: FloatType = None) -> FloatType:
         """Returns the slope of the line joining the current point and other point 'q'.
 
-        Args
-        -----
-        q: PointType
+        Parameters
+        ----------
+        q : PointType
             Point or sequence of FloatType
-        eps: FloatType
+        eps : FloatType
             Tolerance, defaults to precision of FloatType
 
         Returns
@@ -288,11 +288,11 @@ class Point2D(PointND):
     def angle(self, p2: PointType, rad=True) -> FloatType:
         """Returns the angle between the current point and other point 'p2'
 
-        Args
-        -----
-        p2: PointType
+        Parameters
+        ----------
+        p2 : PointType
             Point or sequence of FloatType
-        rad: bool
+        rad : bool
             If True, returns angle in radians, otherwise in degrees
 
         Returns
@@ -320,13 +320,13 @@ class Point2D(PointND):
     ) -> "Point2D":
         """Returns a new point transformed by rotation and translation around the origin
 
-        Args
-        -----
-        angle: float
+        Parameters
+        ----------
+        angle : float
             Angle of rotation in radians, default: 0.0
-        dx: float
+        dx : float
             Translation along x axis, default: 0.0
-        dy: float
+        dy : float
             Translation along y axis, default: 0.0
 
         Returns
@@ -349,13 +349,13 @@ class PointArrayND:
     """
     Collection of **ordered** points
 
-    Attributes:
-    -----------
-    coordinates: NDArray
+    Attributes
+    ----------
+    coordinates : NDArray
         Two dimensional Numpy array of point coordinates
-    dim: int
+    dim : int
         Dimension of the points
-    dtype: np.dtype
+    dtype : np.dtype
         Data type of the points
 
     Examples
@@ -371,15 +371,15 @@ class PointArrayND:
     def __init__(self, points: np.ndarray, dtype=None):
         """Constructs a PointArray from a NumpyArray
 
-        Args
-        -----
-        points: NDArray
+        Parameters
+        ----------
+        points : NDArray
             Two dimensional Numpy array of point coordinates, with one point per row.
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points. Defaults to FloatType
 
         Raises
-        -------
+        ------
         TypeError
             If points is not a NumpyArray
         NotImplementedError
@@ -419,15 +419,15 @@ class PointArrayND:
     def from_sequences(cls, *data, dtype=None) -> "PointArrayND":
         """Constructs a PointArray from a sequence of points
 
-        Args
-        -----
-        data: Sequence
+        Parameters
+        ----------
+        data : Sequence
             Sequence of points. Each point is a sequence of coordinates
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points. Defaults to FloatType
 
         Raises
-        -------
+        ------
         ValueError
             If data is empty
             If each point in the array does not have the same number of dimensions
@@ -456,15 +456,15 @@ class PointArrayND:
     def from_dimensions_data(cls, *data, dtype=None) -> "PointArrayND":
         """Constructs a PointArray from a sequence of dimensional data
 
-        Args
-        -----
-        data: Sequence
+        Parameters
+        ----------
+        data : Sequence
             Sequence of dimensional data. Each dimension is a sequence of coordinates
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points. Defaults to FloatType
 
         Raises
-        -------
+        ------
         ValueError
             If data is empty
             If each dimension in the array does not have the same number of points
@@ -495,15 +495,15 @@ class PointArrayND:
     def from_points(cls, *points, dtype=None) -> "PointArrayND":
         """Constructs a PointArray from a sequence of Point type objects
 
-        Args
-        -----
-        points: Sequence
+        Parameters
+        ----------
+        points : Sequence
             Sequence of Point type objects
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points. Defaults to FloatType
 
         Raises
-        -------
+        ------
         TypeError
             If points contains a non-Point object
 
@@ -567,15 +567,15 @@ class PointArray1D(PointArrayND):
     """
     PointArray1D, a subclass of PointArray, with one dimension
 
-    Attributes:
-    -----------
-    coordinates: np.ndarray
+    Attributes
+    ----------
+    coordinates : np.ndarray
         Array of point coordinates
-    dim: int
+    dim : int
         Dimension of the points
-    dtype: np.dtype
+    dtype : np.dtype
         Data type of the points
-    x: NDArray
+    x : NDArray
         Array of x coordinates
 
     """
@@ -583,15 +583,15 @@ class PointArray1D(PointArrayND):
     def __init__(self, points: np.ndarray, dtype=None, **kwargs):
         """Constructs a PointArray1D from a NumpyArray
 
-        Args
-        -----
-        points: NDArray
+        Parameters
+        ----------
+        points : NDArray
             One dimensional Numpy array or 2D Numpy array with one column
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points
 
         Raises
-        -------
+        ------
         TypeError
             If points is not a NumpyArray
         NotImplementedError
@@ -627,13 +627,13 @@ class PointArray1D(PointArrayND):
     def transform(self, dx: float = 0.0) -> "PointArray1D":
         """In-place transformation of the points cluster by rotation and translation
 
-        Args
-        -----
-        dx: float
+        Parameters
+        ----------
+        dx : float
             Translation along x axis
 
         Returns
-        --------
+        -------
         PointArray1D
 
         """
@@ -674,17 +674,17 @@ class PointArray2D(PointArrayND):
     """
     PointArray2D, a subclass of PointArray, with two dimensions
 
-    Attributes:
-    -----------
-    coordinates: np.ndarray
+    Attributes
+    ----------
+    coordinates : np.ndarray
         Array of point coordinates
-    dim: int
+    dim : int
         Dimension of the points
-    dtype: np.dtype
+    dtype : np.dtype
         Data type of the points
-    x: NDArray
+    x : NDArray
         Array of x coordinates
-    y: NDArray
+    y : NDArray
         Array of y coordinates
 
     """
@@ -692,15 +692,15 @@ class PointArray2D(PointArrayND):
     def __init__(self, points: np.ndarray, dtype=None, **kwargs):
         """Constructs a PointArray2D from a NumpyArray
 
-        Args
-        -----
-        points: NDArray
+        Parameters
+        ----------
+        points : NDArray
             Two dimensional Numpy array of point coordinates, with one point per row
-        dtype: np.dtype
+        dtype : np.dtype
             Data type of the points, defaults to FloatType
 
         Raises
-        -------
+        ------
         TypeError
             If points is not a NumpyArray
         NotImplementedError
@@ -730,17 +730,17 @@ class PointArray2D(PointArrayND):
     ) -> "PointArray2D":
         """In-place transformation of the points cluster by rotation and translation
 
-        Args
-        -----
-        angle: float
+        Parameters
+        ----------
+        angle : float
             Angle of rotation in radians, default: 0.0
-        dx: float
+        dx : float
             Translation along x axis, default: 0.0
-        dy: float
+        dy : float
             Translation along y axis, default: 0.0
 
         Returns
-        --------
+        -------
         PointArray2D
         """
         x_ = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
@@ -828,11 +828,11 @@ class BoundingBox:
 
         It is expexcted that the number of elements in the lower and upper bound are same. Also, the lower bound must be less than the upper bound.
 
-        Args
-        ----
-        lower_bound: list or tuple
+        Parameters
+        ----------
+        lower_bound : list or tuple
             Lower bounds of the box
-        upper_bound: list or tuple
+        upper_bound : list or tuple
             Upper bounds of the box
 
         Raises
@@ -879,9 +879,9 @@ class BoundingBox:
     def __eq__(self, bb_2: "BoundingBox") -> bool:
         """Checks if two bounding boxes are equal
 
-        Args
-        ----
-        bb_2: BoundingBox
+        Parameters
+        ----------
+        bb_2 : BoundingBox
             Bounding box to be compared
 
         Returns

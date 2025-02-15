@@ -2,5 +2,4 @@
 Tutorial
 ==========
 
-Creating Closed Shapes
-----------------------
+To be updated...!
