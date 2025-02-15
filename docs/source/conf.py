@@ -23,10 +23,12 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'numpydoc',
 ]
 
 templates_path = ['_templates']
 exclude_patterns = []
+
 
 sys.path.insert(0, dirname(dirname(dirname(__file__))))
 
@@ -35,9 +37,12 @@ sys.path.insert(0, dirname(dirname(dirname(__file__))))
 
 autodoc_member_order = 'bysource'  # to avoid the sorting of methods in the alphabetical order
 
+numpydoc_show_class_members = False
+numpydoc_class_members_toctree = False
+
 html_theme = 'pydata_sphinx_theme'
 # Available themes
-# sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku
+# sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku, pydata_sphinx_theme
 html_static_path = []
 
 html_show_sourcelink = False

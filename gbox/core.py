@@ -117,13 +117,13 @@ class TypeConfig:
 
     Attributes
     ----------
-    float_type: FloatType
+    float_type : FloatType
         Float type, defaults to np.float32
-    int_type: IntType
+    int_type : IntType
         Integer type, defaults to np.int32
-    real_type: RealNumType
+    real_type : RealNumType
         Real number type, defaults to np.float32
-    float_precision: float
+    float_precision : float
         Precision of the current float type
 
     Methods
@@ -197,13 +197,13 @@ def get_current_func_info():
 def get_type(tag: Literal["float", "int", "real", "np_float"]) -> type:
     """Returns the type corresponding to the tag
 
-    Args:
-    -----
+    Parameters
+    ----------
     tag: Literal["float", "int", "real", "np_float"]
         The type tag
 
-    Returns:
-    --------
+    Returns
+    -------
     type
         The current configured type corresponding to the tag
     """
@@ -221,17 +221,18 @@ def get_type(tag: Literal["float", "int", "real", "np_float"]) -> type:
 
 
 def cast_to(v, tag):
-    """Casts the value to the type corresponding to the tag
+    """
+    Casts the value to the type corresponding to the tag
 
-    Args:
-    -----
-    v: Any
+    Parameters
+    ----------
+    v : Any
         The value to cast
-    tag: Literal["float", "int", "real", "np_float"]
+    tag : Literal["float", "int", "real", "np_float"]
         The type tag
 
-    Returns:
-    --------
+    Returns
+    -------
     Any
         The casted value
     """

@@ -2,17 +2,9 @@
 Reference
 **********
 
-Core Module
------------
+.. toctree::
+   :maxdepth: 2
+   :caption: Modules
 
-.. automodule:: gbox.core
-   :members:
-   :show-inheritance:
-
-
-Base Module
-------------
-
-.. automodule:: gbox.base
-   :members:
-   :show-inheritance:
+   modules/core
+   modules/base
