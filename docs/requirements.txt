@@ -1,4 +1,5 @@
 numpy~=1.24.3
+numpydoc==1.8.0
 matplotlib~=3.7.1
 setuptools~=65.5.0
 sphinx-rtd-theme~=2.0.0
