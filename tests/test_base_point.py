@@ -46,7 +46,9 @@ def point_3d():
 
 @pytest.fixture
 def point_array_4x2():
-    return PointArrayND.from_sequences([1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0])
+    return PointArrayND.from_sequences(
+        [1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]
+    )
 
 
 @pytest.fixture
@@ -78,26 +80,26 @@ class TestPointND:
         p = PointND(1.0, 2.0)
         assert p.dim == 2, "Point dimension should be 2"
 
-        p1 = PointND._make_with_(p)
+        p1 = PointND._from_(p)
         assert p == p1, "p and p1 should be equal"
 
-        p2 = PointND._make_with_([1.0, 2.0])
+        p2 = PointND._from_([1.0, 2.0])
         assert p == p2
 
-        p3 = PointND._make_with_((1.0, 2.0))
-        assert p == p3
-
-        p4 = PointND._make_with_(np.array([1.0, 2.0]))
-        assert p == p4
-
         with pytest.raises(ValueError):
-            PointND._make_with_(np.array([[1.0, 2.0, 3.0]]))
+            PointND._from_([])  # type: ignore
 
-    def test_point_repr(self, point_2d):
+        with pytest.raises(TypeError):
+            PointND._from_([[1.0, 2.0]])  # type: ignore
+
+    def test_point_repr(self):
         """Tests Point.__repr__ method"""
-        dt = type(point_2d[0])
-        assert f"{dt(1.0)}" in str(point_2d)
-        assert f"{dt(2.0)}" in str(point_2d)
+        p = PointND(1.0, 2.0)
+        assert p.__repr__() == "<PointND class; dim 2>"
+        p = Point2D(1.0, 2.0)
+        assert p.__repr__() == "<Point2D class; dim 2>"
+        p = PointND(1.0, 2.0, 3.0)
+        assert p.__repr__() == "<PointND class; dim 3>"
 
     def test_point_equality(self, point_2d):
         """Tests Point.__eq__ method"""
@@ -114,7 +116,9 @@ class TestPointND:
         with pytest.raises(ValueError):
             PointND._assert_points_compatibility_(point_2d, point_3d)
         with pytest.raises(TypeError):
-            PointND._assert_points_compatibility_(point_2d, 1.0)
+            PointND._assert_points_compatibility_(
+                point_2d, 1.0  # type: ignore
+            )
 
     def test_distance_to(self, point_2d, origin):
         _test_floats_approx_equality_(
@@ -133,11 +137,11 @@ class TestPointND:
 
         TypeConfig.set_float_type(np.float64)
         point_2d = PointND(1.0, 2.0)
-        d2 = point_2d.distance_to((0.0, 0.0))
+        d2 = point_2d.distance_to([0.0, 0.0])
         assert type(d2) is np.float64, "d2 is expected to be np.float64"
 
         TypeConfig.set_float_type(np.float16)
-        d3 = point_2d.distance_to((0.0, 0.0))
+        d3 = point_2d.distance_to([0.0, 0.0])
         assert type(d3) is np.float16
 
     def test_point_in_bounds(self):
@@ -158,7 +162,7 @@ class TestPointND:
 
         # testing if bounds type mismatch causes error
         with pytest.raises(TypeError):
-            p.in_bounds(1.0)
+            p.in_bounds(1.0)  # type: ignore
 
         # testing if dimension mismatch causes error
         with pytest.raises(ValueError):
@@ -192,9 +196,9 @@ class TestPoint2D:
         assert point2d.dim == 2
         assert point2d.x == 1.0
         assert point2d.y == 2.0
-        p1_2d = Point2D._make_with_(point2d)
+        p1_2d = Point2D._from_(point2d)
         assert isinstance(p1_2d, Point2D)
-        p2_2d = Point2D._make_with_([1.0, 2.0])
+        p2_2d = Point2D._from_([1.0, 2.0])
         assert isinstance(p2_2d, Point2D)
         assert p2_2d.x == 1.0
         assert p2_2d.y == 2.0
@@ -203,7 +207,7 @@ class TestPoint2D:
         p_2d = Point2D(1.0, 2.0)
         assert isinstance(p_2d, PointND)
         assert isinstance(p_2d, Point2D)
-        assert p_2d.distance_to((1.0, 2.0)) == 0.0
+        assert p_2d.distance_to([1.0, 2.0]) == 0.0
 
     def test_slope(self):
         point_2d = Point2D(1.0, 2.0)
@@ -309,7 +313,9 @@ class TestPointArray:
         assert len(point_arr) == 4
 
     def test_point_array_repr(self, point_array_4x2):
-        out = "PointArray:\n[[1. 2.]\n [3. 4.]\n [5. 6.]\n [7. 8.]]"
+        # out = "PointArray:\n[[1. 2.]\n [3. 4.]\n [5. 6.]\n [7. 8.]]"
+        out = "<PointArrayND; dim::2; 4 points>"
+        assert point_array_4x2.__repr__() == out
         assert str(point_array_4x2) == out
 
     def test_point_array_eq(self, point_array_4x2):

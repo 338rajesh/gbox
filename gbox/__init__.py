@@ -15,15 +15,13 @@ from .base import (
 )
 
 
-_all_ = [
-    TypeConfig,
-    BoundingBox,
-    #
-    PointND,
-    Point2D,
-    PointArrayND,
-    PointArray1D,
-    PointArray2D,
-    #
-    TopologicalClosedShape2D,
+__all__ = [
+    'TypeConfig',
+    'BoundingBox',
+    'PointND',
+    'Point2D',
+    'PointArrayND',
+    'PointArray1D',
+    'PointArray2D',
+    'TopologicalClosedShape2D',
 ]

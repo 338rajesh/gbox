@@ -13,7 +13,16 @@ class _Type:
     NUMPY_INT = (np.int8, np.int16, np.int32, np.int64)
     NUMPY_UINT = (np.uint8, np.uint16, np.uint32, np.uint64)
 
+    _all_types_: tuple = NUMPY_FLOAT + NUMPY_INT + NUMPY_UINT + (
+        list, tuple, int, float, np.ndarray
+    )
+
+    _types_ = None
+
     def __init__(self, dtype):
+        if self._types_ is None:
+            raise NotImplementedError("Type is not initialized")
+
         if dtype not in self._types_:
             raise TypeError(
                 f"Unsupported dtype: {dtype}, consider one of {self._types_}"
@@ -30,13 +39,7 @@ class _Type:
         return isinstance(other, _Type) and self.dtype == other.dtype
 
     def _check_validity(self, val):
-        if not isinstance(
-            val,
-            (np.ndarray, list, tuple, int, float)
-            + _Type.NUMPY_FLOAT
-            + _Type.NUMPY_INT
-            + _Type.NUMPY_UINT,
-        ):
+        if not isinstance(val, self._all_types_):
             raise NotImplementedError(
                 f"Unsupported type: {type(val)}. "
                 f"Only scalar types {self._types_}, numpy arrays, "
@@ -75,7 +78,8 @@ class RealNumType(_Type):
     """
 
     DEFAULT = np.float32
-    _types_ = (int, float) + _Type.NUMPY_FLOAT + _Type.NUMPY_INT + _Type.NUMPY_UINT
+    _types_ = (int, float) + _Type.NUMPY_FLOAT + \
+        _Type.NUMPY_INT + _Type.NUMPY_UINT
 
     def __init__(self, dtype=None):
         super().__init__(dtype or RealNumType.DEFAULT)
@@ -102,7 +106,7 @@ class FloatType(RealNumType):
     """
 
     DEFAULT = np.float32
-    _types_ = (float,) + _Type.NUMPY_FLOAT
+    _types_: tuple = (float,) + _Type.NUMPY_FLOAT
 
     @property
     def precision(self):
@@ -181,12 +185,20 @@ class TypeConfig:
 
 # _valid_type_tags = Literal["float", "int", "real", "np_float"]
 def get_current_func_info():
-    frame = inspect.currentframe().f_back
-    function_name = frame.f_code.co_name
-    module = inspect.getmodule(frame)
-    func_object = getattr(module, function_name)
+    frame = inspect.currentframe()
+    if frame is not None:
+        frame = frame.f_back
+        if frame is None:
+            raise ValueError("No frame found")
+        function_name = frame.f_code.co_name
+        module = inspect.getmodule(frame)
+        func_object = getattr(module, function_name)
+    else:
+        raise ValueError("No frame found")
+
     if func_object is None:
-        raise ValueError(f"Function {function_name} not found in module {module}")
+        raise ValueError(
+            f"Function {function_name} not found in module {module}")
     return {
         "function_name": function_name,
         "module": module,
@@ -210,14 +222,12 @@ def get_type(tag: Literal["float", "int", "real", "np_float"]) -> type:
     tag_types = get_args(get_current_func_info()["type_hints"]["tag"])
     if tag not in tag_types:
         raise ValueError(f"Invalid tag: {tag}, should be one of {tag_types}")
-    if tag == "float":
+    if tag in ("float", "np_float"):
         return TypeConfig.float_type().dtype
     elif tag == "int":
         return TypeConfig.int_type().dtype
     elif tag == "real":
         return TypeConfig.real_type().dtype
-    elif tag == "np_float":
-        return np.dtype(TypeConfig.float_type().dtype)
 
 
 def cast_to(v, tag):
