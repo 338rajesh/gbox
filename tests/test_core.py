@@ -39,7 +39,9 @@ def test_type_conversion(cls, val_type):
 
 
 def test_default_type():
-    assert IntType().dtype == IntType.DEFAULT, "IntType should have a default type"
+    assert IntType().dtype == IntType.DEFAULT, (
+        "IntType should have a default type"
+    )
     assert (
         FloatType().dtype == FloatType.DEFAULT
     ), "FloatType should have a default type"
@@ -59,6 +61,7 @@ def test_invalid_input(cls, invalid_val):
     with pytest.raises(NotImplementedError):
         cls()(invalid_val)
 
+
 def test_type_config():
     TypeConfig.set_int_type(np.int16)
     TypeConfig.set_float_type(np.float64)
@@ -69,4 +72,4 @@ def test_type_config():
     float_type = TypeConfig.float_type()
     a = np.float32(1.0)
     b = float_type(a)
-    assert type(b) == float_type.dtype
+    assert type(b) is float_type.dtype

@@ -8,3 +8,4 @@ Reference
 
    modules/core
    modules/base
+   modules/curves

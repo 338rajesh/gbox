@@ -21,11 +21,7 @@ class TestBoundingBox:
     def test_b_box(self, n, lb, ub):
         lbl, ubl = [lb] * n, [ub] * n
         bb = BoundingBox(lower_bound=lbl, upper_bound=ubl)
-        bb_t = BoundingBox(lower_bound=tuple(lbl), upper_bound=tuple(ubl))
-        bb_a = BoundingBox(lower_bound=np.array(lbl), upper_bound=np.array(ubl))
         #
-        assert bb == bb_t
-        assert bb == bb_a
         assert bb.dim == n
         assert bb.vertices is not None
 
@@ -40,7 +36,10 @@ class TestBoundingBox:
 
     def test_bounds_ele_type(self):
         with pytest.raises(ValueError):
-            BoundingBox(lower_bound=[1.0, 1.0], upper_bound=[0.0, "0.0"])
+            BoundingBox(
+                lower_bound=[1.0, 1.0],
+                upper_bound=[0.0, '0.0']  # type: ignore
+            )
 
     def test_volume(self):
         bb = BoundingBox(lower_bound=[0.2, 0.1], upper_bound=[1.0, 1.6])

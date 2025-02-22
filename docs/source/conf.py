@@ -23,6 +23,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    'matplotlib.sphinxext.plot_directive',  # Enable plot rendering
     'numpydoc',
 ]
 
@@ -39,6 +40,7 @@ autodoc_member_order = 'bysource'  # to avoid the sorting of methods in the alph
 
 numpydoc_show_class_members = False
 numpydoc_class_members_toctree = False
+numpydoc_inherited_members = True
 
 html_theme = 'pydata_sphinx_theme'
 # Available themes
