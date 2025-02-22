@@ -80,17 +80,17 @@ class TestPointND:
         p = PointND(1.0, 2.0)
         assert p.dim == 2, "Point dimension should be 2"
 
-        p1 = PointND._from_(p)
+        p1 = PointND.from_(p)
         assert p == p1, "p and p1 should be equal"
 
-        p2 = PointND._from_([1.0, 2.0])
+        p2 = PointND.from_([1.0, 2.0])
         assert p == p2
 
         with pytest.raises(ValueError):
-            PointND._from_([])  # type: ignore
+            PointND.from_([])  # type: ignore
 
         with pytest.raises(TypeError):
-            PointND._from_([[1.0, 2.0]])  # type: ignore
+            PointND.from_([[1.0, 2.0]])  # type: ignore
 
     def test_point_repr(self):
         """Tests Point.__repr__ method"""
@@ -151,14 +151,14 @@ class TestPointND:
             PointND(0.0, 0.0),
             PointND(10.0, 10.0),
         )
-        lb, ub = (0.0, 0.0), (10.0, 10.0)
 
         # testing if point is within bounds with valid bounds
-        assert p.in_bounds(BoundingBox(lb, ub))
-        assert p.in_bounds((lb, ub))
-        assert not q.in_bounds(BoundingBox(lb, ub))
-        assert r.in_bounds(BoundingBox(lb, ub), include_bounds=True)
-        assert not r.in_bounds(BoundingBox(lb, ub))
+        bb = BoundingBox([0.0, 0.0], [10.0, 10.0])
+        assert p.in_bounds(bb)
+        assert p.in_bounds((bb.lb, bb.ub))
+        assert not q.in_bounds(bb)
+        assert r.in_bounds(bb, include_bounds=True)
+        assert not r.in_bounds(bb)
 
         # testing if bounds type mismatch causes error
         with pytest.raises(TypeError):
@@ -196,9 +196,9 @@ class TestPoint2D:
         assert point2d.dim == 2
         assert point2d.x == 1.0
         assert point2d.y == 2.0
-        p1_2d = Point2D._from_(point2d)
+        p1_2d = Point2D.from_(point2d)
         assert isinstance(p1_2d, Point2D)
-        p2_2d = Point2D._from_([1.0, 2.0])
+        p2_2d = Point2D.from_([1.0, 2.0])
         assert isinstance(p2_2d, Point2D)
         assert p2_2d.x == 1.0
         assert p2_2d.y == 2.0
@@ -211,20 +211,24 @@ class TestPoint2D:
 
     def test_slope(self):
         point_2d = Point2D(1.0, 2.0)
-        assert point_2d.slope((3.0, 4.0)) == pytest.approx(
+        assert point_2d.slope([3.0, 4.0]) == pytest.approx(
             1.0, abs=TypeConfig.float_precision()
         )
-        assert type(point_2d.slope((3.0, 4.0))) == TypeConfig.float_type().dtype
+        assert (
+            type(point_2d.slope([3.0, 4.0])) == TypeConfig.float_type().dtype
+        )
 
     def test_angle(self):
         point_2d = Point2D(1.0, 2.0)
         eps = TypeConfig.float_precision()
-        assert type(point_2d.angle((2.0, 3.0))) == TypeConfig.float_type().dtype
+        assert (
+            type(point_2d.angle([2.0, 3.0])) is TypeConfig.float_type().dtype
+        )
 
-        assert point_2d.angle((2.0, 3.0)) == pytest.approx(np.pi * 0.25, eps)
-        assert point_2d.angle((0.0, 3.0)) == pytest.approx(np.pi * 0.75, eps)
-        assert point_2d.angle((0.0, 1.0)) == pytest.approx(np.pi * 1.25, eps)
-        assert point_2d.angle((2.0, 1.0)) == pytest.approx(np.pi * 1.75, eps)
+        assert point_2d.angle([2.0, 3.0]) == pytest.approx(np.pi * 0.25, eps)
+        assert point_2d.angle([0.0, 3.0]) == pytest.approx(np.pi * 0.75, eps)
+        assert point_2d.angle([0.0, 1.0]) == pytest.approx(np.pi * 1.25, eps)
+        assert point_2d.angle([2.0, 1.0]) == pytest.approx(np.pi * 1.75, eps)
 
     def test_transform(self):
         eps = TypeConfig.float_precision()
@@ -259,7 +263,9 @@ class TestPointArray:
         assert p_arr.dtype == np.int32
 
         with pytest.raises(TypeError):
-            PointArrayND([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]])
+            PointArrayND(
+                [[1, 2], [3, 4], [5, 6], [7, 8]]  # type: ignore
+            )
 
         with pytest.raises(NotImplementedError):
             PointArrayND(np.random.rand(4, 3, 2))
@@ -329,7 +335,9 @@ class TestPointArray:
         assert point_array_4x2.copy() is not point_array_4x2
 
     def test_point_array_bounding_box(self, point_array_4x2):
-        assert point_array_4x2.bounding_box == BoundingBox([1.0, 2.0], [7.0, 8.0])
+        assert point_array_4x2.bounding_box == BoundingBox(
+            [1.0, 2.0], [7.0, 8.0]
+        )
 
     def test_point_array_reflection(self, point_array_4x2, origin, point_2d):
         with pytest.raises(NotImplementedError):
@@ -382,8 +390,12 @@ class TestPointArray2D:
     def test_transform(self, dth, dx, dy):
         dth = float(np.random.choice([0.0, np.pi * 2.0]))
         init_xy = np.random.rand(10, 2)
-        trasnformed_x = init_xy[:, 0] * np.cos(dth) - init_xy[:, 1] * np.sin(dth) + dx
-        trasnformed_y = init_xy[:, 0] * np.sin(dth) + init_xy[:, 1] * np.cos(dth) + dy
+        trasnformed_x = init_xy[:, 0] * np.cos(dth) - init_xy[:, 1] * np.sin(
+            dth
+        ) + dx
+        trasnformed_y = init_xy[:, 0] * np.sin(dth) + init_xy[:, 1] * np.cos(
+            dth
+        ) + dy
         trasnformed_xy = np.column_stack((trasnformed_x, trasnformed_y))
         #
         points_ = PointArray2D(init_xy)
@@ -417,7 +429,9 @@ class TestPointArray2D:
             point_array.plot(
                 axs,
                 b_box=True,
-                b_box_plt_opt={"color": "k", "linewidth": 2, "linestyle": "dashed"},
+                b_box_plt_opt={
+                    "color": "k", "linewidth": 2, "linestyle": "dashed"
+                },
             )
             axs.grid()
             axs.set_title("PointSet")

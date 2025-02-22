@@ -1,11 +1,6 @@
 import numpy as np
-from typing import Literal, get_type_hints, get_args
+from typing import Literal, get_type_hints, get_args, Union, TypeAlias
 import inspect
-
-
-# ============================================================================
-#                     Type Class
-# ============================================================================
 
 
 class _Type:
@@ -247,3 +242,6 @@ def cast_to(v, tag):
         The casted value
     """
     return get_type(tag)(v)
+
+
+float_type: TypeAlias = Union[float, np.float16, np.float32, np.float64,]
