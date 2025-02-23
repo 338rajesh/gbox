@@ -11,7 +11,7 @@ from .base import (
     PointArrayND,
     PointArray1D,
     PointArray2D,
-    TopologicalClosedShape2D,
+    _T_ClosedShape2D,
 )
 
 
@@ -23,5 +23,5 @@ __all__ = [
     'PointArrayND',
     'PointArray1D',
     'PointArray2D',
-    'TopologicalClosedShape2D',
+    '_T_ClosedShape2D',
 ]
