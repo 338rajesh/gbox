@@ -10,7 +10,7 @@ from .core import (
     cast_to,
 )
 
-PI = cast_to(np.pi, "float")
+from .constants import PI
 NDArray = np.ndarray
 NDArrayType = np.typing.NDArray
 
@@ -262,7 +262,7 @@ class Point1D(PointND):
 
 
 class Point2D(PointND):
-    def __init__(self, x: float, y: float):
+    def __init__(self, x: float_type, y: float_type):
         super(Point2D, self).__init__(x, y)
         self.x = cast_to(x, "float")
         self.y = cast_to(y, "float")
@@ -343,7 +343,10 @@ class Point2D(PointND):
         return cast_to(ang, "float")
 
     def transform(
-        self, angle: float = 0.0, dx: float = 0.0, dy: float = 0.0
+        self,
+        angle: float_type = 0.0,
+        dx: float_type = 0.0,
+        dy: float_type = 0.0
     ) -> "Point2D":
         """Returns a new point transformed by rotation and translation
          around the origin
@@ -599,6 +602,11 @@ class PointArrayND(Generic[PointNDType]):
         ub: list = [self.coordinates[:, i].max() for i in range(self.dim)]
         return BoundingBox(lb, ub)
 
+    def trasnform(self, angle, dx, dy):
+        raise NotImplementedError(
+            "N-dime point array transformation is not implemented"
+        )
+
     def reflection(
             self,
             p1: Union[list[float], "PointND"],
@@ -761,9 +769,9 @@ class PointArray2D(PointArrayND):
 
     def transform(
         self,
-        angle: float = 0.0,
-        dx: float = 0.0,
-        dy: float = 0.0,
+        angle: float_type = 0.0,
+        dx: float_type = 0.0,
+        dy: float_type = 0.0,
     ) -> "PointArray2D":
         """
         In-place transformation of the points cluster
@@ -1009,8 +1017,8 @@ class BoundingBox:
         axs.plot(x, y, **plt_opt)
 
 
-class _TopologicalCurveND(Generic[PointNDType]):
-    """Base class for all topological curves"""
+class _T_CurveND(Generic[PointNDType]):
+    """Base class for n-dimensional topological curves"""
 
     points_class: Type[PointNDType] = cast(Type[PointNDType], PointND)
 
@@ -1025,24 +1033,24 @@ class _TopologicalCurveND(Generic[PointNDType]):
         return f"<{self.__class__.__name__} class; dim{self.points.dim}>"
 
 
-class _TopologicalClosedShape:
+class _T_ClosedShapeND:
     """Base class for all topological shapes in n-dimensions and closed"""
 
     def __init__(self):
-        self.boundary: PointArrayND | None = None
+        self.boundary_points: PointArrayND | None = None
 
     @property
     def bounding_box(self):
         return NotImplementedError("bounding_box is not implemented")
 
 
-class TopologicalClosedShape2D(_TopologicalClosedShape):
+class _T_ClosedShape2D(_T_ClosedShapeND):
     """Base class for the two-dimensional topological shapes"""
 
     points_class: Type[Point2D] = Point2D
 
-    def __init__(self):
-        super(TopologicalClosedShape2D, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(_T_ClosedShape2D, self).__init__(*args, **kwargs)
         self._area = None
         self._perimeter = None
 
@@ -1080,10 +1088,18 @@ class TopologicalClosedShape2D(_TopologicalClosedShape):
         points_plt_opt=None,
         cycle=True,
     ):
-        assert self.boundary is not None, "Boundary is not defined"
-        assert self.boundary.dim == 2, (
+        assert self.boundary_points is not None, "Boundary is not defined"
+        assert self.boundary_points.dim == 2, (
             "Plot is supported for boundary in 2D only,"
-            f"but {self.boundary.dim}D points were provided"
+            f"but {self.boundary_points.dim}D points were provided"
         )
-        self.boundary.cycle = cycle
+        self.boundary_points.cycle = cycle
         # self.boundary.plot(axs, b_box, b_box_plt_opt, points_plt_opt)
+
+
+class ConicCurve(_T_CurveND):
+    _point_density: int = 100
+
+    def __init__(self):
+        points = PointArrayND(np.array([]))
+        super(ConicCurve, self).__init__(points)

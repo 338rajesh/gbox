@@ -9,11 +9,11 @@ from .. import (
     Point2D,
     PointArrayND,
 )
-from ..base import _TopologicalCurveND
+from ..base import _T_CurveND
 from ..core import float_type
 
 
-class StraightLineND(_TopologicalCurveND):
+class StraightLineND(_T_CurveND):
     """
     Constructs a straight line from two points lying in n-dimensional
     space. If the points are not of type PointND, they will be converted
@@ -78,7 +78,7 @@ class StraightLine2D(StraightLineND):
         return self.p1.angle(self.p2, rad)
 
 
-class BezierCurveND(_TopologicalCurveND):
+class BezierCurveND(_T_CurveND):
     pass
 
 
