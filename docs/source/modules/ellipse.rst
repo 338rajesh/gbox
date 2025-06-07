@@ -1,7 +1,7 @@
-Core 
-====
+Ellipse 
+=======
 
-.. automodule:: gbox.core
+.. automodule:: gbox.ellipse
     :members:
     :undoc-members:
     :show-inheritance:

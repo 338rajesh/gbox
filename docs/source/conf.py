@@ -9,25 +9,25 @@
 import sys
 from os.path import dirname
 
-project = 'gbox'
-copyright = '2023, Rajesh Nakka'
-author = 'Rajesh Nakka'
-release = '0.1.1'
+project = "gbox"
+copyright = "2023, Rajesh Nakka"
+author = "Rajesh Nakka"
+release = "0.1.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.duration',
-    'sphinx.ext.doctest',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.intersphinx',
-    'matplotlib.sphinxext.plot_directive',  # Enable plot rendering
-    'numpydoc',
+    "sphinx.ext.duration",
+    "sphinx.ext.doctest",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "matplotlib.sphinxext.plot_directive",  # Enable plot rendering
+    "numpydoc",
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 
@@ -36,13 +36,13 @@ sys.path.insert(0, dirname(dirname(dirname(__file__))))
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-autodoc_member_order = 'bysource'  # to avoid the sorting of methods in the alphabetical order
+autodoc_member_order = "bysource"  # to avoid the sorting of methods in the alphabetical order
 
 numpydoc_show_class_members = False
 numpydoc_class_members_toctree = False
 numpydoc_inherited_members = True
 
-html_theme = 'pydata_sphinx_theme'
+html_theme = "pydata_sphinx_theme"
 # Available themes
 # sphinx_rtd_theme, alabaster, nature, scrolls, pyramid, haiku, pydata_sphinx_theme
 html_static_path = []
@@ -54,8 +54,7 @@ html_theme_options = {
     "logo": {
         "text": "gbox",
         # "image_dark": "_static/logo-dark.svg",
-    }
+    },
 }
 
-#
 autosummary_generate = True

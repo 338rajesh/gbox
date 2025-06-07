@@ -2,26 +2,35 @@
 #                     Exporting classes and functions
 # =================================================================
 
-from .core import TypeConfig
-
 from .base import (
-    BoundingBox,
     PointND,
+    Point1D,
     Point2D,
+    Point3D,
     PointArrayND,
     PointArray1D,
     PointArray2D,
-    _T_ClosedShape2D,
+    PointArray3D,
+    BoundingBox,
+)
+from .ellipse import (
+    Circle,
+    Ellipse,
+    CirclesArray,
 )
 
-
 __all__ = [
-    'TypeConfig',
-    'BoundingBox',
-    'PointND',
-    'Point2D',
-    'PointArrayND',
-    'PointArray1D',
-    'PointArray2D',
-    '_T_ClosedShape2D',
+    "PointND",
+    "Point1D",
+    "Point2D",
+    "Point3D",
+    "PointArrayND",
+    "PointArray1D",
+    "PointArray2D",
+    "PointArray3D",
+    "BoundingBox",
+    #
+    "Circle",
+    "Ellipse",
+    "CirclesArray",
 ]

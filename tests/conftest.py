@@ -7,7 +7,7 @@ def pytest_addoption(parser):
         "--plots",
         action="store_true",
         default=False,
-        help="Enable plotting for debugging"
+        help="Enable plotting for debugging",
     )
 
 

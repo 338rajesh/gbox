@@ -1,20 +1,18 @@
-import pytest
-from gbox import PointND
-from gbox.shapes import (
-    StraightLineND as line_nd,
-    StraightLine2D as line_2d,
-)
 import numpy as np
+import pytest
+
+from gbox import Point2D
+from gbox.lines import LineSegment2D as line_2d
+from gbox.lines import LineSegmentND as line_nd
 
 
 @pytest.fixture
 def origin_2d():
-    return PointND(0.0, 0.0)
+    return Point2D(0.0, 0.0)
 
 
 class TestStraightLine:
     def test_straight_line_1(self):
-
         line = line_nd([0.0, 0.0, 1.0], [1.0, 1.0, -1.0])
         assert isinstance(line, line_nd)
         assert line.p1 == (0.0, 0.0, 1.0)
@@ -50,7 +48,10 @@ class TestStraightLine:
             315.0: (3.0, -3.0),
             300.0: (1.0, -np.sqrt(3.0)),
         }
-        for (ang_deg, (x, y)) in rotation_data.items():
+        for ang_deg, (x, y) in rotation_data.items():
             for r in [True, False]:
                 v = np.deg2rad(ang_deg) if r else ang_deg
-                assert line_2d(origin_2d, [x, y]).angle(r) == pytest.approx(v)
+                lin = line_2d(origin_2d, [x, y])
+                angle = lin.angle(r)
+                assert angle == pytest.approx(v)
+                # assert line_2d(origin_2d, [x, y]).angle(r) == pytest.approx(v)
