@@ -1,214 +1,149 @@
+from collections.abc import Iterable, Sequence
+from itertools import product
+from typing import Union, Tuple, Literal
+
 import numpy as np
-import itertools
-from typing import Union, TypeVar, Type, List, Generic, cast
+from matplotlib.axes import Axes
 
-from .core import (
-    TypeConfig,
-    FloatType,
-    float_type,
-    get_type,
-    cast_to,
-)
 
-from .constants import PI
-NDArray = np.ndarray
-NDArrayType = np.typing.NDArray
+DEFAULT_FLOAT = np.float32
+FloatType = Union[float, DEFAULT_FLOAT]
 
-PointNDType = TypeVar("PointNDType", bound="PointND")
+PI = DEFAULT_FLOAT(np.pi)
+TOLERANCE = np.finfo(DEFAULT_FLOAT).eps
+
+_DEFAULT_POINT_PLOT_OPTIONS = {
+    "color": "blue",
+    "linestyle": "None",
+    "marker": "o",
+    "markersize": 5,
+}
+_DEFAULT_LINE_PLOT_OPTIONS = {
+    "color": "red",
+    "linewidth": 2,
+    "linestyle": "-",
+    "marker": "None",
+}
+
+
+# class GboxBaseModel()
 
 # ============================================================================
 #                           POINT ND CLASS
 # ============================================================================
+# region PointND
 
 
-class PointND(tuple):
+class PointND:
     """Point class for representing a point in N-dimensional space"""
 
-    def __new__(cls, *coords):
-        coords = [cast_to(c, "float") for c in coords]
-        return super().__new__(cls, coords)
+    __slots__ = ("coor",)
 
-    def __init__(self, *coords) -> None:
-        self.coords = coords
+    def __init__(self, *coords: FloatType) -> None:
+        """Constructs a point from the given coordinates"""
+        self._validate_coords(coords)
+        self.coor = np.array(coords, dtype=DEFAULT_FLOAT)
 
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} class; dim {len(self)}>"
+    # ============================
+    #       CORE METHODS
+    # ============================
+    @staticmethod
+    def _validate_coords(coords: Sequence[FloatType]) -> None:
+        """Validates the coordinates of the point"""
+        if not coords:
+            raise ValueError("Point must have at least one coordinate")
 
-    def __eq__(self, p: "PointND") -> bool:
-        for a, b in zip(self, p):
-            if a != b:
-                return False
-        return True
-
-    @property
-    def dim(self) -> int:
-        """Returns the dimension of the point
-
-        Returns
-        -------
-        IntType
-            Dimension of the point
-
-        """
-        return self.__len__()
+        allowable_types = (int, float, type(DEFAULT_FLOAT(0.0)))
+        if not all(isinstance(c, allowable_types) for c in coords):
+            raise TypeError(
+                f"All coordinates must be one of {allowable_types}, "
+                f"but got {[type(c) for c in coords]}",
+            )
 
     @classmethod
-    def from_(
-        cls: Type[PointNDType], seq: Union[list[float_type], "PointND"]
-    ) -> PointNDType:
-        """
-        Returns a Point from a list/tuple of floats.
+    def _from_(cls, p: Union["PointND", Sequence[float]]):
+        if isinstance(p, cls):
+            return p
+        if isinstance(p, Sequence):
+            return cls(*p)
+        raise TypeError(
+            f"Cannot convert {p.__class__.__name__} to {cls.__name__}. "
+            f"Expected {cls.__name__} or sequence of coordinates.",
+        )
 
-        Parameters
-        ----------
-        seq : Union[list[float], tuple[float], "PointND"]
-            Point or list/tuple of float_type
+    # ============================
+    #       MAGIC METHODS
+    # ============================
+    def __len__(self) -> int:
+        """Returns the number of coordinates in the point"""
+        return len(self.coor)
 
-        Returns
-        -------
-        Point
-            Point
+    def __getitem__(self, idx: int) -> DEFAULT_FLOAT:
+        """Returns the coordinate at the given index"""
+        return self.coor[idx]
 
-        Raises
-        ------
-        TypeError
-            If seq is not of type list, tuple or PointND
-            If seq contains elements that are not of float type, see
-            `FloatType._types_` for supported float types.
-        ValueError
-            If seq is empty
+    def __iter__(self) -> Iterable[float]:
+        """Returns an iterator over the coordinates of the point"""
+        return iter(self.coor)
 
-        Example
-        -------
-        >>> Point.from_([1.0, 2.0])
-        Point:  (1.0, 2.0)
-        >>> Point.from_((1.0, 2.0))
-        Point:  (1.0, 2.0)
+    def __array__(self, dtype=None, copy=True):
+        """Returns the coordinates of the point as a numpy array"""
+        arr = np.array(self.coor, dtype=dtype, copy=copy)
+        return arr
 
-        """
-        if not isinstance(seq, (list, tuple, PointND)):
-            raise TypeError("seq must be of type list, tuple or Point")
+    def __eq__(self, q) -> bool:
+        """Checks if two points are equal"""
+        try:
+            q = self._from_(q)
+        except TypeError:
+            raise TypeError(
+                f"Cannot compare {type(q)} with {self.__class__.__name__}",
+            )
+        return np.array_equal(self.coor, q.coor)
 
-        if isinstance(seq, cls):
-            return seq
+    def __repr__(self) -> str:
+        """Returns the string representation of the point"""
+        return f"{self.__class__.__name__}({', '.join(map(str, self.coor))})"
 
-        # i.e., seq is either list or tuple
-        if len(seq) == 0:
-            raise ValueError("Point must have at least one element")
-        for c in seq:
-            if not isinstance(c, FloatType._types_):
-                raise TypeError(
-                    "All elements must be of type float",
-                    f"but, element {c} found to be of type {type(c)}",
-                )
-        return cls(*seq)
+    # =================================
+    #       POINT PROPERTIES
+    # =================================
+    @property
+    def dim(self) -> int:
+        """Returns the dimension of the point"""
+        return len(self.coor)
 
-    @staticmethod
-    def _assert_points_compatibility_(p, q) -> None:
-        """
-        Checks if the given arguments are of Point type and have same
-        dimension
-        """
-        if not isinstance(p, PointND):
-            raise TypeError("p must be of type Point")
-        if not isinstance(q, PointND):
-            raise TypeError("q must be of type Point")
-        if p.dim != q.dim:
-            raise ValueError("p and q must be of same dimension")
-
-    def distance_to(
-            self, p: Union[list[float_type], "PointND"]
-    ) -> float_type:
-        """Evaluates the distance between the current point and point 'p'
-
-        Parameters
-        ----------
-        p : Union[list[float], "PointND"]
-            Point or sequence of float_type
-
-        Returns
-        -------
-        float_type
-            Distance
-
-        Examples
-        --------
-        >>> p = Point.from_([1.0, 2.0])
-        >>> q = Point.from_([3.0, 4.0])
-        >>> p.distance_to(q)
-        2.8284271247461903
-        """
-        p = self.__class__.from_(p)
-        self.__class__._assert_points_compatibility_(self, p)
-        distance = np.sqrt(sum((a - b) ** 2 for a, b in zip(self, p)))
-        return cast_to(distance, "float")
+    # =================================
+    #       GEOMETRIC PROPERTIES
+    # =================================
+    def distance_to(self, q: Union["PointND", Sequence]) -> DEFAULT_FLOAT:
+        q = self._from_(q)
+        return np.linalg.norm(self.coor - q.coor).astype(DEFAULT_FLOAT)
 
     def in_bounds(
         self,
-        bounds: Union["BoundingBox", list, tuple],
-        include_bounds: bool = False,
+        lower_bound: Union["PointND", Sequence[float]],
+        upper_bound: Union["PointND", Sequence[float]],
     ) -> bool:
-        """Checks if the current point is within the bounds.
+        lower_bound = self._from_(lower_bound)
+        upper_bound = self._from_(upper_bound)
 
-        Parameters
-        ----------
-        bounds : Union["BoundingBox", list, tuple]
-            Bounding box or list/tuple of bounds
-        include_bounds : bool
-            If True, the point is considered within and on the bounds.
-            Default: False
+        if not (self.dim == lower_bound.dim == upper_bound.dim):
+            raise ValueError(
+                "Mismatch in the dimension of Point and Bounds; "
+                f"point {self.dim}, "
+                f"Lower bound: {lower_bound.dim}, "
+                f"Upper bound: {upper_bound.dim}",
+            )
 
-        Raises
-        ------
-        TypeError
-            If bounds is not of type BoundingBox, or list or tuple
-        ValueError
-            If bounds are of type list or tuple and has length other than 2
-            If dimension of Point and Bounds are not same
+        return bool(
+            np.all(
+                (self.coor >= lower_bound.coor)
+                & (self.coor <= upper_bound.coor),
+            ),
+        )
 
-        Examples
-        --------
-        >>> import numpy as np
-        >>> lower_bound = [0, 0]
-        >>> upper_bound = [10, 10]
-        >>> bounding_box = BoundingBox(lower_bound, upper_bound)
-        >>> Point.from_([1.0, 2.0]).in_bounds(bounding_box)
-        True
-        >>> Point.from_([11.0, 12.0]).in_bounds((lower_bound, upper_bound))
-        False
-        """
-
-        # converting list/tuple of bounds to BoundingBox
-        if isinstance(bounds, (list, tuple)):
-            if len(bounds) == 2:
-                bounds = BoundingBox(*bounds)
-            else:
-                raise ValueError(
-                    "Bounds must have length 2 if supplied as list or tuple"
-                )
-
-        # validating bounds type
-        if not isinstance(bounds, BoundingBox):
-            raise TypeError("bounds are expected to be BoundingBox")
-
-        # validating dimension compatibility
-        if self.dim != bounds.dim:
-            raise ValueError("Mismatch in the dimension of Point and Bounds")
-
-        for lb, p, ub in zip(bounds.lb, self, bounds.ub):
-            if (p < lb or p > ub) if include_bounds else (p <= lb or p >= ub):
-                return False
-        return True
-
-    def as_array(self) -> NDArray:
-        return np.asarray(self, dtype=get_type("float"))
-
-    def as_list(self) -> list:
-        return list(self)
-
-    def reflection(
-            self, q: Union[list[float], "PointND"], p1: tuple, p2: tuple
-    ):
+    def reflection(self, q: "PointND", p1: "PointND", p2: "PointND"):
         """Reflects the current point about a line connecting p1 and p2"""
         raise NotImplementedError("reflect is not implemented")
         # Assert(q).of_type(Point, "other point must be of type Point")
@@ -220,18 +155,21 @@ class PointND(tuple):
         # return Point(*reflected_point)
 
     def is_close_to(
-            self,
-            p: Union[list[float_type], "PointND"],
-            eps: float_type = 1e-16,
+        self,
+        q: Union["PointND", Sequence],
+        rtol: float = 1e-5,
+        atol: float = 1e-8,
     ) -> bool:
         """Checks if the current point is close to other point 'p'
 
         Parameters
         ----------
-        p : Union[list[float], "PointND"]
-            Point or sequence of float_type
-        eps : float_type
-            Tolerance, default: 1e-16
+        q : "PointND"
+            The other point to be compared
+        rtol : float
+            Relative tolerance, defaults to 1e-5
+        atol : float
+            Absolute tolerance, defaults to 1e-8
 
         Returns
         -------
@@ -241,76 +179,75 @@ class PointND(tuple):
 
         Examples
         --------
-        >>> p = Point.from_([1.0, 2.0])
-        >>> p.is_close_to((1.0 + 1e-08, 2.0 + 1e-07), eps=1e-6)
+        >>> PointND(1.0, 2.0).is_close_to((1.0 + 1e-08, 2.0 + 1e-07))
         True
-        >>> q = Point.from_([3.0, 4.0])
-        >>> p.is_close_to(q)
+        >>> PointND(1.0, 2.0).is_close_to((3.0 + 1e-08, 4.0 + 1e-07))
         False
-        """
-        p = self.__class__.from_(p)
-        self.__class__._assert_points_compatibility_(self, p)
 
-        for a, b in zip(self, p):
-            if abs(a - b) > eps:
-                return False
-        return True
+        """
+        q = self._from_(q)
+        return np.allclose(self.coor, q.coor, rtol=rtol, atol=atol)
+
+
+# endregion PointND
+# region Point1D
 
 
 class Point1D(PointND):
-    pass
+    __slots__ = ()
+
+    def __init__(self, x: float) -> None:
+        super().__init__(x)
+
+    @property
+    def x(self) -> DEFAULT_FLOAT:
+        return self.coor[0]
+
+    def __repr__(self) -> str:
+        """Returns the string representation of the point"""
+        return f"{self.__class__.__name__}(x={self.x})"
+
+
+# region Point2D
 
 
 class Point2D(PointND):
-    def __init__(self, x: float_type, y: float_type):
-        super(Point2D, self).__init__(x, y)
-        self.x = cast_to(x, "float")
-        self.y = cast_to(y, "float")
+    __slots__ = ()  # No additional attributes for 2D points
+
+    def __init__(self, x: FloatType, y: FloatType) -> None:
+        super().__init__(x, y)
+
+    def __repr__(self) -> str:
+        """Returns the string representation of the point"""
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y})"
+
+    @property
+    def x(self) -> DEFAULT_FLOAT:
+        return self.coor[0]
+
+    @property
+    def y(self) -> DEFAULT_FLOAT:
+        return self.coor[1]
 
     def slope(
-            self,
-            q: Union[list[float_type], "PointND"],
-            eps: float_type | None = None,
-    ) -> float_type:
+        self,
+        q: Union["Point2D", Sequence[float]],
+        eps: float = 1e-06,
+    ) -> DEFAULT_FLOAT:
         """Returns the slope of the line joining the current point and other
         point 'q'.
-
-        Parameters
-        ----------
-        q : Union[list[float], "PointND"]
-            Point or sequence of float_type
-        eps : float_type
-            Tolerance, defaults to precision of float_type
-
-        Returns
-        -------
-        float_type
-            Slope
-
-        Examples
-        --------
-        >>> p = Point.from_([1.0, 2.0])
-        >>> q = Point.from_([3.0, 4.0])
-        >>> p.slope(q)
-        1.0
         """
-        if eps is None:
-            eps = cast_to(TypeConfig.float_precision(), "float")
-
-        q = self.from_(q)
-        assert isinstance(q, self.__class__), (
-            f"other point must be of type '{self.__class__.__name__}'"
-        )
-
-        eps = eps if q.x == self.x else cast_to(0.0, "float")
-        slope = (q.y - self.y) / (q.x - self.x + eps)
-        return cast_to(slope, "float")
+        q = self._from_(q)
+        dx = q.x - self.x
+        if abs(dx) < eps:
+            return DEFAULT_FLOAT("inf")
+        return ((q.y - self.y) / dx).astype(DEFAULT_FLOAT)
 
     def angle(
         self,
-        p2: Union[list[float_type], "PointND"],
-        rad=True
-    ) -> float_type:
+        p2: Union["Point2D", Tuple[FloatType, FloatType]],
+        rad=True,
+    ) -> DEFAULT_FLOAT:
         """Returns the angle between the current point and other point 'p2'
 
         Parameters
@@ -331,395 +268,324 @@ class Point2D(PointND):
         >>> q = Point.from_([3.0, 4.0])
         >>> p.angle(q)
         0.7853981633974483
+
         """
-        p2 = self.from_(p2)
-        assert isinstance(p2, self.__class__), (
-            f"other point must be of type '{self.__class__.__name__}'"
+        assert isinstance(p2, (Point2D, tuple)) and len(p2) == 2, (
+            f"Expecting 2D points, but got {p2}"
         )
-        ang = np.arctan2(p2.y - self.y, p2.x - self.x)
-        if ang < 0:
-            ang += 2.0 * PI
+        ang = np.arctan2(p2[1] - self.y, p2[0] - self.x)
+        ang = ang if ang >= 0 else ang + (2 * PI)
         ang = ang if rad else np.rad2deg(ang)
-        return cast_to(ang, "float")
+        return ang.astype(DEFAULT_FLOAT)
 
     def transform(
         self,
-        angle: float_type = 0.0,
-        dx: float_type = 0.0,
-        dy: float_type = 0.0
+        angle: FloatType = 0.0,
+        dx: FloatType = 0.0,
+        dy: FloatType = 0.0,
+        *,
+        order: Literal["RT", "TR"] = "RT",  # Rotate > Trnsl | Trnsl > Rotate
     ) -> "Point2D":
         """Returns a new point transformed by rotation and translation
-         around the origin
-
-        Parameters
-        ----------
-        angle : float
-            Angle of rotation in radians, default: 0.0
-        dx : float
-            Translation along x axis, default: 0.0
-        dy : float
-            Translation along y axis, default: 0.0
-
-        Returns
-        -------
-        Point2D
-            Transformed point
-
-        Examples
-        --------
-        >>> p = Point.from_([1.0, 0.0])
-        >>> p.transform(angle=np.pi / 2)
-        Point2D(x=0.0, y=1.0)
+        around the origin
         """
-        new_x = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
-        new_y = (self.x * np.sin(angle) + self.y * np.cos(angle)) + dy
-        return type(self)(new_x, new_y)
+
+        def rotate_2d(angle, x, y):
+            cos_a, sin_a = np.cos(angle), np.sin(angle)
+            return (x * cos_a - y * sin_a), (x * sin_a + y * cos_a)
+
+        if order == "RT":
+            new_x, new_y = rotate_2d(angle, self.x, self.y)
+            new_x += dx
+            new_y += dy
+        elif order == "TR":
+            new_x, new_y = rotate_2d(angle, self.x + dx, self.y + dy)
+        else:
+            raise ValueError(f"Invalid order: {order}")
+        return self.__class__(new_x, new_y)
+
+
+# endregion Point2D
+# region Point3D
 
 
 class Point3D(PointND):
-    pass
+    __slots__ = ()
+
+    def __init__(self, x: float, y: float, z: float):
+        super().__init__(x, y, z)
+
+    def __repr__(self) -> str:
+        """Returns the string representation of the point"""
+        return f"{self.__class__.__name__}(x={self.x}, y={self.y}, z={self.z})"
+
+    @property
+    def x(self) -> DEFAULT_FLOAT:
+        return self.coor[0]
+
+    @property
+    def y(self) -> DEFAULT_FLOAT:
+        return self.coor[1]
+
+    @property
+    def z(self) -> DEFAULT_FLOAT:
+        return self.coor[2]
+
+    def transform(self, matrix: np.ndarray) -> "Point3D":
+        """Transform using 4x4 transformation matrix (homogeneous coordinates)"""
+        if matrix.shape != (4, 4):
+            raise ValueError("Transformation matrix must be 4x4")
+        if matrix.dtype != DEFAULT_FLOAT:
+            matrix = matrix.astype(DEFAULT_FLOAT)
+        point = np.append(self.coor, 1.0)
+        transformed = matrix @ point
+        transformed = transformed[:3].astype(DEFAULT_FLOAT)
+        return Point3D(*transformed)
 
 
-class PointArrayND(Generic[PointNDType]):
-    """
-    Constructs a PointArray from a NumpyArray, representing a
-    collection of **ordered** points
+# endregion Point3D
+# region PointArrayND
 
-    Attributes
-    ----------
-    coordinates : NDArray
-        Two dimensional Numpy array of point coordinates
-    dim : int
-        Dimension of the points
-    dtype : np.dtype
-        Data type of the points
 
-    Parameters
-    ----------
-    points : NDArray
-        Two dimensional Numpy array of point coordinates, with
-            one point per row.
-    dtype : np.dtype
-        Data type of the points. Defaults to float_type
-
-    Raises
-    ------
-    TypeError
-        If points is not a NumpyArray
-    NotImplementedError
-        If points is not two-dimensional
-
-    Examples
-    --------
-    >>> p = PointArray([[1.0, 2.0], [3.0, 4.0]])
-    >>> p
-    PointArray:
-    [[ 1.  2.]
-     [ 3.  4.]]
-    >>> import numpy as np
-    >>> from gbox import PointArray, TypeConfig
-    >>> TypeConfig.set_float_type(np.float64)
-    >>> p = PointArray(np.array([[1.0, 2.0], [3.0, 4.0]]))
-    >>> p.coordinates
-    array([[1., 2.],
-            [3., 4.]])
-    >>> p.dim
-    2
-    >>> p.dtype
-    <class 'numpy.float64'>
+class PointArrayND:
+    """PointArrayND, a base class for representing a collection of points
+    in N-dimensional space
     """
 
-    point_cls: Type[PointNDType] = cast(Type[PointNDType], PointND)
+    __slots__ = ("_cycle", "coor")
 
-    def _dim(self):
-        _dim = self.__class__.__name__.split("Array")[1][:-1]
-        return int(_dim) if _dim.isnumeric() else None
+    def __init__(self, points: np.ndarray):
+        """Constructs a PointArray from a NumpyArray of points"""
+        self._validate_points(points)
+        self.coor = np.ascontiguousarray(points, dtype=DEFAULT_FLOAT)
+        self._cycle = False  # For open curves
 
-    def __init__(self, points: np.ndarray, dtype=None):
-        if dtype is None:
-            dtype = TypeConfig.float_type().dtype
-        assert self._check_points_validity(points)
-        self.coordinates = np.asarray(points, dtype=dtype)
-        self.dim = self.coordinates.shape[1]
-        self.dtype = dtype
-        self._cycle = False
-
-    def _check_points_validity(self, points):
+    # ============================
+    # Private methods
+    # ============================
+    @staticmethod
+    def _validate_points(points: np.ndarray) -> bool:
+        """Validates the points in the array"""
         if not isinstance(points, np.ndarray):
-            raise TypeError("PointArray is construction requred a NumpyArray")
-
+            raise TypeError("PointArray construction requires a NumpyArray")
         if points.ndim != 2:
-            raise NotImplementedError(
-                "At present PointArray is only implemented for 2D arrays."
-                " I.e., only ONE group of points in n-dimensional plane is"
-                " supported, and not the multiple/nested groups of points."
-                " But, {points.ndim} point groups found"
-            )
-
-        if self._dim() is not None and points.shape[1] != self._dim():
-            raise ValueError(
-                f"Expected {self._dim()}D points represented by "
-                f"{self._dim()} columns in a 2D array, but found "
-                f"{points.shape[1]} columns"
-            )
+            raise ValueError("Points must be 2D array (n_points x n_dims)")
+        if points.size == 0:
+            raise ValueError("PointArray must have at least one point")
         return True
 
     @classmethod
-    def from_sequences(cls, *data, dtype=None) -> "PointArrayND":
+    def from_points(
+        cls,
+        points: Sequence[PointND] | Sequence[Sequence[float]],
+    ) -> "PointArrayND":
+        """Constructs a PointArray from a sequence of Point objects or
+        sequences of sequences of coordinates
         """
-        Constructs a PointArray from a sequence of points
-
-        Parameters
-        ----------
-        data : Sequence
-            Sequence of points. Each point is a sequence of coordinates
-        dtype : np.dtype
-            Data type of the points. Defaults to float_type
-
-        Raises
-        ------
-        ValueError
-            If data is empty
-            If each point in the array does not have the same number
-            of dimensions
-
-        Examples
-        --------
-        >>> p = PointArray.from_sequences([1.0, 2.0], [3.0, 4.0])
-        >>> isinstance(p, PointArray)
-        True
-        >>> p.coordinates
-        array([[1., 2.], [3., 4.]])
-        """
-        if len(data) == 0:
+        if not points:
             raise ValueError("PointArray must have at least one point")
-
-        for a_point in data:
-            if len(a_point) != len(data[0]):
-                raise ValueError(
-                    "Each point in the array must have same dimension"
-                )
-
-        return cls(np.array(data), dtype=dtype)
-
-    @classmethod
-    def from_dimensions_data(cls, *data, dtype=None) -> "PointArrayND":
-        """Constructs a PointArray from a sequence of dimensional data
-
-        Parameters
-        ----------
-        data : Sequence
-            Sequence of dimensional data where sequence contains
-             a dimension coordinates
-        dtype : np.dtype
-            Data type of the points. Defaults to float_type
-
-        Raises
-        ------
-        ValueError
-            If data is empty
-            If all dimensions doesn't have the same number of points
-
-        Examples
-        --------
-        >>> p = PointArray.from_dimensions_data(
-        [1.0, 3.0, 5.0, 10.0], [2.0, 4.0, 6.0, 8.0]
-        )
-        >>> isinstance(p, PointArray)
-        True
-        >>> p.coordinates
-        array([[ 1.,  2.],
-               [ 3.,  4.],
-               [ 5.,  6.],
-               [10.,  8.]])
-        """
-        if len(data) == 0:
-            raise ValueError("PointArray must have at least one dimension")
-
-        for a_dim_data in data:
-            if len(a_dim_data) != len(data[0]):
-                raise ValueError("Unequal number of points along dimensions")
-
-        return cls(np.array(data).T, dtype=dtype)
+        if not isinstance(points, Sequence):
+            raise TypeError(
+                "Points must be a sequence of Point objects or "
+                "sequences of sequence of coordinates",
+            )
+        _dim_ = len(points[0])
+        if any(len(p) != _dim_ for p in points):
+            raise ValueError("All points must have same dimension")
+        return cls(np.array(points, dtype=DEFAULT_FLOAT))
 
     @classmethod
-    def from_points(cls, *points, dtype=None) -> "PointArrayND":
-        """Constructs a PointArray from a sequence of Point type objects
+    def from_dims(cls, dims: Sequence[Sequence[FloatType]]):
+        """Constructs a PointArray from a sequence of sequences of coordinates"""
+        if not dims:
+            raise ValueError(
+                "PointArray must have coordinates along at least one dimension"
+            )
+        if not all(len(d) == len(dims[0]) for d in dims):
+            raise ValueError("All dimensions must have same length")
+        return cls(np.array(dims, dtype=DEFAULT_FLOAT).T)
 
-        Parameters
-        ----------
-        points : Sequence
-            Sequence of Point type objects
-        dtype : np.dtype
-            Data type of the points. Defaults to float_type
-
-        Raises
-        ------
-        TypeError
-            If points contains a non-Point object
-
-        Examples
-        --------
-        >>> p = PointArray.from_points(Point(1.0, 2.0), Point(3.0, 4.0))
-        >>> isinstance(p, PointArray)
-        True
-        >>> p.coordinates
-        array([[1., 2.],
-               [3., 4.]])
-        """
-        for a_p in points:
-            a_p = cls.point_cls.from_(a_p)
-            if not isinstance(a_p, cls.point_cls):
-                raise TypeError(
-                    "Supplied points must be of type Point,"
-                    f"but {type(a_p)} found"
-                )
-        data = np.array([p.as_list() for p in points])
-        return cls(data, dtype=dtype)
-
+    # ============================
+    #       MAGIC METHODS
+    # ============================
     def __len__(self):
-        return self.coordinates.shape[0]
+        """Returns the number of points in the PointArray"""
+        return len(self.coor)
+
+    def __getitem__(self, idx: int | slice | tuple) -> np.ndarray:
+        """Returns the point(s) at the given index or slice"""
+        if isinstance(idx, tuple):
+            if len(idx) != 2:
+                raise IndexError("Incorrect number of indices for PointArray")
+            return self.coor[idx[0], idx[1]]
+        return self.coor[idx]
+
+    def __iter__(self) -> Iterable[np.ndarray]:
+        return iter(self.coor)
+
+    def __array__(self, dtype=None, copy=True) -> np.ndarray:
+        """Returns the coordinates of the point array as a numpy array"""
+        arr = np.array(self.coor, dtype=dtype, copy=copy)
+        return arr
 
     def __repr__(self):
         return (
-            f"<{self.__class__.__name__}; dim::{self.dim};"
-            f" {self.coordinates.shape[0]} points>"
+            f"{self.__class__.__name__}({len(self)} points; dim={self.dim};"
+            f" dtype={self.dtype})"
         )
 
-    def __eq__(self, p: "PointArrayND"):
-        if not isinstance(p, self.__class__):
-            raise TypeError("Equality check requires two PointSets")
-        return np.array_equal(self.coordinates, p.coordinates)
-
-    def copy(self):
-        """Returns a copy of the current PointArray"""
-        return self.__class__(self.coordinates.copy())
+    # ============================
+    #       POINT PROPERTIES
+    # ============================
+    @property
+    def dim(self):
+        return self.coor.shape[1]
 
     @property
-    def bounding_box(self) -> "BoundingBox":
-        """Returns the bounding box of the current PointArray"""
-        lb: list = [self.coordinates[:, i].min() for i in range(self.dim)]
-        ub: list = [self.coordinates[:, i].max() for i in range(self.dim)]
-        return BoundingBox(lb, ub)
-
-    def trasnform(self, angle, dx, dy):
-        raise NotImplementedError(
-            "N-dime point array transformation is not implemented"
-        )
-
-    def reflection(
-            self,
-            p1: Union[list[float], "PointND"],
-            p2: Union[list[float], "PointND"]
-    ):
-        """Reflects the current points about a line connecting p1 and p2"""
-        raise NotImplementedError("Point Array reflection is not implemented")
+    def dtype(self):
+        return self.coor.dtype
 
     @property
-    def cycle(self):
+    def coordinates(self) -> np.ndarray:
+        """Returns the coordinates of the point array"""
+        return self.coor.copy()
+
+    @property
+    def cycle(self) -> bool:
+        """Returns True if the points are cyclic"""
         return self._cycle
 
     @cycle.setter
     def cycle(self, val: bool):
+        """Sets the cyclic property of the points"""
         if not isinstance(val, bool):
             raise TypeError("cycle take a boolean value")
         self._cycle = val
 
+    # ============================
+    #       GEOMETRY OPERATIONS
+    # ============================
+    def bounding_box(self) -> "BoundingBox":
+        """Returns the bounding box of the current PointArray"""
+        return BoundingBox(
+            np.min(self.coor, axis=0),
+            np.max(self.coor, axis=0),
+        )
 
-class PointArray1D(PointArrayND["Point1D"]):
-    """
-    PointArray1D, a subclass of PointArray, with one dimension
+    def transform(
+        self,
+        matrix: np.ndarray,
+        in_place: bool = False,
+    ) -> Union["PointArrayND", None]:
+        """Transform using a transformation matrix"""
+        if matrix.shape != (self.dim + 1, self.dim + 1):
+            raise ValueError(
+                f"Transformation matrix must be {self.dim + 1}x{self.dim + 1}",
+            )
+        if matrix.dtype != self.dtype:
+            matrix = matrix.astype(self.dtype)
+        points = np.column_stack([self.coor, np.ones(len(self))])
+        if in_place:
+            transformed = points @ matrix.T
+            if not transformed.dtype == self.dtype:
+                transformed = transformed.astype(self.dtype)
+            self.coor[:, :] = transformed[:, : self.dim]
+            return None
+        transformed = points @ matrix.T
+        transformed = transformed[:, : self.dim].astype(self.dtype)
+        return self.__class__(transformed)
 
-    Attributes
-    ----------
-    coordinates : np.ndarray
-        Array of point coordinates
-    dim : int
-        Dimension of the points
-    dtype : np.dtype
-        Data type of the points
-    x : NDArray
-        Array of x coordinates
+    def reflection(
+        self,
+        p1: Union[list[float], "PointND"],
+        p2: Union[list[float], "PointND"],
+    ):
+        """Reflects the current points about a line connecting p1 and p2"""
+        raise NotImplementedError("Point Array reflection is not implemented")
 
-    """
-    point_cls: Type["Point1D"] = Point1D
+    def reverse(self, in_place: bool = False) -> Union["PointArrayND", None]:
+        """Reverses the order of the points"""
+        rev_coor = np.flip(self.coor, axis=0)
+        if in_place:
+            self.coor = rev_coor
+            return None
+        return self.__class__(rev_coor)
 
-    def __init__(self, points: np.ndarray, dtype=None, **kwargs):
-        """Constructs a PointArray1D from a NumpyArray
+    # ============================
+    #       UTILITY METHODS
+    # ============================
+    def copy(self):
+        """Returns a copy of the current PointArray"""
+        return self.__class__(self.coordinates)
 
-        Parameters
-        ----------
-        points : NDArray
-            One dimensional Numpy array or 2D Numpy array with one column
-        dtype : np.dtype
-            Data type of the points
+    def to_points_list(self) -> list[PointND]:
+        """Returns a list of Point objects from the current PointArray"""
+        return [PointND(*row) for row in self.coor]
 
-        Raises
-        ------
-        TypeError
-            If points is not a NumpyArray
-        NotImplementedError
-            If points is a numpy array with more than 2 dimensions
-        ValueError
-            If points is a numpy array with more than one column
 
-        """
-        super(PointArray1D, self).__init__(points, dtype=dtype, **kwargs)
+# endregion PointArrayND
+# region PointArray1D
+
+
+class PointArray1D(PointArrayND):
+    """PointArray1D, a subclass of PointArray, with one dimension"""
+
+    __slots__ = ()
+
+    def __init__(self, points: np.ndarray):
+        """Constructs a PointArray1D from a NumpyArray"""
+        if points.ndim == 1:
+            points = np.atleast_2d(points).T
+        super().__init__(points)
+        if self.dim != 1:
+            raise ValueError("PointArray1D must have one dimension")
 
     @property
-    def x(self) -> NDArray:
-        return self.coordinates[:, 0]
+    def x(self) -> np.ndarray:
+        return self.coor[:, 0]
 
-    def transform(self, dx: float = 0.0) -> "PointArray1D":
-        """In-place transformation of the points cluster
-         by rotation and translation
+    def transform(
+        self,
+        dx: float = 0.0,
+        in_place: bool = False,
+    ) -> Union["PointArray1D", None]:
+        """Transformation of the points cluster by rotation and translation"""
+        if in_place:
+            if dx != 0.0:
+                self.coor[:] = self.coor[:] + dx
+            return None
+        return self.__class__(self.coor + dx)
 
-        Parameters
-        ----------
-        dx : float
-            T ranslation along x axis
+    # def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
+    #     """Returns tiled copy of the points about the current position"""
+    #     raise NotImplementedError("make_periodic_tiles is not implemented")
 
-        Returns
-        -------
-        PointArray1D
+    # def plot(self, axs, points_plt_opt: dict | None = None):
+    #     """Plots the points"""
 
-        """
-        if dx != 0.0:
-            self.coordinates[:] = self.coordinates[:] + dx
-        return self
+    #     assert (
+    #         self.dim == 1
+    #     ), "PointArray Plotting is supported only for 1D and 2D points"
+    #     _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
 
-    def reverse(self) -> "PointArray1D":
-        """Reverses the order of points **in-place**"""
-        self.coordinates[:] = np.flip(self.coordinates, axis=0)
-        return self
+    #     # Plot points
+    #     if points_plt_opt is not None:
+    #         _plt_opt.update(points_plt_opt)
 
-    def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
-        """Returns tiled copy of the points about the current position"""
-        raise NotImplementedError("make_periodic_tiles is not implemented")
+    #     axs.plot(
+    #         self.x if not self.cycle else np.append(self.x, self.x[0]),
+    #         **_plt_opt,
+    #     )
 
-    def plot(self, axs, points_plt_opt: dict | None = None):
-        """Plots the points"""
+    #     axs.axis("equal")
 
-        assert self.dim == 1, (
-            "PointArray Plotting is supported only for 1D and 2D points"
-        )
-        _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
 
-        # Plot points
-        if points_plt_opt is not None:
-            _plt_opt.update(points_plt_opt)
-
-        axs.plot(
-            self.x if not self.cycle else np.append(self.x, self.x[0]),
-            **_plt_opt,
-        )
-
-        axs.axis("equal")
+# endregion PointArray1D
+# region PointArray2D
 
 
 class PointArray2D(PointArrayND):
-    """
-    PointArray2D, a subclass of PointArray, with two dimensions
+    """PointArray2D, a subclass of PointArray, with two dimensions.
 
     Attributes
     ----------
@@ -736,46 +602,33 @@ class PointArray2D(PointArrayND):
 
     """
 
-    point_cls: Type["Point2D"] = Point2D
+    __slots__ = ()
 
-    def __init__(self, points: np.ndarray, dtype=None, **kwargs):
-        """Constructs a PointArray2D from a NumpyArray
-
-        Parameters
-        ----------
-        points : NDArray
-            Two dimensional Numpy array of point coordinates, with
-             one point per row
-        dtype : np.dtype
-            Data type of the points, defaults to float_type
-
-        Raises
-        ------
-        TypeError
-            If points is not a NumpyArray
-        NotImplementedError
-            If points is not two-dimensional
-
-        """
-        super(PointArray2D, self).__init__(points, dtype=dtype, **kwargs)
+    def __init__(self, points: np.ndarray) -> None:
+        """Construct a PointArray2D from a NumpyArray."""
+        super().__init__(points)
+        if self.dim != 2:
+            raise ValueError("PointArray2D must have 2 dims, got {self.dim}D")
 
     @property
-    def x(self) -> NDArray:
+    def x(self) -> np.ndarray:
         return self.coordinates[:, 0]
 
     @property
-    def y(self) -> NDArray:
+    def y(self) -> np.ndarray:
         return self.coordinates[:, 1]
 
     def transform(
         self,
-        angle: float_type = 0.0,
-        dx: float_type = 0.0,
-        dy: float_type = 0.0,
-    ) -> "PointArray2D":
-        """
-        In-place transformation of the points cluster
-         by rotation and translation
+        angle: FloatType = 0.0,
+        dx: FloatType = 0.0,
+        dy: FloatType = 0.0,
+        pivot: Point2D | Tuple[FloatType, FloatType] = (0.0, 0.0),
+        in_place: bool = False,
+        order: str = "RT",
+    ) -> Union["PointArray2D", None]:
+        """Transformation of the points cluster by rotation and translation,
+        either in-place or returning a new PointArray2D
 
         Parameters
         ----------
@@ -789,17 +642,27 @@ class PointArray2D(PointArrayND):
         Returns
         -------
         PointArray2D
-        """
-        x_ = (self.x * np.cos(angle) - self.y * np.sin(angle)) + dx
-        y_ = (self.x * np.sin(angle) + self.y * np.cos(angle)) + dy
-        self.coordinates[:, 0] = x_
-        self.coordinates[:, 1] = y_
-        return self
 
-    def reverse(self) -> "PointArray2D":
-        """Reverses the order of points **in-place**"""
-        self.coordinates[:] = np.flip(self.coordinates, axis=0)
-        return self
+        """
+        cos_a, sin_a = np.cos(angle), np.sin(angle)
+        temp_x = self.x - pivot[0]
+        temp_y = self.y - pivot[1]
+        if order == "RT":
+            x = temp_x * cos_a - temp_y * sin_a + dx + pivot[0]
+            y = temp_x * sin_a + temp_y * cos_a + dy + pivot[1]
+        elif order == "TR":
+            temp_x += dx
+            temp_y += dy
+            x = temp_x * cos_a - temp_y * sin_a + pivot[0]
+            y = temp_x * sin_a + temp_y * cos_a + pivot[1]
+        else:
+            raise ValueError(f"Invalid order: {order}, should be 'RT' or 'TR'")
+
+        if in_place:
+            self.coor[:, 0] = x
+            self.coor[:, 1] = y
+            return None
+        return PointArray2D(np.column_stack([x, y]))
 
     def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
         """Returns tiled copy of the points about the current position"""
@@ -811,54 +674,56 @@ class PointArray2D(PointArrayND):
     def plot(
         self,
         axs,
-        b_box: bool = False,
-        b_box_plt_opt: dict | None = None,
         points_plt_opt: dict | None = None,
+        b_box: bool = False,
+        box_plt_opt: dict | None = None,
     ):
         """Plots the points"""
-        if self.dim > 2:
-            raise NotImplementedError(
-                "PointArray Plotting is supported only for 1D and 2D points"
-            )
 
-        _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
-        _b_box_line_opt = {"color": "red", "linewidth": 2}
-
-        # Plot points
-        if points_plt_opt is not None:
-            _plt_opt.update(points_plt_opt)
-
+        points_plt_options = {
+            **_DEFAULT_POINT_PLOT_OPTIONS,
+            **(points_plt_opt or {}),
+        }
         axs.plot(
-            self.x if not self.cycle else np.append(self.x, self.x[0]),
-            self.y if not self.cycle else np.append(self.y, self.y[0]),
-            **_plt_opt,
+            np.append(self.x, self.x[0]) if self.cycle else self.x,
+            np.append(self.y, self.y[0]) if self.cycle else self.y,
+            **points_plt_options,
         )
 
-        # Add bounding box, if required
         if b_box:
-            if b_box_plt_opt is not None:
-                _b_box_line_opt.update(b_box_plt_opt)
-            self.bounding_box.plot(axs, **_b_box_line_opt)
+            bbox_plt_options = {
+                **_DEFAULT_LINE_PLOT_OPTIONS,
+                **(box_plt_opt or {}),
+            }
+            self.bounding_box.plot(axs, **bbox_plt_options)
 
-        axs.axis("equal")
+        return axs
+
+
+# endregion PointArray2D
+# region PointArray3D
 
 
 class PointArray3D(PointArrayND):
-    point_cls: Type["Point3D"] = Point3D
+    """PointArray3D, a subclass of PointArray, with three dimensions"""
 
-    def __init__(self, points, **kwargs):
-        super(PointArray3D, self).__init__(points, **kwargs)
+    __slots__ = ()
+
+    def __init__(self, points):
+        super().__init__(points)
+        if self.dim != 3:
+            raise ValueError("PointArray3D must have 3 dims, got {self.dim}D")
 
     @property
-    def x(self) -> NDArray:
+    def x(self) -> np.ndarray:
         return self.coordinates[:, 0]
 
     @property
-    def y(self) -> NDArray:
+    def y(self) -> np.ndarray:
         return self.coordinates[:, 1]
 
     @property
-    def z(self) -> NDArray:
+    def z(self) -> np.ndarray:
         return self.coordinates[:, 2]
 
     def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
@@ -866,9 +731,12 @@ class PointArray3D(PointArrayND):
         raise NotImplementedError("make_periodic_tiles is not implemented")
 
 
-class BoundingBox:
-    """
-    A class for performing n-dimensional bounding box operations
+# endregion PointArray3D
+# region BoundingBox
+
+
+class BoundingBox:  # TODO: Review this class
+    """A class for performing n-dimensional bounding box operations
 
     It is expexcted that the number of elements in the lower and
     upper bound are same. Also, the lower bound must be less
@@ -897,37 +765,30 @@ class BoundingBox:
     array([ 0.,  0.])
     >>> bounding_box.ub
     array([10., 10.])
+
     """
 
+    __slots__ = ("_vertices", "_volume", "p_max", "p_min")
+
     def __init__(
-            self,
-            lower_bound: List[float_type],
-            upper_bound: List[float_type],
+        self,
+        lower_bound: np.ndarray | Sequence[float],
+        upper_bound: np.ndarray | Sequence[float],
     ):
-        self.lb = np.asarray(lower_bound, dtype=get_type("float"))
-        self.ub = np.asarray(upper_bound, dtype=get_type("float"))
-        self._check_bounds_validity()
-        self.centre = (self.lb + self.ub) * 0.5
-        self.dim = len(self.lb)
-        self.vertices = PointArrayND(
-            np.asarray(list(itertools.product(*zip(self.lb, self.ub)))),
-            dtype=get_type("float"),
-        )
-        self.side_lengths = self.ub - self.lb
-        self.volume = cast_to(np.prod(self.side_lengths), "float")
+        self.p_min = PointND(*lower_bound)
+        self.p_max = PointND(*upper_bound)
+        self._validate_bounds()
 
-    def _check_bounds_validity(self):
-        if len(self.lb) != len(self.ub):
+    def _validate_bounds(self) -> bool:
+        if self.p_min.dim != self.p_max.dim:
+            raise ValueError("lower and upper bounds must have same dimension")
+
+        if np.any(self.p_min.coor > self.p_max.coor):
             raise ValueError(
-                "lower bound and upper bound must have same length"
+                "lower bounds must be less than upper bounds"
+                f"lower bounds: {self.p_min}, upper bounds: {self.p_max}",
             )
-
-        for i, j in zip(self.lb, self.ub):
-            if i >= j:
-                raise ValueError(
-                    f"Expecting lower bounds to be < upper bounds. "
-                    f"But, {i} of lower bound is > {j} of upper bound"
-                )
+        return True
 
     def __eq__(self, bb_2: "BoundingBox") -> bool:
         """Checks if two bounding boxes are equal
@@ -951,15 +812,17 @@ class BoundingBox:
         if not isinstance(bb_2, BoundingBox):
             raise TypeError("bb_2 must be of type BoundingBox")
 
-        lb_equality = np.array_equal(self.lb, bb_2.lb)
-        ub_equality = np.array_equal(self.ub, bb_2.ub)
+        lb_equality = np.array_equal(self.p_min.coor, bb_2.p_min.coor)
+        ub_equality = np.array_equal(self.p_max.coor, bb_2.p_max.coor)
         return lb_equality and ub_equality
 
     def __repr__(self) -> str:
-        """Returns the string representation of the bounding box"""
-        return f"BoundingBox:\nLower Bound: {self.lb},\nUpper Bound: {self.ub}"
+        return (
+            f"BoundingBox:\n\tlower_bound: {self.p_min.coor}"
+            f"\n\tupper_bound: {self.p_max.coor}"
+        )
 
-    def has_point(self, p: list | tuple) -> bool:
+    def has_point(self, p: PointND | Sequence[float]) -> bool:
         """Checks if the point 'p' is within the bounding box
 
         Returns
@@ -968,14 +831,17 @@ class BoundingBox:
             True if 'p' is within the bounding box
 
         """
-        if self.dim != len(p):
+        p = PointND._from_(p)
+        if not (self.p_min.dim == self.p_max.dim == p.dim):
             raise ValueError(
-                "point 'p' dimension {len(p)} does not match"
-                f"bounding box dimension {self.dim}"
+                f"point 'p' dimension {p.dim} does not match with "
+                f"bounding box dimension {self.p_min.dim}",
             )
-        return all([lb <= p <= ub for lb, p, ub in zip(self.lb, p, self.ub)])
+        return bool(
+            np.all((self.p_min.coor <= p.coor) & (p.coor <= self.p_max.coor)),
+        )
 
-    def overlaps_with(self, bb: "BoundingBox", incl_bounds=False) -> bool:
+    def overlaps(self, bb: "BoundingBox", include_bounds=False) -> bool:
         """Returns True, if two bounding boxes overlap
 
         Returns
@@ -984,14 +850,36 @@ class BoundingBox:
             True if two bounding boxes overlap
 
         """
-        return all(
-            lb1 <= ub2 and ub1 >= lb2
-            if incl_bounds
-            else lb1 < ub2 and ub1 > lb2
-            for lb1, ub1, lb2, ub2 in zip(self.lb, self.ub, bb.lb, bb.ub)
+        bb1_p1, bb1_p2 = self.p_min.coor, self.p_max.coor
+        bb2_p1, bb2_p2 = bb.p_min.coor, bb.p_max.coor
+        return bool(
+            np.all(
+                (bb1_p2 >= bb2_p1 if include_bounds else bb1_p2 > bb2_p1)
+                & (bb1_p1 <= bb2_p2 if include_bounds else bb1_p1 < bb2_p2),
+            ),
         )
 
-    def plot(self, axs, cycle=True, **plt_opt) -> None:
+    @property
+    def volume(self) -> DEFAULT_FLOAT:
+        """Returns the volume of the bounding box"""
+        if not hasattr(self, "_volume"):
+            self._volume = np.prod(self.p_max.coor - self.p_min.coor).astype(
+                DEFAULT_FLOAT,
+            )
+        return self._volume
+
+    @property
+    def vertices(self) -> PointArrayND:
+        if not hasattr(self, "_vertices"):
+            vertices = list(
+                product(*zip(self.p_min.coor, self.p_max.coor, strict=True))
+            )
+            self._vertices = PointArrayND(
+                np.asarray(vertices, dtype=DEFAULT_FLOAT)
+            )
+        return self._vertices
+
+    def plot(self, axs, **plt_opt) -> None:
         """Plots the bounding box for two dimensional bounding box
 
         Raises
@@ -1000,106 +888,11 @@ class BoundingBox:
             If the dimension of the bounding box is not 2
 
         """
+        if self.p_min.dim != 2:
+            raise ValueError("For plotting, bounding box must be 2D")
 
-        if self.dim != 2:
-            raise ValueError(
-                f"Bounding Box can only be plotted in 2D, but {self.dim} found"
-            )
-        (xl, yl), (xu, yu) = self.lb, self.ub
+        if not isinstance(axs, Axes):
+            raise ValueError("axs must be of type Axes")
 
-        x = np.array([xl, xu, xu, xl])
-        y = np.array([yl, yl, yu, yu])
-
-        if cycle:
-            x = np.append(x, x[0])
-            y = np.append(y, y[0])
-
-        axs.plot(x, y, **plt_opt)
-
-
-class _T_CurveND(Generic[PointNDType]):
-    """Base class for n-dimensional topological curves"""
-
-    points_class: Type[PointNDType] = cast(Type[PointNDType], PointND)
-
-    def __init__(self, points: PointArrayND):
-        self.points: PointArrayND = points
-
-    @property
-    def dim(self):
-        return self.points.dim
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} class; dim{self.points.dim}>"
-
-
-class _T_ClosedShapeND:
-    """Base class for all topological shapes in n-dimensions and closed"""
-
-    def __init__(self):
-        self.boundary_points: PointArrayND | None = None
-
-    @property
-    def bounding_box(self):
-        return NotImplementedError("bounding_box is not implemented")
-
-
-class _T_ClosedShape2D(_T_ClosedShapeND):
-    """Base class for the two-dimensional topological shapes"""
-
-    points_class: Type[Point2D] = Point2D
-
-    def __init__(self, *args, **kwargs):
-        super(_T_ClosedShape2D, self).__init__(*args, **kwargs)
-        self._area = None
-        self._perimeter = None
-
-    @property
-    def area(self):
-        return self._area
-
-    @area.setter
-    def area(self, a: float):
-        assert a > 0, "Area must be greater than zero"
-        self._area = a
-
-    @property
-    def perimeter(self):
-        return self._perimeter
-
-    @perimeter.setter
-    def perimeter(self, p: float):
-        assert p > 0, "Perimeter must be greater than zero"
-        self._perimeter = p
-
-    @property
-    def shape_factor(self):
-        return self.perimeter / np.sqrt(4.0 * PI * self.area)
-
-    @property
-    def eq_radius(self):
-        return np.sqrt(self.area / PI)
-
-    def plot(
-        self,
-        axs,
-        b_box=False,
-        b_box_plt_opt=None,
-        points_plt_opt=None,
-        cycle=True,
-    ):
-        assert self.boundary_points is not None, "Boundary is not defined"
-        assert self.boundary_points.dim == 2, (
-            "Plot is supported for boundary in 2D only,"
-            f"but {self.boundary_points.dim}D points were provided"
-        )
-        self.boundary_points.cycle = cycle
-        # self.boundary.plot(axs, b_box, b_box_plt_opt, points_plt_opt)
-
-
-class ConicCurve(_T_CurveND):
-    _point_density: int = 100
-
-    def __init__(self):
-        points = PointArrayND(np.array([]))
-        super(ConicCurve, self).__init__(points)
+        (xl, yl), (xu, yu) = self.p_min.coor, self.p_max.coor
+        axs.plot([xl, xu, xu, xl, xl], [yl, yl, yu, yu, yl], **plt_opt)

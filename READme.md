@@ -15,6 +15,19 @@ pip install gbox
 
 ## Usage
 
-```python
+```py
 import gbox
+# Create a 2D point
+from gbox import Point2D
+point = Point2D(1.0, 2.0)
+# Create a Cirle with center at point and radius 5.0
+from gbox import Circle
+circle = Circle(5.0, point)
+
 ```
+
+## Notes
+
+- Implement `__hash__` and `__eq__` for using points in sets and dicts
+- Stick to numpy for now. Try with Numba in later releases.
+- Use just `PointND` and `PointArrayND`, instead of `1D`, `2D`, `3D` etc.
