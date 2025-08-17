@@ -1,9 +1,15 @@
 from functools import lru_cache
 from typing import Literal, Optional, Tuple, Union, List
-from numpy.typing import NDArray
 
+from matplotlib.patches import (
+    Patch,
+    Ellipse as EllipsePatch,
+    Circle as CirclePatch,
+)
 import numpy as np
+from numpy.typing import NDArray
 from scipy.integrate import quad
+
 from .base import (
     Point2D,
     PointArray2D,
@@ -12,6 +18,7 @@ from .base import (
     FloatType,
     BoundingBox,
 )
+from .utils import PlotMixin
 
 TWO_PI = 2.0 * PI
 DefaultFloatType = type(DEFAULT_FLOAT())
@@ -171,7 +178,7 @@ class EllipticalArc:
 # region Ellipse
 
 
-class Ellipse:
+class Ellipse(PlotMixin):
     __slots__ = (
         "arc",
         "_boundary_points",
@@ -252,6 +259,10 @@ class Ellipse:
             self._area = DEFAULT_FLOAT(PI * self.semi_major * self.semi_minor)
             return self._area
 
+    def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
+        """Calculates the volume of the ellipse as a cylinder."""
+        return DEFAULT_FLOAT(self.area * thickness)
+
     @property
     @lru_cache(maxsize=1)
     def perimeter(self) -> DEFAULT_FLOAT:
@@ -261,6 +272,19 @@ class Ellipse:
         else:
             self._perimeter = self.arc.perimeter()
             return self._perimeter
+
+    @classmethod
+    def from_xy_semi_axes(
+        cls,
+        xc: FloatType,
+        yc: FloatType,
+        semi_major_axis: FloatType,
+        semi_minor_axis: FloatType,
+        major_axis_angle: FloatType = 0.0,
+    ) -> "Ellipse":
+        return cls(
+            semi_major_axis, semi_minor_axis, (xc, yc), major_axis_angle
+        )
 
     def eval_boundary_points(
         self, num_points: Optional[int] = None, point_density: FloatType = 10.0
@@ -377,25 +401,32 @@ class Ellipse:
         )
         return circles_array
 
-    def plot(
-        self,
-        axs,
-        *,
-        b_box: bool = False,
-        uoc: bool = False,
-        **kwargs,
-    ):
-        points = self.get_boundary_points()
-        plot_kwargs = kwargs.get("plot_kwargs", {})
-        axs.plot(points.x, points.y, **plot_kwargs)
-        if b_box:
-            bbox_plot_kwargs = kwargs.get("bbox_plot_kwargs", {})
-            self.get_bounding_box().plot(axs, **bbox_plot_kwargs)
-        if uoc:
-            uoc_plot_kwargs = kwargs.get("uoc_plot_kwargs", {})
-            uoc_dh = kwargs.get("uoc_dh", 0.1)
-            self.union_of_circles(uoc_dh).plot(axs, **uoc_plot_kwargs)
-        return axs
+    def get_patch(self, **kwargs) -> Patch:
+        xy = (float(self.centre.x), float(self.centre.y))
+        width = 2.0 * float(self.semi_major)
+        height = 2.0 * float(self.semi_minor)
+        angle = float(self.major_axis_angle)
+        return EllipsePatch(xy, width, height, angle=angle, **kwargs)
+
+    # def plot(
+    #     self,
+    #     axs,
+    #     *,
+    #     b_box: bool = False,
+    #     uoc: bool = False,
+    #     **kwargs,
+    # ):
+    #     points = self.get_boundary_points()
+    #     plot_kwargs = kwargs.get("plot_kwargs", {})
+    #     axs.plot(points.x, points.y, **plot_kwargs)
+    #     if b_box:
+    #         bbox_plot_kwargs = kwargs.get("bbox_plot_kwargs", {})
+    #         self.get_bounding_box().plot(axs, **bbox_plot_kwargs)
+    #     if uoc:
+    #         uoc_plot_kwargs = kwargs.get("uoc_plot_kwargs", {})
+    #         uoc_dh = kwargs.get("uoc_dh", 0.1)
+    #         self.union_of_circles(uoc_dh).plot(axs, **uoc_plot_kwargs)
+    #     return axs
 
 
 # endregion Ellipse
@@ -419,8 +450,8 @@ class CircularArc(EllipticalArc):
 # region Circle
 
 
-class Circle:
-    __slots__ = ["radius", "centre", "arc"]
+class Circle(PlotMixin):
+    __slots__ = ["radius", "centre", "arc", "_patch"]
 
     def __init__(
         self,
@@ -431,6 +462,7 @@ class Circle:
         self.radius: FloatType = radius
         self.centre: Point2D = Point2D(centre[0], centre[1])
         self.arc: Ellipse = Ellipse(radius, radius, centre)
+        self._patch = None
 
     def __repr__(self) -> str:
         return (
@@ -441,6 +473,10 @@ class Circle:
     @property
     def area(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(PI * self.radius * self.radius)
+
+    def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
+        """Calculates the volume of the circle as a cylinder."""
+        return DEFAULT_FLOAT(self.area * thickness)
 
     @property
     def perimeter(self) -> DEFAULT_FLOAT:
@@ -461,6 +497,16 @@ class Circle:
     def distance_to(self, c: "Circle") -> DEFAULT_FLOAT:
         assert isinstance(c, Circle), "'c' must be of Circle type"
         return self.centre.distance_to(c.centre)
+
+    @classmethod
+    def from_xyr(cls, xc: float, yc: float, radius: float):
+        """Creates a Circle instance from x, y, and radius."""
+        return cls(radius=radius, centre=(xc, yc))
+
+    def get_patch(self, **kwargs) -> Patch:
+        xy = (float(self.centre.x), float(self.centre.y))
+        r = float(self.radius)
+        return CirclePatch(xy, r, **kwargs)
 
 
 # endregion Circle
@@ -506,7 +552,7 @@ class CirclesArray:
         if new_size > self._capacity:
             self._grow_to(new_size)
 
-        self._data[self._size : self._size + arr.shape[0]] = arr
+        self._data[slice(self._size, self._size + arr.shape[0])] = arr
         self._size += arr.shape[0]
 
     def _grow_to(self, required_capacity: int) -> None:

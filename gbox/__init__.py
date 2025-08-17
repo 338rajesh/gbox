@@ -19,6 +19,8 @@ from .ellipse import (
     CirclesArray,
 )
 
+from .utils import configure_axes
+
 __all__ = [
     "PointND",
     "Point1D",
@@ -33,4 +35,13 @@ __all__ = [
     "Circle",
     "Ellipse",
     "CirclesArray",
+    #
+    "configure_axes",
 ]
+
+
+# module order
+# 0 __init__.py
+# 1 ellipse, lines
+# 2 base
+# 3 utils

@@ -3,8 +3,9 @@ from itertools import product
 from typing import Union, Tuple, Literal
 
 import numpy as np
-from matplotlib.axes import Axes
+from matplotlib.patches import Patch, Rectangle
 
+from .utils import PlotMixin
 
 DEFAULT_FLOAT = np.float32
 FloatType = Union[float, DEFAULT_FLOAT]
@@ -332,7 +333,9 @@ class Point3D(PointND):
         return self.coor[2]
 
     def transform(self, matrix: np.ndarray) -> "Point3D":
-        """Transform using 4x4 transformation matrix (homogeneous coordinates)"""
+        """
+        Transform using 4x4 transformation matrix (homogeneous coordinates)
+        """
         if matrix.shape != (4, 4):
             raise ValueError("Transformation matrix must be 4x4")
         if matrix.dtype != DEFAULT_FLOAT:
@@ -396,7 +399,9 @@ class PointArrayND:
 
     @classmethod
     def from_dims(cls, dims: Sequence[Sequence[FloatType]]):
-        """Constructs a PointArray from a sequence of sequences of coordinates"""
+        """
+        Constructs a PointArray from a sequence of sequences of coordinates
+        """
         if not dims:
             raise ValueError(
                 "PointArray must have coordinates along at least one dimension"
@@ -556,30 +561,6 @@ class PointArray1D(PointArrayND):
             return None
         return self.__class__(self.coor + dx)
 
-    # def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
-    #     """Returns tiled copy of the points about the current position"""
-    #     raise NotImplementedError("make_periodic_tiles is not implemented")
-
-    # def plot(self, axs, points_plt_opt: dict | None = None):
-    #     """Plots the points"""
-
-    #     assert (
-    #         self.dim == 1
-    #     ), "PointArray Plotting is supported only for 1D and 2D points"
-    #     _plt_opt = {"color": "blue", "marker": "o", "linestyle": "None"}
-
-    #     # Plot points
-    #     if points_plt_opt is not None:
-    #         _plt_opt.update(points_plt_opt)
-
-    #     axs.plot(
-    #         self.x if not self.cycle else np.append(self.x, self.x[0]),
-    #         **_plt_opt,
-    #     )
-
-    #     axs.axis("equal")
-
-
 # endregion PointArray1D
 # region PointArray2D
 
@@ -735,7 +716,7 @@ class PointArray3D(PointArrayND):
 # region BoundingBox
 
 
-class BoundingBox:  # TODO: Review this class
+class BoundingBox(PlotMixin):  # TODO: Review this class
     """A class for performing n-dimensional bounding box operations
 
     It is expexcted that the number of elements in the lower and
@@ -879,20 +860,8 @@ class BoundingBox:  # TODO: Review this class
             )
         return self._vertices
 
-    def plot(self, axs, **plt_opt) -> None:
-        """Plots the bounding box for two dimensional bounding box
-
-        Raises
-        ------
-        ValueError
-            If the dimension of the bounding box is not 2
-
-        """
+    def get_patch(self, **rect_patch_kwargs) -> Patch:
         if self.p_min.dim != 2:
             raise ValueError("For plotting, bounding box must be 2D")
-
-        if not isinstance(axs, Axes):
-            raise ValueError("axs must be of type Axes")
-
         (xl, yl), (xu, yu) = self.p_min.coor, self.p_max.coor
-        axs.plot([xl, xu, xu, xl, xl], [yl, yl, yu, yu, yl], **plt_opt)
+        return Rectangle((xl, yl), xu - xl, yu - yl, **rect_patch_kwargs)
