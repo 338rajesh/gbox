@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.integrate import quad
-from gbox.ellipse import (
+from gbox.gshape.ellipse import (
     EllipticalArc,
     Ellipse,
     CircularArc,
@@ -17,8 +17,8 @@ from gbox.ellipse import (
 @pytest.fixture
 def sample_elliptical_arc():
     return EllipticalArc(
-        semi_major=4.0,
-        semi_minor=2.0,
+        semi_major_length=4.0,
+        semi_minor_length=2.0,
         centre=(1.0, 1.0),
         major_axis_angle=np.pi / 4,
         theta_start=0.0,
@@ -29,8 +29,8 @@ def sample_elliptical_arc():
 @pytest.fixture
 def sample_ellipse():
     return Ellipse(
-        semi_major=4.0,
-        semi_minor=2.0,
+        semi_major_length=4.0,
+        semi_minor_length=2.0,
         centre=(1.0, 2.0),
         major_axis_angle=np.pi / 4,
     )
@@ -130,9 +130,9 @@ class TestEllipse:
         bbox = sample_ellipse.get_bounding_box()
         xlb, ylb = bbox.p_min.coor
         xub, yub = bbox.p_max.coor
-        xc, yc = sample_ellipse.centre.coor 
-        a2 = sample_ellipse.semi_major ** 2
-        b2 = sample_ellipse.semi_minor ** 2
+        xc, yc = sample_ellipse.centre.coor
+        a2 = sample_ellipse.semi_major_length**2
+        b2 = sample_ellipse.semi_minor_length**2
         s2 = np.sin(sample_ellipse.major_axis_angle) ** 2
         c2 = np.cos(sample_ellipse.major_axis_angle) ** 2
         xlb_true = xc - np.sqrt(a2 * c2 + b2 * s2)
@@ -143,7 +143,7 @@ class TestEllipse:
         assert xlb == pytest.approx(xlb_true, rel=1e-6)
         assert ylb == pytest.approx(ylb_true, rel=1e-6)
         assert xub == pytest.approx(xub_true, rel=1e-6)
-        assert yub == pytest.approx(yub_true, rel=1e-6) 
+        assert yub == pytest.approx(yub_true, rel=1e-6)
 
     def test_contains(self, sample_ellipse: Ellipse):
         # Point inside
@@ -161,30 +161,56 @@ class TestEllipse:
         )
 
     def test_union_of_circles(self, sample_ellipse: Ellipse):
-        dh= 0.001  # Small distance for circle approximation
+        dh = 0.001  # Small distance for circle approximation
         circles = sample_ellipse.union_of_circles(dh=dh)
         assert isinstance(circles, CirclesArray)
         assert len(circles) > 0
         # After transformation, circles should cover the ellipse's bounding box
         bbox_ellipse = sample_ellipse.get_bounding_box()
         bbox_circles = circles.bounding_box()
-        
-        # The circles' bounding box should be slightly larger (by ~dh) than the ellipse's
-        # Check each coordinate with appropriate tolerance
+
+        # The circles' bounding box should be slightly larger (by ~dh) than
+        # the ellipse's Check each coordinate with appropriate tolerance
         np.testing.assert_allclose(
             bbox_circles.p_min.coor,
             bbox_ellipse.p_min.coor,
             rtol=1e-3,  # Relative tolerance of 0.1%
-            atol=2*dh,  # Absolute tolerance of 2*dh
-            err_msg="Lower bounds of bounding boxes don't match within tolerance"
+            atol=2 * dh,  # Absolute tolerance of 2*dh
+            err_msg="Lower bounds of bounding boxes out of tolerance",
         )
         np.testing.assert_allclose(
             bbox_circles.p_max.coor,
             bbox_ellipse.p_max.coor,
             rtol=1e-3,
-            atol=2*dh,
-            err_msg="Upper bounds of bounding boxes don't match within tolerance"
+            atol=2 * dh,
+            err_msg="Upper bounds of bounding boxes out of tolerance",
         )
+
+    def test_sample_method(self):
+        """Test the Ellipse.sample method with valid parameters."""
+        positional_params = {
+            "xc": 1.0,
+            "yc": 2.0,
+            "major_axis_angle": np.pi / 4,
+        }
+        size_params = {"semi_major_length": 4.0, "semi_minor_length": 2.0}
+
+        ellipse = Ellipse.from_params(positional_params, size_params)
+
+        assert isinstance(ellipse, Ellipse)
+        assert ellipse.centre.x == 1.0
+        assert ellipse.centre.y == 2.0
+        assert ellipse.major_axis_angle == np.pi / 4
+        assert ellipse.semi_major_length == 4.0
+        assert ellipse.semi_minor_length == 2.0
+
+    def test_sample_method_missing_params(self):
+        """Test the Ellipse.sample method with missing parameters."""
+        positional_params = {"xc": 1.0}  # Missing yc and major_axis_angle
+        size_params = {"semi_major_axis": 4.0, "semi_minor_axis": 2.0}
+
+        with pytest.raises(ValueError):
+            Ellipse.from_params(positional_params, size_params)
 
 
 # Tests for CircularArc
@@ -214,6 +240,32 @@ class TestCircle:
         expected = np.sqrt((5 - 2) ** 2 + (6 - 2) ** 2)
         assert_allclose(sample_circle.distance_to(other), expected, rtol=1e-6)
 
+    def test_sample_method(self):
+        """Test the Circle.sample method with valid parameters."""
+        positional_params = {"xc": 1.0, "yc": 2.0}
+        size_params = {"radius": 3.0}
+
+        circle = Circle.from_params(positional_params, size_params)
+
+        assert isinstance(circle, Circle)
+        assert circle.centre.x == 1.0
+        assert circle.centre.y == 2.0
+        assert circle.radius == 3.0
+
+    def test_sample_method_missing_params(self):
+        """Test the Circle.sample method with missing parameters."""
+        positional_params = {"xc": 1.0}  # Missing yc
+        size_params = {"radius": 3.0}
+
+        with pytest.raises(ValueError):
+            Circle.from_params(positional_params, size_params)
+
+        positional_params = {"xc": 1.0, "yc": 2.0}
+        size_params = {"r": 3.0}  # Incorrect key
+
+        with pytest.raises(ValueError):
+            Circle.from_params(positional_params, size_params)
+
 
 # Tests for CirclesArray
 class TestCirclesArray:
@@ -232,10 +284,8 @@ class TestCirclesArray:
         assert_allclose(
             sample_circles_array.centres[1], [-4.0, 3.0], rtol=1e-6
         )
-        sample_circles_array.transform(
-            angle=-np.pi, pivot=(0.0, 0.0)
-        )
-        # After rotating back by 180 degrees, second circle should be at (4, -3)
+        sample_circles_array.transform(angle=-np.pi, pivot=(0.0, 0.0))
+        # After rotating back by 180 degrees, 2nd circle should be at (4, -3)
         assert_allclose(
             sample_circles_array.centres[1], [4.0, -3.0], rtol=1e-6
         )
@@ -263,5 +313,3 @@ class TestCirclesArray:
         assert sample_circles_array.contains((0.0, 0.0)) == 1
         # Point outside all circles
         assert sample_circles_array.contains((10.0, 10.0)) == -1
-
-

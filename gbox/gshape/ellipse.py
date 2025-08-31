@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.integrate import quad
 
-from .base import (
+from ..base import (
     Point2D,
     PointArray2D,
     DEFAULT_FLOAT,
@@ -18,7 +18,9 @@ from .base import (
     FloatType,
     BoundingBox,
 )
-from .utils import PlotMixin
+
+from .gshape import GShape2D
+from ..utils import _validate_dict
 
 TWO_PI = 2.0 * PI
 DefaultFloatType = type(DEFAULT_FLOAT())
@@ -26,13 +28,14 @@ EPSILON = np.finfo(DEFAULT_FLOAT).eps
 
 # TODO add magic methods for comparison, hashing, etc.
 
+# ============================================================================
 # region EllipticalArc
 
 
 class EllipticalArc:
     __slots__ = (
-        "semi_major",
-        "semi_minor",
+        "semi_major_length",
+        "semi_minor_length",
         "centre",
         "major_axis_angle",
         "theta_start",
@@ -45,16 +48,16 @@ class EllipticalArc:
 
     def __init__(
         self,
-        semi_major: FloatType,
-        semi_minor: FloatType,
+        semi_major_length: FloatType,
+        semi_minor_length: FloatType,
         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
         major_axis_angle: FloatType = 0.0,
         theta_start: FloatType = 0.0,
         theta_end: FloatType = TWO_PI,
     ):
         self.centre = Point2D(centre[0], centre[1])
-        self.semi_major = semi_major
-        self.semi_minor = semi_minor
+        self.semi_major_length = semi_major_length
+        self.semi_minor_length = semi_minor_length
         self.major_axis_angle = major_axis_angle
         self.theta_start = theta_start
         self.theta_end = theta_end
@@ -62,14 +65,14 @@ class EllipticalArc:
         self._post_init_()
 
     def _post_init_(self):
-        if self.semi_minor <= 0.0:
+        if self.semi_minor_length <= 0.0:
             raise ValueError("Semi-minor axis must be positive")
-        if self.semi_major < self.semi_minor:
+        if self.semi_major_length < self.semi_minor_length:
             raise ValueError("Semi-major axis must be >= semi-minor axis")
 
-        self.aspect_ratio = self.semi_major / self.semi_minor
+        self.aspect_ratio = self.semi_major_length / self.semi_minor_length
         self.eccentricity = np.sqrt(
-            1 - ((self.semi_minor / self.semi_major) ** 2)
+            1 - ((self.semi_minor_length / self.semi_major_length) ** 2)
         )
 
         self._end_point_1 = self.point_at_angle(self.theta_start)
@@ -79,8 +82,8 @@ class EllipticalArc:
     def area(self) -> DEFAULT_FLOAT:
         area = (
             0.5
-            * self.semi_major
-            * self.semi_minor
+            * self.semi_major_length
+            * self.semi_minor_length
             * (self.theta_end - self.theta_start)
         )
         return DEFAULT_FLOAT(area)
@@ -122,7 +125,8 @@ class EllipticalArc:
 
     def _arc_len_integrand(self, theta: FloatType) -> FloatType:
         return np.hypot(
-            self.semi_major * np.sin(theta), self.semi_minor * np.cos(theta)
+            self.semi_major_length * np.sin(theta),
+            self.semi_minor_length * np.cos(theta),
         )
 
     def sample_points(
@@ -144,15 +148,18 @@ class EllipticalArc:
 
     def point_at_angle(self, theta: FloatType) -> Point2D:
         """Returns the point on the ellipse at the given angle."""
-        x = self.semi_major * np.cos(theta)
-        y = self.semi_minor * np.sin(theta)
+        x = self.semi_major_length * np.cos(theta)
+        y = self.semi_minor_length * np.sin(theta)
         return Point2D(x, y).transform(
             self.major_axis_angle, self.centre.x, self.centre.y
         )
 
     def points_at_parametric_points(self, theta: np.ndarray) -> PointArray2D:
         points = np.column_stack(
-            (self.semi_major * np.cos(theta), self.semi_minor * np.sin(theta))
+            (
+                self.semi_major_length * np.cos(theta),
+                self.semi_minor_length * np.sin(theta),
+            )
         )
         points_arr = PointArray2D(points)
 
@@ -175,10 +182,27 @@ class EllipticalArc:
 
 
 # endregion EllipticalArc
+# ============================================================================
+# region CircularArc
+
+
+class CircularArc(EllipticalArc):
+    def __init__(
+        self,
+        radius: FloatType,
+        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
+        theta_1: FloatType = 0.0,
+        theta_2: FloatType = TWO_PI,
+    ):
+        super().__init__(radius, radius, centre, 0.0, theta_1, theta_2)
+
+
+# endregion CircularArc
+# ============================================================================
 # region Ellipse
 
 
-class Ellipse(PlotMixin):
+class Ellipse(GShape2D):
     __slots__ = (
         "arc",
         "_boundary_points",
@@ -188,8 +212,8 @@ class Ellipse(PlotMixin):
 
     def __init__(
         self,
-        semi_major: FloatType,
-        semi_minor: FloatType,
+        semi_major_length: FloatType,
+        semi_minor_length: FloatType,
         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
         major_axis_angle: FloatType = 0.0,
     ):
@@ -198,9 +222,9 @@ class Ellipse(PlotMixin):
 
         Parameters
         ----------
-        semi_major : FloatType
+        semi_major_length : FloatType
             Semi-major axis length.
-        semi_minor : FloatType
+        semi_minor_length : FloatType
             Semi-minor axis length.
         centre : Tuple[FloatType, FloatType]
             Centre of the ellipse in (x, y) coordinates.
@@ -208,8 +232,8 @@ class Ellipse(PlotMixin):
             Angle of the major axis in radians.
         """
         self.arc = EllipticalArc(
-            semi_major,
-            semi_minor,
+            semi_major_length,
+            semi_minor_length,
             centre,
             major_axis_angle,
             0.0,
@@ -219,19 +243,19 @@ class Ellipse(PlotMixin):
 
     def copy(self):
         return self.__class__(
-            self.arc.semi_major,
-            self.arc.semi_minor,
+            self.arc.semi_major_length,
+            self.arc.semi_minor_length,
             self.arc.centre,
             self.arc.major_axis_angle,
         )
 
     @property
-    def semi_major(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.semi_major)
+    def semi_major_length(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.arc.semi_major_length)
 
     @property
-    def semi_minor(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.semi_minor)
+    def semi_minor_length(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.arc.semi_minor_length)
 
     @property
     def centre(self) -> Point2D:
@@ -256,7 +280,9 @@ class Ellipse(PlotMixin):
         if hasattr(self, "_area"):
             return self._area
         else:
-            self._area = DEFAULT_FLOAT(PI * self.semi_major * self.semi_minor)
+            self._area = DEFAULT_FLOAT(
+                PI * self.semi_major_length * self.semi_minor_length
+            )
             return self._area
 
     def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
@@ -274,16 +300,36 @@ class Ellipse(PlotMixin):
             return self._perimeter
 
     @classmethod
-    def from_xy_semi_axes(
+    def from_params(
         cls,
-        xc: FloatType,
-        yc: FloatType,
-        semi_major_axis: FloatType,
-        semi_minor_axis: FloatType,
-        major_axis_angle: FloatType = 0.0,
+        positional_params: dict[str, float],
+        size_params: dict[str, float],
     ) -> "Ellipse":
+        pos_params = _validate_dict(
+            positional_params,
+            ["xc", "yc", "major_axis_angle"],
+            [float, float, float],
+            True,
+        )
+        if pos_params is None:
+            raise ValueError("Invalid positional_params")
+        xc, yc, theta = pos_params
+
+        sz_params = _validate_dict(
+            size_params,
+            ["semi_major_length", "semi_minor_length"],
+            [float, float],
+            True,
+        )
+        if sz_params is None:
+            raise ValueError("Invalid size_params")
+        semi_major, semi_minor = sz_params
+
         return cls(
-            semi_major_axis, semi_minor_axis, (xc, yc), major_axis_angle
+            semi_major_length=semi_major,
+            semi_minor_length=semi_minor,
+            centre=(xc, yc),
+            major_axis_angle=theta,
         )
 
     def eval_boundary_points(
@@ -305,7 +351,7 @@ class Ellipse(PlotMixin):
         return self._boundary_points
 
     def get_bounding_box(self) -> BoundingBox:
-        a2, b2 = self.semi_major**2, self.semi_minor**2
+        a2, b2 = self.semi_major_length**2, self.semi_minor_length**2
         cos_2 = np.cos(self.major_axis_angle) ** 2
         sin_2 = np.sin(self.major_axis_angle) ** 2
         hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
@@ -334,7 +380,9 @@ class Ellipse(PlotMixin):
             -self.centre.y,
             order="TR",  # Translate >> Rotate as we are moving backwards
         )
-        val = (p.x**2 / self.semi_major**2) + (p.y**2 / self.semi_minor**2)
+        val = (p.x**2 / self.semi_major_length**2) + (
+            p.y**2 / self.semi_minor_length**2
+        )
         if val > 1.0 + atol:
             return -1
         if val < 1.0 - atol:
@@ -346,24 +394,28 @@ class Ellipse(PlotMixin):
         from a point on the major axis located at a distance xi
         from the centre of the ellipse.
         """
-        if self.semi_major == self.semi_minor:
-            return DEFAULT_FLOAT(self.semi_minor)
+        if self.semi_major_length == self.semi_minor_length:
+            return DEFAULT_FLOAT(self.semi_minor_length)
         else:
-            r_min = self.semi_minor * np.sqrt(
-                1.0 - ((xi * xi) / (self.semi_major**2 - self.semi_minor**2))
+            r_min = self.semi_minor_length * np.sqrt(
+                1.0
+                - (
+                    (xi * xi)
+                    / (self.semi_major_length**2 - self.semi_minor_length**2)
+                )
             )
             return DEFAULT_FLOAT(r_min)
 
     def union_of_circles(self, dh: FloatType = 0.0) -> "CirclesArray":
         # raise NotImplementedError("uns is not implemented")
         if self.aspect_ratio == 1.0:
-            return CirclesArray([Circle(self.semi_major, self.centre)])
+            return CirclesArray([Circle(self.semi_major_length, self.centre)])
 
         assert dh >= 0, f"Expecting buffer dh >= 0, but got {dh}."
 
         ell_outer = Ellipse(
-            self.semi_major + dh,
-            self.semi_minor + dh,
+            self.semi_major_length + dh,
+            self.semi_minor_length + dh,
             self.centre,
             self.major_axis_angle,
         )
@@ -372,10 +424,12 @@ class Ellipse(PlotMixin):
         m: FloatType = 2.0 * e_o * e_o / (e_i * e_i)
 
         def min_radius() -> FloatType:  # r_min : b^2/a
-            r_min = (self.semi_minor**2) / self.semi_major  # r_min : b^2/a
+            r_min = (
+                self.semi_minor_length**2
+            ) / self.semi_major_length  # r_min : b^2/a
             return DEFAULT_FLOAT(r_min)
 
-        x_max = self.semi_major * e_i * e_i  # x range: (-ae^2, ae^2)
+        x_max = self.semi_major_length * e_i * e_i  # x range: (-ae^2, ae^2)
         r_min = min_radius()
         x_i = -1.0 * x_max  # start at x = -ae^2
         circles: List[Circle] = []
@@ -403,54 +457,18 @@ class Ellipse(PlotMixin):
 
     def get_patch(self, **kwargs) -> Patch:
         xy = (float(self.centre.x), float(self.centre.y))
-        width = 2.0 * float(self.semi_major)
-        height = 2.0 * float(self.semi_minor)
+        width = 2.0 * float(self.semi_major_length)
+        height = 2.0 * float(self.semi_minor_length)
         angle = float(self.major_axis_angle)
         return EllipsePatch(xy, width, height, angle=angle, **kwargs)
-
-    # def plot(
-    #     self,
-    #     axs,
-    #     *,
-    #     b_box: bool = False,
-    #     uoc: bool = False,
-    #     **kwargs,
-    # ):
-    #     points = self.get_boundary_points()
-    #     plot_kwargs = kwargs.get("plot_kwargs", {})
-    #     axs.plot(points.x, points.y, **plot_kwargs)
-    #     if b_box:
-    #         bbox_plot_kwargs = kwargs.get("bbox_plot_kwargs", {})
-    #         self.get_bounding_box().plot(axs, **bbox_plot_kwargs)
-    #     if uoc:
-    #         uoc_plot_kwargs = kwargs.get("uoc_plot_kwargs", {})
-    #         uoc_dh = kwargs.get("uoc_dh", 0.1)
-    #         self.union_of_circles(uoc_dh).plot(axs, **uoc_plot_kwargs)
-    #     return axs
 
 
 # endregion Ellipse
 # ============================================================================
-# region CircularArc
-
-
-class CircularArc(EllipticalArc):
-    def __init__(
-        self,
-        radius: FloatType,
-        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
-        theta_1: FloatType = 0.0,
-        theta_2: FloatType = TWO_PI,
-    ):
-        super().__init__(radius, radius, centre, 0.0, theta_1, theta_2)
-
-
-# endregion CircularArc
-# ============================================================================
 # region Circle
 
 
-class Circle(PlotMixin):
+class Circle(GShape2D):
     __slots__ = ["radius", "centre", "arc", "_patch"]
 
     def __init__(
@@ -498,15 +516,25 @@ class Circle(PlotMixin):
         assert isinstance(c, Circle), "'c' must be of Circle type"
         return self.centre.distance_to(c.centre)
 
-    @classmethod
-    def from_xyr(cls, xc: float, yc: float, radius: float):
-        """Creates a Circle instance from x, y, and radius."""
-        return cls(radius=radius, centre=(xc, yc))
-
     def get_patch(self, **kwargs) -> Patch:
         xy = (float(self.centre.x), float(self.centre.y))
         r = float(self.radius)
         return CirclePatch(xy, r, **kwargs)
+
+    @classmethod
+    def from_params(
+        cls,
+        positional_params: dict[str, float],
+        size_params: dict[str, float],
+    ) -> "Circle":
+        if "xc" not in positional_params or "yc" not in positional_params:
+            raise ValueError("positional_params must include 'xc' and 'yc'")
+        if "radius" not in size_params:
+            raise ValueError("size_params must include 'radius'")
+        xc = positional_params["xc"]
+        yc = positional_params["yc"]
+        radius = size_params["radius"]
+        return cls(radius=radius, centre=(xc, yc))
 
 
 # endregion Circle
