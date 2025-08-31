@@ -34,7 +34,7 @@ EPSILON = np.finfo(DEFAULT_FLOAT).eps
 
 class EllipticalArc:
     __slots__ = (
-        "semi_major_legth",
+        "semi_major_length",
         "semi_minor_length",
         "centre",
         "major_axis_angle",
@@ -56,7 +56,7 @@ class EllipticalArc:
         theta_end: FloatType = TWO_PI,
     ):
         self.centre = Point2D(centre[0], centre[1])
-        self.semi_major_legth = semi_major_length
+        self.semi_major_length = semi_major_length
         self.semi_minor_length = semi_minor_length
         self.major_axis_angle = major_axis_angle
         self.theta_start = theta_start
@@ -67,12 +67,12 @@ class EllipticalArc:
     def _post_init_(self):
         if self.semi_minor_length <= 0.0:
             raise ValueError("Semi-minor axis must be positive")
-        if self.semi_major_legth < self.semi_minor_length:
+        if self.semi_major_length < self.semi_minor_length:
             raise ValueError("Semi-major axis must be >= semi-minor axis")
 
-        self.aspect_ratio = self.semi_major_legth / self.semi_minor_length
+        self.aspect_ratio = self.semi_major_length / self.semi_minor_length
         self.eccentricity = np.sqrt(
-            1 - ((self.semi_minor_length / self.semi_major_legth) ** 2)
+            1 - ((self.semi_minor_length / self.semi_major_length) ** 2)
         )
 
         self._end_point_1 = self.point_at_angle(self.theta_start)
@@ -82,7 +82,7 @@ class EllipticalArc:
     def area(self) -> DEFAULT_FLOAT:
         area = (
             0.5
-            * self.semi_major_legth
+            * self.semi_major_length
             * self.semi_minor_length
             * (self.theta_end - self.theta_start)
         )
@@ -125,7 +125,7 @@ class EllipticalArc:
 
     def _arc_len_integrand(self, theta: FloatType) -> FloatType:
         return np.hypot(
-            self.semi_major_legth * np.sin(theta),
+            self.semi_major_length * np.sin(theta),
             self.semi_minor_length * np.cos(theta),
         )
 
@@ -148,7 +148,7 @@ class EllipticalArc:
 
     def point_at_angle(self, theta: FloatType) -> Point2D:
         """Returns the point on the ellipse at the given angle."""
-        x = self.semi_major_legth * np.cos(theta)
+        x = self.semi_major_length * np.cos(theta)
         y = self.semi_minor_length * np.sin(theta)
         return Point2D(x, y).transform(
             self.major_axis_angle, self.centre.x, self.centre.y
@@ -157,7 +157,7 @@ class EllipticalArc:
     def points_at_parametric_points(self, theta: np.ndarray) -> PointArray2D:
         points = np.column_stack(
             (
-                self.semi_major_legth * np.cos(theta),
+                self.semi_major_length * np.cos(theta),
                 self.semi_minor_length * np.sin(theta),
             )
         )
@@ -243,7 +243,7 @@ class Ellipse(GShape2D):
 
     def copy(self):
         return self.__class__(
-            self.arc.semi_major_legth,
+            self.arc.semi_major_length,
             self.arc.semi_minor_length,
             self.arc.centre,
             self.arc.major_axis_angle,
@@ -251,7 +251,7 @@ class Ellipse(GShape2D):
 
     @property
     def semi_major_length(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.semi_major_legth)
+        return DEFAULT_FLOAT(self.arc.semi_major_length)
 
     @property
     def semi_minor_length(self) -> DEFAULT_FLOAT:
@@ -515,11 +515,6 @@ class Circle(GShape2D):
     def distance_to(self, c: "Circle") -> DEFAULT_FLOAT:
         assert isinstance(c, Circle), "'c' must be of Circle type"
         return self.centre.distance_to(c.centre)
-
-    # @classmethod
-    # def from_xyr(cls, xc: float, yc: float, radius: float):
-    #     """Creates a Circle instance from x, y, and radius."""
-    #     return cls(radius=radius, centre=(xc, yc))
 
     def get_patch(self, **kwargs) -> Patch:
         xy = (float(self.centre.x), float(self.centre.y))
