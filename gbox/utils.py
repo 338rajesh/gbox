@@ -1,3 +1,5 @@
+from typing import Optional
+
 from matplotlib.patches import Patch
 from matplotlib.axes import Axes
 
@@ -63,3 +65,54 @@ def configure_axes(fig, ax, **kwargs):
         )
 
     return fig
+
+
+def _validate_dict(
+    d: dict,
+    keys: list,
+    val_types: Optional[list] = None,
+    ret_val: bool = False,
+):
+    """
+    Validate that a dictionary contains specific keys.
+
+    Parameters
+    ----------
+    d : dict
+        The dictionary to validate.
+    keys : list
+        The list of keys that must be present in the dictionary.
+    val_types : list, optional
+        A list of types corresponding to each key in `keys`. If provided,
+        the function will also check that the values associated with each key
+        are of the specified type.
+    ret_val : bool, optional
+        If True, the function will return the values associated with the keys
+        in the same order as the keys. Default is False.
+    Raises
+    ------
+    ValueError
+        If any of the specified keys are missing from the dictionary.
+    """
+    if not isinstance(d, dict):
+        raise TypeError("Input must be a dictionary.")
+    if not isinstance(keys, list):
+        raise TypeError("Expected keys must be provided as a list.")
+
+    missing_keys = [key for key in keys if key not in d]
+    if missing_keys:
+        raise ValueError(f"Missing required keys: {', '.join(missing_keys)}")
+    if val_types is None:
+        val_types = [None] * len(keys)
+    if len(keys) != len(val_types):
+        raise ValueError("Length of keys and val_types must match.")
+    for key, val_type in zip(keys, val_types):
+        if val_type is None:
+            continue
+        if not isinstance(d[key], val_type):
+            raise TypeError(
+                f"Value for key '{key}' must be of type {val_type.__name__}, "
+                f"but got {type(d[key]).__name__}."
+            )
+    if ret_val:
+        return tuple(d[key] for key in keys)

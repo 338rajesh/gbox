@@ -13,7 +13,8 @@ from .base import (
     PointArray3D,
     BoundingBox,
 )
-from .ellipse import (
+from .gshape.gshape import GShape, GShape2D, GShape3D
+from .gshape.ellipse import (
     Circle,
     Ellipse,
     CirclesArray,
@@ -32,6 +33,10 @@ __all__ = [
     "PointArray3D",
     "BoundingBox",
     #
+    "GShape",
+    "GShape2D",
+    "GShape3D",
+    #
     "Circle",
     "Ellipse",
     "CirclesArray",
@@ -42,6 +47,8 @@ __all__ = [
 
 # module order
 # 0 __init__.py
-# 1 ellipse, lines
+# gshape
+#   b_box, ellipse, lines
+#   __init__.py
 # 2 base
 # 3 utils
