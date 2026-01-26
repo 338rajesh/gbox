@@ -23,7 +23,7 @@ jobs:
 
         - name: Run tests
           run: |
-            uv run --group dev-dependencies pytest --cov=gbox --plots --cov-report=xml
+            uv run --group dev pytest --cov=gbox --plots --cov-report=xml
 
         - name: Upload coverage reports to Codecov
           uses: codecov/codecov-action@v5

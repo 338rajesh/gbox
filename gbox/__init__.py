@@ -17,12 +17,18 @@ from .gshape.gshape import GShape, GShape2D, GShape3D
 from .gshape.ellipse import (
     Circle,
     Ellipse,
+    Rectangle,
     CirclesArray,
 )
 
 from .utils import configure_axes
 
+# Constants
+from .base import PI as PI
+
 __all__ = [
+    "PI",
+    #
     "PointND",
     "Point1D",
     "Point2D",
@@ -39,6 +45,7 @@ __all__ = [
     #
     "Circle",
     "Ellipse",
+    "Rectangle",
     "CirclesArray",
     #
     "configure_axes",

@@ -5,6 +5,7 @@ from matplotlib.patches import (
     Patch,
     Ellipse as EllipsePatch,
     Circle as CirclePatch,
+    Rectangle as RectanglePatch,
 )
 import numpy as np
 from numpy.typing import NDArray
@@ -459,11 +460,167 @@ class Ellipse(GShape2D):
         xy = (float(self.centre.x), float(self.centre.y))
         width = 2.0 * float(self.semi_major_length)
         height = 2.0 * float(self.semi_minor_length)
-        angle = float(self.major_axis_angle)
+        angle = float(np.rad2deg(self.major_axis_angle))
         return EllipsePatch(xy, width, height, angle=angle, **kwargs)
 
 
 # endregion Ellipse
+# ============================================================================
+# region Rectangle
+
+
+class Rectangle(GShape2D):
+    __slots__ = (
+        "_semi_major_length",
+        "_semi_minor_length",
+        "_centre",
+        "_major_axis_angle",
+        "_area",
+        "_perimeter",
+        "_boundary_points",
+    )
+
+    def __init__(
+        self,
+        semi_major_length: FloatType,
+        semi_minor_length: FloatType,
+        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
+        major_axis_angle: FloatType = 0.0,
+    ):
+        """
+        Closed rectangle shape.
+
+        Parameters
+        ----------
+        semi_major_length : FloatType
+            Semi-major axis length.
+        semi_minor_length : FloatType
+            Semi-minor axis length.
+        centre : Tuple[FloatType, FloatType]
+            Centre of the rectangle in (x, y) coordinates.
+        major_axis_angle : FloatType
+            Angle of the major axis in radians.
+        """
+        self._semi_major_length = semi_major_length
+        self._semi_minor_length = semi_minor_length
+        self._centre = Point2D(centre[0], centre[1])
+        self._major_axis_angle = major_axis_angle
+        self._boundary_points = None
+
+    def copy(self):
+        return self.__class__(
+            self.semi_major_length,
+            self.semi_minor_length,
+            self.centre,
+            self.major_axis_angle,
+        )
+
+    @classmethod
+    def from_end_points(
+        cls,
+        point1: Tuple[FloatType, FloatType],
+        point2: Tuple[FloatType, FloatType],
+    ) -> "Rectangle":
+        raise NotImplementedError("from_end_points is not implemented")
+
+    @classmethod
+    def from_params(cls):
+        return NotImplementedError("from_params is not implemented")
+
+    def eval_boundary_points(self, num_points: int = 100) -> None:
+        """Evaluate boundary points of the rectangle."""
+        raise NotImplementedError("eval_boundary_points is not implemented")
+
+    def get_boundary_points(self, num_points: int = 100) -> PointArray2D:
+        """Returns the boundary points of the rectangle."""
+        self.eval_boundary_points(num_points)
+        if self._boundary_points is None:
+            raise ValueError("Boundary points is not available")
+        return self._boundary_points
+
+    def get_bounding_box(self) -> BoundingBox:
+        c, s = np.cos(self.major_axis_angle), np.sin(self.major_axis_angle)
+
+        a_c, a_s = self.semi_major_length * np.array([c, s])
+        b_c, b_s = self.semi_minor_length * np.array([c, s])
+
+        hx, hy = a_c + b_s, a_s + b_c
+        x_min = self.centre.x - hx
+        x_max = self.centre.x + hx
+        y_min = self.centre.y - hy
+        y_max = self.centre.y + hy
+        return BoundingBox([x_min, y_min], [x_max, y_max])
+
+    def contains(
+        self, p: Point2D | Tuple[FloatType, FloatType]
+    ) -> Literal[-1, 0, 1]:
+        raise NotImplementedError("contains is not implemented")
+
+    def union_of_circles(self):
+        return NotImplementedError("union_of_circles is not implemented")
+
+    def get_patch(self, **kwargs) -> Patch:
+        width = 2.0 * float(self._semi_major_length)
+        height = 2.0 * float(self._semi_minor_length)
+        xy = (
+            float(self.centre.x - 0.5 * width),
+            float(self.centre.y - 0.5 * height),
+        )
+        angle = float(np.rad2deg(self._major_axis_angle))
+        return RectanglePatch(
+            xy, width, height, angle=angle, rotation_point="center", **kwargs
+        )
+
+    @property
+    def semi_major_length(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self._semi_major_length)
+
+    @property
+    def semi_minor_length(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self._semi_minor_length)
+
+    @property
+    def centre(self) -> Point2D:
+        return self._centre
+
+    @property
+    def major_axis_angle(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self._major_axis_angle)
+
+    @property
+    def aspect_ratio(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.semi_major_length / self.semi_minor_length)
+
+    @property
+    @lru_cache(maxsize=1)
+    def perimeter(self) -> DEFAULT_FLOAT:
+        """Perimeter of the rectangle."""
+        if hasattr(self, "_perimeter"):
+            return self._perimeter
+        else:
+            self._perimeter = DEFAULT_FLOAT(
+                4.0 * (self.semi_major_length + self.semi_minor_length)
+            )
+            return self._perimeter
+
+    @property
+    @lru_cache(maxsize=1)
+    def area(self) -> DEFAULT_FLOAT:
+        """Area of the rectangle."""
+        if hasattr(self, "_area"):
+            return self._area
+        else:
+            self._area = DEFAULT_FLOAT(
+                4.0 * self.semi_major_length * self.semi_minor_length
+            )
+            return self._area
+
+    def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
+        """Calculates the volume of the rectangle as a prism"""
+        return DEFAULT_FLOAT(self.area * thickness)
+
+
+# endregion Rectangle
 # ============================================================================
 # region Circle
 
@@ -738,7 +895,7 @@ class CirclesArray:
         y = self.radii[:, None] * sin_t + self.yc[:, None]
         return np.stack((x, y), axis=-1)  # (num_circles, num_points, 2)
 
-    def plot(self, axs, *, plot_bbox: bool = False, **kwargs) -> None:
+    def plot(self, axs=None, *, plot_bbox: bool = False, **kwargs) -> None:
         boundaries = self.evaluate_boundaries()
 
         # TODO try with matplotlib.collections.CircleCollection instead
