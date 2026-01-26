@@ -1,6 +1,6 @@
-numpy~=1.24.3
+numpy==2.2.0
 numpydoc==1.8.0
-matplotlib~=3.7.1
+matplotlib==3.10.0
 setuptools~=65.5.0
 sphinx-rtd-theme~=2.0.0
 pydata-sphinx-theme
