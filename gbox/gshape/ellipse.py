@@ -306,6 +306,19 @@ class Ellipse(GShape2D):
         positional_params: dict[str, float],
         size_params: dict[str, float],
     ) -> "Ellipse":
+        """
+        Construct an Ellipse from parameter dictionaries.
+
+        Parameters
+        ----------
+        positional_params : dict
+            - 'xc': x-coordinate of the centre.
+            - 'yc': y-coordinate of the centre.
+            - 'major_axis_angle': Rotation angle in radians.
+        size_params : dict
+            - 'semi_major_length': Half-length of the primary axis.
+            - 'semi_minor_length': Half-length of the secondary axis.
+        """
         pos_params = _validate_dict(
             positional_params,
             ["xc", "yc", "major_axis_angle"],
@@ -684,6 +697,17 @@ class Circle(GShape2D):
         positional_params: dict[str, float],
         size_params: dict[str, float],
     ) -> "Circle":
+        """
+        Construct an Ellipse from parameter dictionaries.
+
+        Parameters
+        ----------
+        positional_params : dict
+            - 'xc': x-coordinate of the centre.
+            - 'yc': y-coordinate of the centre.
+        size_params : dict
+            - 'raidus': radius of the circle.
+        """
         if "xc" not in positional_params or "yc" not in positional_params:
             raise ValueError("positional_params must include 'xc' and 'yc'")
         if "radius" not in size_params:

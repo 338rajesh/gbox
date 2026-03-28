@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 from PIL import Image
 
@@ -67,20 +68,55 @@ class PlotMixin:
             axs.add_patch(self_patch)
             return axs
 
-        bg_options = kwargs.get("bg_options", {})
-        image_options = kwargs.get("image_options", {})
-        fig_options = kwargs.get("fig_options", {})
+
+class ShapesPlotter:
+    def __init__(self, shape_options, bg_options, fig_options, image_options):
+        """
+
+        Parameters
+        ----------
+        bg_options : dict
+            Options for plotting the background. It may include the
+            following keys:
+            - `facecolor`: The facecolor of the background rectangle.
+            - `edgecolor`: The edgecolor of the background rectangle.
+            - `bounds`: A 4-tuple specifying the bounds of the background
+            rectangle.
+        object_options : dict
+            Options for plotting the object.
+        fig_options : dict
+            Options for plotting the figure.
+        image_options : dict
+            Options for saving the image. It may include the following keys:
+            - `dpi`: The resolution of the image in dots per inch.
+            - `size`: The size of the image in pixels as 2-tuple
+            (width, height).
+            - `mode`: The mode of the image. Default is "L" (grayscale).
+            - `as_array`: A boolean indicating whether to return the image
+            as a numpy array.
+            - `dtype`: The data type of the image. Default is "uint8".
+        """
+        image_options = image_options or {}
+        fig_options = fig_options or {}
+        bg_options = bg_options or {}
 
         dpi = image_options.get("dpi", 100)
         w_px, h_px = image_options.get("size", (256, 256))
+
         fig = plt.figure(figsize=(w_px / dpi, h_px / dpi), frameon=False)
         axs = plt.Axes(fig, [0.0, 0.0, 1.0, 1.0])
         fig.add_axes(axs)
         plt.axis(fig_options.get("axis", "off"))
 
-        bg_bounds = kwargs.get("bounds", None)
-        bg_facecolor = bg_options.get("facecolor", "black")
-        bg_edgecolor = bg_options.get("edgecolor", "None")
+        self.fig = fig
+        self.axs = axs
+
+        self._add_background(bg_options)
+
+    def _add_background(self, options):
+        bg_facecolor = options.get("facecolor", "black")
+        bg_edgecolor = options.get("edgecolor", "None")
+        bg_bounds = options.get("bounds")
         if bg_bounds is not None:
             xlb, ylb, xub, yub = bg_bounds
             bb_patch = Rectangle(
@@ -90,28 +126,30 @@ class PlotMixin:
                 edgecolor=bg_edgecolor,
                 facecolor=bg_facecolor,
             )
-            axs.add_patch(bb_patch)
+            self.axs.add_patch(bb_patch)
             plt.xlim(xlb, xub)
             plt.ylim(ylb, yub)
 
-        axs.add_patch(self_patch)
+    def add_patch(self, patch):
+        self.axs.add_patch(patch)
 
-        as_array = kwargs.get("as_array", False)
+    def saveas(self, f_path: Path | str):
+        if f_path:
+            self.fig.savefig(f_path)
 
-        if not as_array:
-            return fig, axs
-        else:
-            image_array = self._get_image_array(fig)
-            image_mode = image_options.get("mode", "L")
-            image_dtype = np.dtype(image_options.get("dtype", "uint8"))
-            if image_mode in ("L", "1"):
-                img = Image.fromarray(image_array).convert(
-                    mode=image_mode, dither=Image.Dither.FLOYDSTEINBERG
-                )
-                image_array = np.array(img, dtype=image_dtype)
+    def get_array(self):
+        image_array = PlotMixin._get_image_array(self.fig)
+        image_mode = self.image_options.get("mode", "L")
+        image_dtype = np.dtype(self.image_options.get("dtype", "uint8"))
+        if image_mode in ("L", "1"):
+            img = Image.fromarray(image_array).convert(
+                mode=image_mode, dither=Image.Dither.FLOYDSTEINBERG
+            )
+            image_array = np.array(img, dtype=image_dtype)
+        return image_array
 
-            plt.close(fig)
-            return image_array
+    def close(self):
+        plt.close(self.fig)
 
 
 def configure_axes(fig, ax, **kwargs):
