@@ -70,7 +70,13 @@ class PlotMixin:
 
 
 class ShapesPlotter:
-    def __init__(self, shape_options, bg_options, fig_options, image_options):
+    def __init__(
+        self,
+        shape_options=None,
+        bg_options=None,
+        fig_options=None,
+        image_options=None,
+    ):
         """
 
         Parameters
@@ -99,6 +105,9 @@ class ShapesPlotter:
         image_options = image_options or {}
         fig_options = fig_options or {}
         bg_options = bg_options or {}
+
+        self._shape_facecolor = shape_options.get("facecolor", "white")
+        self._shape_edgecolor = shape_options.get("edgecolor", "None")
 
         dpi = image_options.get("dpi", 100)
         w_px, h_px = image_options.get("size", (256, 256))
@@ -129,6 +138,12 @@ class ShapesPlotter:
             self.axs.add_patch(bb_patch)
             plt.xlim(xlb, xub)
             plt.ylim(ylb, yub)
+
+    def add_shape(self, shape):
+        patch = shape.get_patch(
+            facecolor=self._shape_facecolor, edgecolor=self._shape_edgecolor
+        )
+        self.axs.add_patch(patch)
 
     def add_patch(self, patch):
         self.axs.add_patch(patch)
