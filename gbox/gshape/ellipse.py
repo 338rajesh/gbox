@@ -262,6 +262,10 @@ class Ellipse(GShape2D):
     def centre(self) -> Point2D:
         return self.arc.centre
 
+    @centre.setter
+    def centre(self, value: Tuple[FloatType, FloatType] | Point2D):
+        self.arc.centre = Point2D(value[0], value[1])
+
     @property
     def major_axis_angle(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(self.arc.major_axis_angle)
@@ -286,9 +290,10 @@ class Ellipse(GShape2D):
             )
             return self._area
 
-    def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
+    @property
+    def volume(self) -> DEFAULT_FLOAT:
         """Calculates the volume of the ellipse as a cylinder."""
-        return DEFAULT_FLOAT(self.area * thickness)
+        return DEFAULT_FLOAT(self.area)
 
     @property
     @lru_cache(maxsize=1)
@@ -639,7 +644,7 @@ class Rectangle(GShape2D):
 
 
 class Circle(GShape2D):
-    __slots__ = ["radius", "centre", "arc", "_patch"]
+    __slots__ = ["arc", "_patch"]
 
     def __init__(
         self,
@@ -647,8 +652,6 @@ class Circle(GShape2D):
         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
     ):
         assert radius > 0, "Radius must be greater than zero"
-        self.radius: FloatType = radius
-        self.centre: Point2D = Point2D(centre[0], centre[1])
         self.arc: Ellipse = Ellipse(radius, radius, centre)
         self._patch = None
 
@@ -659,9 +662,26 @@ class Circle(GShape2D):
         )
 
     @property
+    def radius(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.arc.semi_major_length)
+
+    @property
+    def centre(self) -> Point2D:
+        return self.arc.centre
+
+    @centre.setter
+    def centre(self, value: Tuple[FloatType, FloatType] | Point2D):
+        self.arc.centre = Point2D(value[0], value[1])
+
+    @property
+    def major_axis_angle(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.arc.major_axis_angle)
+
+    @property
     def area(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(PI * self.radius * self.radius)
 
+    @property
     def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
         """Calculates the volume of the circle as a cylinder."""
         return DEFAULT_FLOAT(self.area * thickness)
