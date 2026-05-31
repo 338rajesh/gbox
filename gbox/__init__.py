@@ -13,8 +13,9 @@ from .base import (
     PointArray3D,
     BoundingBox,
 )
-from .gshape.gshape import GShape, GShape2D, GShape3D
+from .gshape.gshape import GShape, GShape3D
 from .gshape.ellipse import (
+    GShape2D,
     Circle,
     Ellipse,
     Rectangle,

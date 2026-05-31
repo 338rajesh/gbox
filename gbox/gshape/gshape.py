@@ -1,4 +1,4 @@
-from ..utils import PlotMixin
+from ..utils import PlotMixin, np
 
 
 class GShape:
@@ -22,11 +22,12 @@ class GShape:
             "Subclasses must implement the sample() method."
         )
 
-
-class GShape2D(GShape, PlotMixin):
-    def union_of_circles(self):
+    def union_of_nspheres(self):
+        """
+        It returns the union of n-spheres for the current shape.
+        """
         raise NotImplementedError(
-            "Subclasses must implement the union_of_circles() method."
+            "Subclasses must implement the union_of_nspheres() method."
         )
 
 

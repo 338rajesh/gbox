@@ -20,12 +20,80 @@ from ..base import (
     BoundingBox,
 )
 
-from .gshape import GShape2D
-from ..utils import _validate_dict
+from .gshape import GShape
+from ..utils import _validate_dict, PlotMixin
 
 TWO_PI = 2.0 * PI
 DefaultFloatType = type(DEFAULT_FLOAT())
 EPSILON = np.finfo(DEFAULT_FLOAT).eps
+
+
+class GShape2D(GShape, PlotMixin):
+    def __init__(self):
+        super().__init__()
+
+    @property
+    def equivalent_radius(self) -> float:
+        return np.sqrt(self.volume / np.pi)
+
+    @property
+    def centre(self) -> Point2D | tuple[float, float]:
+        raise NotImplementedError(
+            "Subclasses must implement the centre() method."
+        )
+
+    @property
+    def major_axis_angle(self) -> float:
+        raise NotImplementedError(
+            "Subclasses must implement the major_axis_angle() method."
+        )
+
+    @property
+    def pose(self) -> tuple[float, float, float]:
+        """
+        A triplet of (x, y, theta)
+        """
+        raise NotImplementedError(
+            "Subclasses must implement the pose() method."
+        )
+
+    @property
+    def bounding_box(self) -> BoundingBox:
+        raise NotImplementedError(
+            "Subclasses must implement the bounding_box() method."
+        )
+
+    def union_of_nspheres(self):
+        raise NotImplementedError(
+            "Subclasses must implement the union_of_nspheres() method."
+        )
+
+    def union_of_circles(self, *args, **kwargs) -> "CirclesArray":
+        return self.union_of_nspheres(*args, **kwargs)
+
+    @property
+    def volume(self) -> DEFAULT_FLOAT:
+        raise NotImplementedError(
+            "Subclasses must implement the volume() method."
+        )
+
+    @property
+    def area(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(self.volume)
+
+    @property
+    def perimeter(self) -> DEFAULT_FLOAT:
+        raise NotImplementedError(
+            "Subclasses must implement the perimeter() method."
+        )
+
+    def translate_and_rotate(
+        self, dx: float, dy: float, dtheta: float
+    ) -> "GShape2D":
+        raise NotImplementedError(
+            "Subclasses must implement the translate_and_rotate() method."
+        )
+
 
 # TODO add magic methods for comparison, hashing, etc.
 
@@ -232,6 +300,7 @@ class Ellipse(GShape2D):
         major_axis_angle : FloatType
             Angle of the major axis in radians.
         """
+        super().__init__()
         self.arc = EllipticalArc(
             semi_major_length,
             semi_minor_length,
@@ -242,12 +311,22 @@ class Ellipse(GShape2D):
         )
         self._boundary_points = None
 
-    def copy(self):
+    def clone(self):
         return self.__class__(
             self.arc.semi_major_length,
             self.arc.semi_minor_length,
             self.arc.centre,
             self.arc.major_axis_angle,
+        )
+
+    def translate_and_rotate(
+        self, dx: float, dy: float, dtheta: float
+    ) -> "Ellipse":
+        return self._class__(
+            self.arc.semi_major_length,
+            self.arc.semi_minor_length,
+            self.arc.centre + Point2D(dx, dy),
+            self.arc.major_axis_angle + dtheta,
         )
 
     @property
@@ -271,12 +350,20 @@ class Ellipse(GShape2D):
         return DEFAULT_FLOAT(self.arc.major_axis_angle)
 
     @property
+    def pose(self) -> tuple:
+        return (self.centre.x, self.centre.y, self.major_axis_angle)
+
+    @property
     def aspect_ratio(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(self.arc.aspect_ratio)
 
     @property
     def eccentricity(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(self.arc.eccentricity)
+
+    @property
+    def bounding_box(self) -> BoundingBox:
+        return self.get_bounding_box()
 
     @property
     @lru_cache(maxsize=1)
@@ -425,7 +512,7 @@ class Ellipse(GShape2D):
             )
             return DEFAULT_FLOAT(r_min)
 
-    def union_of_circles(self, dh: FloatType = 0.0) -> "CirclesArray":
+    def union_of_nspheres(self, dh: FloatType = 0.0) -> "CirclesArray":
         # raise NotImplementedError("uns is not implemented")
         if self.aspect_ratio == 1.0:
             return CirclesArray([Circle(self.semi_major_length, self.centre)])
@@ -433,8 +520,8 @@ class Ellipse(GShape2D):
         assert dh >= 0, f"Expecting buffer dh >= 0, but got {dh}."
 
         ell_outer = Ellipse(
-            self.semi_major_length + dh,
-            self.semi_minor_length + dh,
+            self.semi_major_length * (1.0 + dh),
+            self.semi_minor_length * (1.0 + dh),
             self.centre,
             self.major_axis_angle,
         )
@@ -610,6 +697,16 @@ class Rectangle(GShape2D):
         return DEFAULT_FLOAT(self.semi_major_length / self.semi_minor_length)
 
     @property
+    def bounds(self) -> list[float]:
+        """
+        Returns the bounds of the rectangle as [x_min, y_min, x_max, y_max].
+        """
+        bbox = self.get_bounding_box()
+        x_min, y_min = bbox.p_min
+        x_max, y_max = bbox.p_max
+        return [x_min, y_min, x_max, y_max]
+
+    @property
     @lru_cache(maxsize=1)
     def perimeter(self) -> DEFAULT_FLOAT:
         """Perimeter of the rectangle."""
@@ -633,9 +730,10 @@ class Rectangle(GShape2D):
             )
             return self._area
 
-    def volume(self, thickness: FloatType = 1.0) -> DEFAULT_FLOAT:
+    @property
+    def volume(self) -> DEFAULT_FLOAT:
         """Calculates the volume of the rectangle as a prism"""
-        return DEFAULT_FLOAT(self.area * thickness)
+        return DEFAULT_FLOAT(self.area)
 
 
 # endregion Rectangle
@@ -678,6 +776,10 @@ class Circle(GShape2D):
         return DEFAULT_FLOAT(self.arc.major_axis_angle)
 
     @property
+    def pose(self) -> tuple[float, float, float]:
+        return (self.centre.x, self.centre.y, self.major_axis_angle)
+
+    @property
     def area(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(PI * self.radius * self.radius)
 
@@ -687,8 +789,25 @@ class Circle(GShape2D):
         return DEFAULT_FLOAT(self.area * thickness)
 
     @property
+    def bounding_box(self) -> BoundingBox:
+        return BoundingBox(
+            (self.centre.x - self.radius, self.centre.y - self.radius),
+            (self.centre.x + self.radius, self.centre.y + self.radius),
+        )
+
+    @property
     def perimeter(self) -> DEFAULT_FLOAT:
         return DEFAULT_FLOAT(TWO_PI * self.radius)
+
+    def union_of_nspheres(self, *args, **kwargs) -> "CirclesArray":
+        return CirclesArray([self])
+
+    def translate_and_rotate(
+        self, dx: float, dy: float, dtheta: float = None
+    ) -> "Circle":
+        return self.__class__(
+            self.radius, (self.centre.x + dx, self.centre.y + dy)
+        )
 
     def contains(
         self, p: Point2D | Tuple[FloatType, FloatType], tol=1e-8
@@ -916,6 +1035,11 @@ class CirclesArray:
 
     def __iter__(self):
         return iter(self.data)
+
+    def __eq__(self, value: "CirclesArray") -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        return np.allclose(self.data, value.data)
 
     def __getitem__(
         self, index: Union[int, slice]

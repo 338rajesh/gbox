@@ -850,6 +850,10 @@ class BoundingBox(PlotMixin):  # TODO: Review this class
         return self._volume
 
     @property
+    def perimeter(self) -> DEFAULT_FLOAT:
+        return DEFAULT_FLOAT(2 * np.sum(self.p_max.coor - self.p_min.coor))
+
+    @property
     def vertices(self) -> PointArrayND:
         if not hasattr(self, "_vertices"):
             vertices = list(
