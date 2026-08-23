@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.integrate import quad
-from gbox.gshape.ellipse import (
+from gbox.shapes.ellipse import (
     EllipticalArc,
     Ellipse,
     CircularArc,
