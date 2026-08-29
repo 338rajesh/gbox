@@ -1,13 +1,29 @@
+import logging
 from collections.abc import Sequence
+from numbers import Number
 
 import numpy as np
 
-from .constants import NUMBER_TYPES
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+def get_logger(
+    name: str = __name__, level: int = logging.INFO
+) -> logging.Logger:
+    """Returns a logger with the given name and level"""
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    return logger
 
 
 def _is_a_number(x) -> bool:
-    """Checks if the input is a number (int or float)"""
-    return isinstance(x, NUMBER_TYPES)
+    """Checks if the input is a number as defined in the numbers module"""
+    return isinstance(x, Number)
 
 
 def _assert_a_sequence(seq, name: str = "input") -> bool:
@@ -20,7 +36,9 @@ def _assert_a_sequence(seq, name: str = "input") -> bool:
 def _assert_a_sequence_of_numbers(
     seq, name: str = "input", length=None
 ) -> bool:
-    """Checks if the input is a sequence of numbers (int or float)"""
+    """Checks if the input is a sequence of numbers
+     
+    """
     if not all(_is_a_number(x) for x in seq):
         raise TypeError(
             f"All elements of {name} must be numbers (int or float), "

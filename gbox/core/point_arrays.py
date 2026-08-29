@@ -1,217 +1,207 @@
+from collections.abc import Sequence
+from typing import Any, Iterator, Union
+
+import numpy as np
+import numpy.typing as npt
+
+from .utils import (
+    _assert_a_sequence,
+    _assert_a_sequence_of_numbers,
+)
+
 
 class PointArrayND:
-    """PointArrayND, a base class for representing a collection of points
-    in N-dimensional space
+    """A collection of points in N-dimensional space. Coordinates are stored
+    internally as a contiguous NumPy array with shape ``(n_points, n_dims)``
+    and dtype ``float64``.
     """
 
-    __slots__ = ("_cycle", "coor")
+    __slots__ = ("_coordinates",)
 
-    def __init__(self, points: np.ndarray):
-        """Constructs a PointArray from a NumpyArray of points"""
-        self._validate_points(points)
-        self.coor = np.ascontiguousarray(points, dtype=DEFAULT_FLOAT)
-        self._cycle = False  # For open curves
+    def __init__(
+        self, points: Sequence[Sequence[float]] | npt.NDArray[np.float64]
+    ) -> None:
+        """Constructs a PointArray from a NumpyArray of points
+
+        Parameters
+        ----------
+        points : Sequence[Sequence[float]] | npt.NDArray[np.float64]
+            A sequence of sequences of coordinates or a NumpyArray of shape
+            (n_points, n_dims) and dtype float64. If a sequence of sequences
+            is provided, the outer sequence should have length n_points and
+            each inner sequence should have length n_dims. If a NumpyArray is
+            provided, it should have shape (n_points, n_dims) of float64 dtype.
+        """
+        self._coordinates = self._validate_points(points)
 
     # ============================
     # Private methods
     # ============================
     @staticmethod
-    def _validate_points(points: np.ndarray) -> bool:
-        """Validates the points in the array"""
-        if not isinstance(points, np.ndarray):
-            raise TypeError("PointArray construction requires a NumpyArray")
-        if points.ndim != 2:
-            raise ValueError("Points must be 2D array (n_points x n_dims)")
-        if points.size == 0:
-            raise ValueError("PointArray must have at least one point")
-        return True
-
-    @classmethod
-    def from_points(
-        cls,
-        points: Sequence[PointND] | Sequence[Sequence[float]],
-    ) -> "PointArrayND":
-        """Constructs a PointArray from a sequence of Point objects or
-        sequences of sequences of coordinates
-        """
-        if not points:
-            raise ValueError("PointArray must have at least one point")
-        if not isinstance(points, Sequence):
+    def _validate_points(
+        points: Any, dtype: np.dtype = np.dtype(np.float64)
+    ) -> npt.NDArray[np.float64]:
+        """Validates the points in the array and returns a NumpyArray of points
+        with the expected dtype"""
+        try:
+            points = np.asarray(points, dtype=dtype)
+        except (TypeError, ValueError) as e:
             raise TypeError(
-                "Points must be a sequence of Point objects or "
-                "sequences of sequence of coordinates",
-            )
-        _dim_ = len(points[0])
-        if any(len(p) != _dim_ for p in points):
-            raise ValueError("All points must have same dimension")
-        return cls(np.array(points, dtype=DEFAULT_FLOAT))
+                "PointArray construction requires a sequence "
+                "of points or a NumpyArray"
+            ) from e
+
+        if points.ndim != 2:
+            raise ValueError("Points must be a 2D array (n_points x n_dims)")
+
+        if points.shape[0] == 0:
+            raise ValueError("PointArray must have at least one point")
+
+        return np.ascontiguousarray(points)
 
     @classmethod
-    def from_dims(cls, dims: Sequence[Sequence[FloatType]]):
+    def from_dim_sequences(
+        cls,
+        sequences: Sequence[Sequence[float]],
+        names: Sequence[str] | None = None,
+    ) -> "PointArrayND":
         """
         Constructs a PointArray from a sequence of sequences of coordinates
         """
-        if not dims:
+        if isinstance(sequences, np.ndarray):
+            return cls(sequences)
+
+        if names is not None and len(names) != len(sequences):
             raise ValueError(
-                "PointArray must have coordinates along at least one dimension"
+                f"Expected {len(sequences)} names, got {len(names)}"
             )
-        if not all(len(d) == len(dims[0]) for d in dims):
-            raise ValueError("All dimensions must have same length")
-        return cls(np.array(dims, dtype=DEFAULT_FLOAT).T)
+
+        _assert_a_sequence(sequences, name="sequence of dimensions")
+
+        for idx, sequence in enumerate(sequences):
+            _assert_a_sequence_of_numbers(
+                sequence,
+                name=f"Dimension {idx} sequence" if not names else names[idx],
+            )
+
+        seq_lengths = {len(sequence) for sequence in sequences}
+        if len(seq_lengths) != 1:
+            raise ValueError(
+                "All dimension sequences must have the same length, "
+                f"but got lengths: {seq_lengths}"
+            )
+
+        return cls(np.column_stack(sequences))
+
+    @classmethod
+    def from_named_dims(cls, **data: Sequence[float]) -> "PointArrayND":
+        """
+        Constructs a PointArray from a dictionary of sequences of coordinates
+        """
+        if not data:
+            raise ValueError("Input dictionary is empty")
+
+        return cls.from_dim_sequences(
+            list(data.values()), names=list(data.keys())
+        )
 
     # ============================
     #       MAGIC METHODS
     # ============================
-    def __len__(self):
+
+    def __len__(self) -> int:
         """Returns the number of points in the PointArray"""
-        return len(self.coor)
+        return self._coordinates.shape[0]
 
     def __getitem__(self, idx: int | slice | tuple) -> np.ndarray:
         """Returns the point(s) at the given index or slice"""
-        if isinstance(idx, tuple):
-            if len(idx) != 2:
-                raise IndexError("Incorrect number of indices for PointArray")
-            return self.coor[idx[0], idx[1]]
-        return self.coor[idx]
+        return self._coordinates[idx]
 
-    def __iter__(self) -> Iterable[np.ndarray]:
-        return iter(self.coor)
+    def __iter__(self) -> Iterator[np.ndarray]:
+        return iter(self._coordinates)
 
-    def __array__(self, dtype=None, copy=True) -> np.ndarray:
-        """Returns the coordinates of the point array as a numpy array"""
-        arr = np.array(self.coor, dtype=dtype, copy=copy)
-        return arr
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
-            f"{self.__class__.__name__}({len(self)} points; dim={self.dim};"
-            f" dtype={self.dtype})"
+            f"{self.__class__.__name__}("
+            f"points={self._coordinates!r}, "
+            f"dim={self.dim}, "
+            f"dtype={self.dtype})"
+        )
+
+    def __str__(self) -> str:
+        return (
+            f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
         )
 
     # ============================
     #       POINT PROPERTIES
     # ============================
     @property
-    def dim(self):
-        return self.coor.shape[1]
+    def dim(self) -> int:
+        return self._coordinates.shape[1]
 
     @property
-    def dtype(self):
-        return self.coor.dtype
+    def dtype(self) -> np.dtype:
+        return self._coordinates.dtype
 
     @property
-    def coordinates(self) -> np.ndarray:
-        """Returns the coordinates of the point array"""
-        return self.coor.copy()
-
-    @property
-    def cycle(self) -> bool:
-        """Returns True if the points are cyclic"""
-        return self._cycle
-
-    @cycle.setter
-    def cycle(self, val: bool):
-        """Sets the cyclic property of the points"""
-        if not isinstance(val, bool):
-            raise TypeError("cycle take a boolean value")
-        self._cycle = val
+    def coordinates(self) -> npt.NDArray[np.float64]:
+        return self._coordinates
 
     # ============================
     #       GEOMETRY OPERATIONS
     # ============================
-    def bounding_box(self) -> "BoundingBox":
+    def bounding_box(self) -> tuple[list[float], list[float]]:
         """Returns the bounding box of the current PointArray"""
-        return BoundingBox(
-            np.min(self.coor, axis=0),
-            np.max(self.coor, axis=0),
+        return (
+            np.min(self._coordinates, axis=0).tolist(),
+            np.max(self._coordinates, axis=0).tolist(),
         )
 
     def transform(
-        self,
-        matrix: np.ndarray,
-        in_place: bool = False,
+        self, matrix: np.ndarray, in_place: bool = False
     ) -> Union["PointArrayND", None]:
-        """Transform using a transformation matrix"""
+        """Transform using a transformation matrix
+
+        Here, the transformation matrix should be of shape (dim+1, dim+1) for homogeneous coordinates.
+        The last row of the matrix should be [0, 0, ..., 1]
+        """
         if matrix.shape != (self.dim + 1, self.dim + 1):
             raise ValueError(
                 f"Transformation matrix must be {self.dim + 1}x{self.dim + 1}",
             )
         if matrix.dtype != self.dtype:
             matrix = matrix.astype(self.dtype)
-        points = np.column_stack([self.coor, np.ones(len(self))])
-        if in_place:
-            transformed = points @ matrix.T
-            if not transformed.dtype == self.dtype:
-                transformed = transformed.astype(self.dtype)
-            self.coor[:, :] = transformed[:, : self.dim]
-            return None
+
+        points = np.column_stack(
+            (self._coordinates, np.ones(len(self), dtype=self.dtype))
+        )
         transformed = points @ matrix.T
-        transformed = transformed[:, : self.dim].astype(self.dtype)
-        return self.__class__(transformed)
+        transformed = np.ascontiguousarray(
+            transformed[:, : self.dim], dtype=self.dtype
+        )
 
-    def reflection(
-        self,
-        p1: Union[list[float], "PointND"],
-        p2: Union[list[float], "PointND"],
-    ):
-        """Reflects the current points about a line connecting p1 and p2"""
-        raise NotImplementedError("Point Array reflection is not implemented")
-
-    def reverse(self, in_place: bool = False) -> Union["PointArrayND", None]:
-        """Reverses the order of the points"""
-        rev_coor = np.flip(self.coor, axis=0)
         if in_place:
-            self.coor = rev_coor
+            self._coordinates = transformed
             return None
-        return self.__class__(rev_coor)
+
+        return self.__class__(transformed)
 
     # ============================
     #       UTILITY METHODS
     # ============================
-    def copy(self):
-        """Returns a copy of the current PointArray"""
-        return self.__class__(self.coordinates)
 
-    def to_points_list(self) -> list[PointND]:
-        """Returns a list of Point objects from the current PointArray"""
-        return [PointND(*row) for row in self.coor]
+    def copy(self) -> "PointArrayND":
+        """Returns a copy of the current PointArray"""
+        return self.__class__(self._coordinates.copy())
+
+    def to_list(self) -> list[list[float]]:
+        """Returns a list of lists of coordinates from the current PointArray"""
+        return self._coordinates.tolist()
 
 
 # endregion PointArrayND
-# region PointArray1D
 
-
-class PointArray1D(PointArrayND):
-    """PointArray1D, a subclass of PointArray, with one dimension"""
-
-    __slots__ = ()
-
-    def __init__(self, points: np.ndarray):
-        """Constructs a PointArray1D from a NumpyArray"""
-        if points.ndim == 1:
-            points = np.atleast_2d(points).T
-        super().__init__(points)
-        if self.dim != 1:
-            raise ValueError("PointArray1D must have one dimension")
-
-    @property
-    def x(self) -> np.ndarray:
-        return self.coor[:, 0]
-
-    def transform(
-        self,
-        dx: float = 0.0,
-        in_place: bool = False,
-    ) -> Union["PointArray1D", None]:
-        """Transformation of the points cluster by rotation and translation"""
-        if in_place:
-            if dx != 0.0:
-                self.coor[:] = self.coor[:] + dx
-            return None
-        return self.__class__(self.coor + dx)
-
-
-# endregion PointArray1D
 # region PointArray2D
 
 
@@ -235,28 +225,30 @@ class PointArray2D(PointArrayND):
 
     __slots__ = ()
 
-    def __init__(self, points: np.ndarray) -> None:
-        """Construct a PointArray2D from a NumpyArray."""
+    def __init__(
+        self, points: npt.NDArray[np.float64] | Sequence[Sequence[float]]
+    ) -> None:
         super().__init__(points)
+
         if self.dim != 2:
-            raise ValueError("PointArray2D must have 2 dims, got {self.dim}D")
+            raise ValueError(f"PointArray2D must have 2 dims, got {self.dim}D")
 
     @property
     def x(self) -> np.ndarray:
-        return self.coordinates[:, 0]
+        return self._coordinates[:, 0]
 
     @property
     def y(self) -> np.ndarray:
-        return self.coordinates[:, 1]
+        return self._coordinates[:, 1]
 
     def transform(
         self,
-        angle: FloatType = 0.0,
-        dx: FloatType = 0.0,
-        dy: FloatType = 0.0,
-        pivot: Point2D | Tuple[FloatType, FloatType] = (0.0, 0.0),
+        angle: float = 0.0,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        pivot: tuple[float, float] = (0.0, 0.0),
         in_place: bool = False,
-        order: str = "RT",
+        order: str = "rotation_then_translation",
     ) -> Union["PointArray2D", None]:
         """Transformation of the points cluster by rotation and translation,
         either in-place or returning a new PointArray2D
@@ -269,66 +261,49 @@ class PointArray2D(PointArrayND):
             Translation along x axis, default: 0.0
         dy : float
             Translation along y axis, default: 0.0
+        pivot : tuple[float, float]
+            Pivot point for rotation, default: (0.0, 0.0)
+        in_place : bool
+            If True, the transformation is applied in-place and the method returns None.
+            If False, a new PointArray2D is returned with the transformed points.
+        order : str
+            Order of operations, either "rotation_then_translation" or "translation_then_rotation", default: "rotation_then_translation"
 
         Returns
         -------
         PointArray2D
 
         """
-        cos_a, sin_a = np.cos(angle), np.sin(angle)
+        if order not in (
+            "rotation_then_translation",
+            "translation_then_rotation",
+        ):
+            raise ValueError(
+                f"Invalid order: {order}, should be "
+                "'rotation_then_translation' or 'translation_then_rotation'"
+            )
+
+        cos_a = np.cos(angle)
+        sin_a = np.sin(angle)
+
         temp_x = self.x - pivot[0]
         temp_y = self.y - pivot[1]
-        if order == "RT":
+
+        if order == "rotation_then_translation":
             x = temp_x * cos_a - temp_y * sin_a + dx + pivot[0]
             y = temp_x * sin_a + temp_y * cos_a + dy + pivot[1]
-        elif order == "TR":
+        else:  # translation_then_rotation
             temp_x += dx
             temp_y += dy
             x = temp_x * cos_a - temp_y * sin_a + pivot[0]
             y = temp_x * sin_a + temp_y * cos_a + pivot[1]
-        else:
-            raise ValueError(f"Invalid order: {order}, should be 'RT' or 'TR'")
 
         if in_place:
-            self.coor[:, 0] = x
-            self.coor[:, 1] = y
+            self._coordinates[:, 0] = x
+            self._coordinates[:, 1] = y
             return None
-        return PointArray2D(np.column_stack([x, y]))
 
-    def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
-        """Returns tiled copy of the points about the current position"""
-        raise NotImplementedError("make_periodic_tiles is not implemented")
-
-    def sort(self) -> "PointArray2D":
-        raise NotImplementedError("sort is not implemented")
-
-    def plot(
-        self,
-        axs,
-        points_plt_opt: dict | None = None,
-        b_box: bool = False,
-        box_plt_opt: dict | None = None,
-    ):
-        """Plots the points"""
-
-        points_plt_options = {
-            **_DEFAULT_POINT_PLOT_OPTIONS,
-            **(points_plt_opt or {}),
-        }
-        axs.plot(
-            np.append(self.x, self.x[0]) if self.cycle else self.x,
-            np.append(self.y, self.y[0]) if self.cycle else self.y,
-            **points_plt_options,
-        )
-
-        if b_box:
-            bbox_plt_options = {
-                **_DEFAULT_LINE_PLOT_OPTIONS,
-                **(box_plt_opt or {}),
-            }
-            self.bounding_box.plot(axs, **bbox_plt_options)
-
-        return axs
+        return PointArray2D.from_named_dims(x=x, y=y)
 
 
 # endregion PointArray2D
@@ -340,24 +315,34 @@ class PointArray3D(PointArrayND):
 
     __slots__ = ()
 
-    def __init__(self, points):
+    def __init__(
+        self, points: npt.NDArray[np.float64] | Sequence[Sequence[float]]
+    ) -> None:
         super().__init__(points)
+
         if self.dim != 3:
-            raise ValueError("PointArray3D must have 3 dims, got {self.dim}D")
+            raise ValueError(f"PointArray3D must have 3 dims, got {self.dim}D")
 
     @property
     def x(self) -> np.ndarray:
-        return self.coordinates[:, 0]
+        return self._coordinates[:, 0]
 
     @property
     def y(self) -> np.ndarray:
-        return self.coordinates[:, 1]
+        return self._coordinates[:, 1]
 
     @property
     def z(self) -> np.ndarray:
-        return self.coordinates[:, 2]
+        return self._coordinates[:, 2]
 
-    def make_periodic_tiles(self, bounds: list | None = None, order: int = 1):
-        """ """
-        raise NotImplementedError("make_periodic_tiles is not implemented")
-
+    def transform(
+        self,
+        angle: float = 0.0,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        dz: float = 0.0,
+        pivot: tuple[float, float, float] = (0.0, 0.0, 0.0),
+        in_place: bool = False,
+        order: str = "RT",
+    ) -> Union["PointArray3D", None]:
+        raise NotImplementedError
