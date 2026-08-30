@@ -1,9 +1,9 @@
 import logging
 from collections.abc import Sequence
 from numbers import Number
+from typing import Any
 
 import numpy as np
-
 
 
 logger = logging.getLogger(__name__)
@@ -36,9 +36,7 @@ def _assert_a_sequence(seq, name: str = "input") -> bool:
 def _assert_a_sequence_of_numbers(
     seq, name: str = "input", length=None
 ) -> bool:
-    """Checks if the input is a sequence of numbers
-     
-    """
+    """Checks if the input is a sequence of numbers"""
     if not all(_is_a_number(x) for x in seq):
         raise TypeError(
             f"All elements of {name} must be numbers (int or float), "
@@ -57,25 +55,75 @@ def _assert_a_sequence_of_numbers(
     return True
 
 
-# ------------
+def _validate_type(v, types: type | tuple, name: str | None = None):
+    name = "" if name is None else name
+    if not isinstance(v, types):
+        raise ValueError(
+            f"Given value '{name}' must be of type {types}, but got {type(v)}"
+        )
 
 
-def rotate_point_2d(
-    x: float,
-    y: float,
-    angle: float,
-    pivot: Sequence[float] = (0.0, 0.0),
-    *,
-    degrees: bool = False,
-) -> tuple[float, float]:
-    """Rotates a point (x, y) by the given angle around the pivot point"""
+def _validate_bounds(
+    v: Any,
+    low: Any = None,
+    high: Any = None,
+    name: str | None = None,
+    closed_bounds: bool = True,
+) -> None:
+    if low is not None:
+        if closed_bounds and v < low:
+            raise ValueError(
+                f"Given value '{name}' must be >= {low}, but got {v}",
+            )
+        elif not closed_bounds and v <= low:
+            raise ValueError(
+                f"Given value '{name}' must be > {low}, but got {v}",
+            )
 
-    if degrees:
-        angle = np.deg2rad(angle)
+    if high is not None:
+        if closed_bounds and v > high:
+            raise ValueError(
+                f"Given value '{name}' must be <= {high}, but got {v}",
+            )
+        elif not closed_bounds and v >= high:
+            raise ValueError(
+                f"Given value '{name}' must be < {high}, but got {v}",
+            )
 
-    cos_a, sin_a = np.cos(angle), np.sin(angle)
-    x -= pivot[0]
-    y -= pivot[1]
-    x_new = x * cos_a - y * sin_a + pivot[0]
-    y_new = x * sin_a + y * cos_a + pivot[1]
-    return x_new, y_new
+
+def _validate_float(
+    v: Any,
+    low: float,
+    high: float,
+    name: str | None = None,
+    closed_bounds: bool = True,
+    coerce_type: bool = True,
+) -> float:
+    name = "" if name is None else name
+    _validate_type(v, (int, float), name)
+    v = float(v) if coerce_type else v
+    _validate_bounds(v, low, high, name, closed_bounds)
+    return v
+
+
+def _validate_int(
+    v: Any,
+    low: float,
+    high: float,
+    name: str | None = None,
+    closed_bounds: bool = True,
+    coerce_type: bool = False,
+) -> int:
+    name = "" if name is None else name
+    _validate_type(v, (int, float), name)
+    v = int(v) if coerce_type else v
+    _validate_bounds(v, low, high, name, closed_bounds)
+    return v
+
+
+def _validate_positive_float(v: Any, name: str | None = None):
+    return _validate_float(v, 0.0, float("inf"), name, False)
+
+
+def _validate_positive_int(v: Any, name: str | None = None):
+    return _validate_int(v, 0, float("inf"), name, False)
