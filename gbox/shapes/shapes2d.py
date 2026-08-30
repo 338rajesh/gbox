@@ -2,6 +2,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Self, Literal
 
 from scipy.integrate import quad
 
@@ -9,6 +10,7 @@ from ..core.utils import (
     _validate_positive_float,
     _validate_float,
     _validate_positive_int,
+    _validate_dict,
 )
 from ..core.points import Point2D, PointArray2D
 
@@ -39,6 +41,16 @@ class Shape2DPosition:
             self.y += dy
             return self
         return Shape2DPosition(self.x + dx, self.y + dy, self.theta)
+
+    def transform(self, rot_angle, dx, dy, in_place=False):
+        if in_place:
+            self.x += dx
+            self.y += dy
+            self.theta += rot_angle
+            return self
+        return Shape2DPosition(
+            self.x + dx, self.y + dy, self.theta + rot_angle
+        )
 
 
 class Shape2D(ABC):
@@ -111,13 +123,13 @@ class Ellipse(Shape2D):
             theta_start,
             theta_end,
         )
-        self._semi_major_length = _args["semi_major_length"]
-        self._semi_minor_length = _args["semi_minor_length"]
-        self._position = Shape2DPosition(
+        self._semi_major_length: float = _args["semi_major_length"]
+        self._semi_minor_length: float = _args["semi_minor_length"]
+        self._position: Shape2DPosition = Shape2DPosition(
             *_args["centre"], _args["major_axis_angle"]
         )
-        self._theta_start = _args["theta_start"]
-        self._theta_end = _args["theta_end"]
+        self._theta_start: float = _args["theta_start"]
+        self._theta_end: float = _args["theta_end"]
 
     def _validate_args(
         self,
@@ -127,7 +139,7 @@ class Ellipse(Shape2D):
         major_axis_angle,
         theta_start,
         theta_end,
-    ):
+    ) -> dict:
         semi_major_length = _validate_positive_float(
             semi_major_length, "semi_major_length"
         )
@@ -203,6 +215,34 @@ class Ellipse(Shape2D):
             self._arc_length_integrand, self._theta_start, self._theta_end
         )[0]
 
+    @property
+    def bounding_box(self) -> list[float]:
+        """Returns the axis-aligned bounding box of the ellipse as
+        a list of [min_x, min_y, max_x, max_y].
+        """
+        a2 = self._semi_major_length**2
+        b2 = self._semi_minor_length**2
+        cos_2 = np.cos(self._position.theta) ** 2
+        sin_2 = np.sin(self._position.theta) ** 2
+        hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
+        hy = np.sqrt(a2 * sin_2 + b2 * cos_2)
+        return [
+            self._position.centre.x - hx,
+            self._position.centre.y - hy,
+            self._position.centre.x + hx,
+            self._position.centre.y + hy,
+        ]
+
+    def clone(self) -> Self:
+        return self.__class__(
+            self._semi_major_length,
+            self._semi_minor_length,
+            self._position.centre,
+            self._position.theta,
+            self._theta_start,
+            self._theta_end,
+        )
+
     def sample_points(
         self,
         num_points: int | None = None,
@@ -246,9 +286,188 @@ class Ellipse(Shape2D):
             self._position.theta, self._position.x, self._position.y
         )
 
+    def _origin_to_position(self) -> Self:
+        self._position.transform(in_place=True)
+        return self
+
+    @classmethod
+    def from_params(
+        cls,
+        position_params: dict[str, float],
+        size_params: dict[str, float],
+    ) -> Self:
+        """
+        Construct an Ellipse from parameter dictionaries.
+
+        Parameters
+        ----------
+        position_params : dict
+            - 'xc': x-coordinate of the centre.
+            - 'yc': y-coordinate of the centre.
+            - 'major_axis_angle': Rotation angle in radians.
+        size_params : dict
+            - 'semi_major_length': Half-length of the primary axis.
+            - 'semi_minor_length': Half-length of the secondary axis.
+            - 'theta_start': Starting angle in radians, defaults to 0.
+            - 'theta_end': Ending angle in radians, defaults to 2 * pi.
+
+        Returns
+        -------
+        Ellipse
+        """
+        _validate_dict(
+            position_params,
+            ["xc", "yc", "major_axis_angle"],
+            [float, float, float],
+            name="position_params",
+        )
+        _validate_dict(
+            size_params,
+            ["semi_major_length", "semi_minor_length"],
+            [float, float],
+            name="size_params",
+        )
+        return cls(
+            size_params["semi_major_length"],
+            size_params["semi_minor_length"],
+            (position_params["xc"], position_params["yc"]),
+            position_params["major_axis_angle"],
+            size_params.get("theta_start", 0.0),
+            size_params.get("theta_end", np.pi * 2.0),
+        )
+
+    def contains(
+        self, p: Point2D | Sequence[float], atol: float = 1e-6
+    ) -> Literal[-1, 0, 1]:
+        """Checks if a point is inside, on, or outside the ellipse.
+
+        Parameters
+        ----------
+        p : Point2D
+            Point to check.
+        atol : float, optional. Essential a bandwidth of 2*atol around the
+            ellipse is checked. Default 1e-6
+
+        Returns
+        -------
+        -1 : point is outside the ellipse
+        0 : point is on the ellipse
+        1 : point is inside the ellipse
+
+        """
+        p = Point2D(p[0], p[1]).transform(
+            -self._position.theta,
+            -self._position.x,
+            -self._position.y,
+            order="TR",  # Translate >> Rotate as we are moving backwards
+        )
+        val = (p.x**2 / self._semi_major_length**2) + (
+            p.y**2 / self._semi_minor_length**2
+        )
+        if val > 1.0 + atol:
+            return -1
+        if val < 1.0 - atol:
+            return 1
+        return 0
+
+    def r_shortest(self, xi: float) -> float:
+        """Evaluates the shortest distance to the ellipse locus
+        from a point on the major axis located at a distance xi
+        from the centre of the ellipse.
+        """
+        if self._semi_major_length == self._semi_minor_length:
+            return self.semi_minor_length
+
+        r_min = self.semi_minor_length * np.sqrt(
+            1.0
+            - (
+                (xi * xi)
+                / (self.semi_major_length**2 - self.semi_minor_length**2)
+            )
+        )
+        return float(r_min)
+
+    def union_of_circles(self, dh: float = 0.0) -> list:
+        # raise NotImplementedError("uns is not implemented")
+        if self.aspect_ratio == 1.0:
+            return [Circle(self.semi_major_length, self.centre)]
+
+        _validate_float(
+            dh,
+            low=0.0,
+            high=self._semi_minor_length,
+            name="buffer thickness dh",
+            closed_bounds=False,
+        )
+
+        ell_outer = Ellipse(
+            self._semi_major_length * (1.0 + dh),
+            self._semi_minor_length * (1.0 + dh),
+            (self._position.x, self._position.y),
+            self._position.theta,
+        )
+        e_i: float = self.eccentricity
+        e_o: float = ell_outer.eccentricity
+        m: float = 2.0 * e_o * e_o / (e_i * e_i)
+
+        def min_radius() -> float:  # r_min : b^2/a
+            r_min = (
+                self.semi_minor_length**2
+            ) / self.semi_major_length  # r_min : b^2/a
+            return float(r_min)
+
+        x_max = self.semi_major_length * e_i * e_i  # x range: (-ae^2, ae^2)
+        r_min = min_radius()
+        x_i = -1.0 * x_max  # start at x = -ae^2
+
+        # construct circles at origin
+        circles: list[Circle] = []
+        while True:
+            if x_i > x_max:
+                circles.append(Circle(r_min, (x_max, 0.0)))
+                break
+            r_i = self.r_shortest(x_i)
+            circles.append(Circle(r_i, (x_i, 0.0)))
+
+            r_o = ell_outer.r_shortest(x_i)
+            x_i = (x_i * (m - 1.0)) + (
+                m * e_i * np.sqrt(r_o * r_o - r_i * r_i)
+            )
+
+        # move circles to position
+        # TODO real bug in moving circles to the position
+        circles_array = [c._origin_to_position() for c in circles]
+        # circles_array.transform(
+        #     self.major_axis_angle,
+        #     dx=self.centre.x,
+        #     dy=self.centre.y,
+        #     pivot=(0.0, 0.0),
+        # )
+        return circles_array
+
+    # def get_patch(self, **kwargs) -> Patch:
+    #     xy = (float(self.centre.x), float(self.centre.y))
+    #     width = 2.0 * float(self.semi_major_length)
+    #     height = 2.0 * float(self.semi_minor_length)
+    #     angle = float(np.rad2deg(self.major_axis_angle))
+    #     return EllipsePatch(xy, width, height, angle=angle, **kwargs)
+
 
 class Circle(Ellipse):
-    pass
+    def __init__(
+        self,
+        radius: float,
+        centre: tuple[float, float] = (0, 0),
+        theta_start=0,
+        theta_end=np.pi * 2,
+    ):
+        super().__init__(
+            semi_major_length=radius,
+            semi_minor_length=radius,
+            centre=centre,
+            theta_start=theta_start,
+            theta_end=theta_end,
+        )
 
 
 class Rectangle(Shape2D):

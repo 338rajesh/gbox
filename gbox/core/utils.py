@@ -3,8 +3,6 @@ from collections.abc import Sequence
 from numbers import Number
 from typing import Any
 
-import numpy as np
-
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -93,8 +91,8 @@ def _validate_bounds(
 
 def _validate_float(
     v: Any,
-    low: float,
-    high: float,
+    low: float = None,
+    high: float = None,
     name: str | None = None,
     closed_bounds: bool = True,
     coerce_type: bool = True,
@@ -108,8 +106,8 @@ def _validate_float(
 
 def _validate_int(
     v: Any,
-    low: float,
-    high: float,
+    low: float = None,
+    high: float = None,
     name: str | None = None,
     closed_bounds: bool = True,
     coerce_type: bool = False,
@@ -127,3 +125,35 @@ def _validate_positive_float(v: Any, name: str | None = None):
 
 def _validate_positive_int(v: Any, name: str | None = None):
     return _validate_int(v, 0, float("inf"), name, False)
+
+
+def _validate_dict(
+    d: Any,
+    keys: list[Any] = None,
+    types: list[type | tuple] = None,
+    name: str | None = None,
+):
+    _validate_type(d, dict, name)
+
+    if keys is not None:
+        _validate_type(keys, list, name)
+        missing_keys = [k for k in keys if k not in d]
+        if missing_keys:
+            raise ValueError(f"Keys {missing_keys} not found in {name}")
+
+        if types is not None:
+            _validate_type(types, list, name)
+
+            if len(keys) != len(types):
+                raise ValueError(
+                    "When types and keys are specified, they must have "
+                    f"the same length, but got {len(keys)} and {len(types)}"
+                )
+
+            for k, t in zip(keys, types):
+                _validate_type(d[k], t, name)
+    else:
+        if types is not None:
+            raise ValueError(
+                "When types is specified, keys must also be specified"
+            )

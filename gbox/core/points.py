@@ -1,6 +1,6 @@
 import math
 from collections.abc import Iterator, Sequence
-from typing import Literal, Union, Any
+from typing import Literal, Union, Any, Self
 
 import numpy as np
 import numpy.typing as npt
@@ -427,7 +427,7 @@ class PointArrayND:
         return cls(np.column_stack(sequences))
 
     @classmethod
-    def from_named_dims(cls, **data: Sequence[float]) -> "PointArrayND":
+    def from_named_dims(cls, **data: Sequence[float]) -> Self:
         """
         Constructs a PointArray from a dictionary of sequences of coordinates
         """
@@ -484,11 +484,13 @@ class PointArrayND:
     # ============================
     #       GEOMETRY OPERATIONS
     # ============================
-    def bounding_box(self) -> tuple[list[float], list[float]]:
-        """Returns the bounding box of the current PointArray"""
+    def bounding_box(self) -> list[float]:
+        """Returns the bounding box of the current PointArray
+        The length of the list is `2 * self.dim`
+        """
         return (
-            np.min(self._coordinates, axis=0).tolist(),
-            np.max(self._coordinates, axis=0).tolist(),
+            np.min(self._coordinates, axis=0).tolist()
+            + np.max(self._coordinates, axis=0).tolist()
         )
 
     # ============================

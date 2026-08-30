@@ -28,545 +28,545 @@ DefaultFloatType = type(DEFAULT_FLOAT())
 EPSILON = np.finfo(DEFAULT_FLOAT).eps
 
 
-class GShape2D(GShape, PlotMixin):
-    def __init__(self):
-        super().__init__()
-
-    @property
-    def equivalent_radius(self) -> float:
-        return np.sqrt(self.volume / np.pi)
-
-    @property
-    def centre(self) -> Point2D | tuple[float, float]:
-        raise NotImplementedError(
-            "Subclasses must implement the centre() method."
-        )
-
-    @property
-    def major_axis_angle(self) -> float:
-        raise NotImplementedError(
-            "Subclasses must implement the major_axis_angle() method."
-        )
-
-    @property
-    def pose(self) -> tuple[float, float, float]:
-        """
-        A triplet of (x, y, theta)
-        """
-        raise NotImplementedError(
-            "Subclasses must implement the pose() method."
-        )
-
-    @property
-    def bounding_box(self) -> BoundingBox:
-        raise NotImplementedError(
-            "Subclasses must implement the bounding_box() method."
-        )
-
-    def union_of_nspheres(self):
-        raise NotImplementedError(
-            "Subclasses must implement the union_of_nspheres() method."
-        )
-
-    def union_of_circles(self, *args, **kwargs) -> "CirclesArray":
-        return self.union_of_nspheres(*args, **kwargs)
-
-    @property
-    def volume(self) -> DEFAULT_FLOAT:
-        raise NotImplementedError(
-            "Subclasses must implement the volume() method."
-        )
-
-    @property
-    def area(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.volume)
-
-    @property
-    def perimeter(self) -> DEFAULT_FLOAT:
-        raise NotImplementedError(
-            "Subclasses must implement the perimeter() method."
-        )
-
-    def translate_and_rotate(
-        self, dx: float, dy: float, dtheta: float
-    ) -> "GShape2D":
-        raise NotImplementedError(
-            "Subclasses must implement the translate_and_rotate() method."
-        )
-
-
-# TODO add magic methods for comparison, hashing, etc.
-
-# ============================================================================
-# region EllipticalArc
-
-
-class EllipticalArc:
-    __slots__ = (
-        "semi_major_length",
-        "semi_minor_length",
-        "centre",
-        "major_axis_angle",
-        "theta_start",
-        "theta_end",
-        "aspect_ratio",
-        "eccentricity",
-        "_end_point_1",
-        "_end_point_2",
-    )
-
-    def __init__(
-        self,
-        semi_major_length: FloatType,
-        semi_minor_length: FloatType,
-        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
-        major_axis_angle: FloatType = 0.0,
-        theta_start: FloatType = 0.0,
-        theta_end: FloatType = TWO_PI,
-    ):
-        self.centre = Point2D(centre[0], centre[1])
-        self.semi_major_length = semi_major_length
-        self.semi_minor_length = semi_minor_length
-        self.major_axis_angle = major_axis_angle
-        self.theta_start = theta_start
-        self.theta_end = theta_end
-
-        self._post_init_()
-
-    def _post_init_(self):
-        if self.semi_minor_length <= 0.0:
-            raise ValueError("Semi-minor axis must be positive")
-        if self.semi_major_length < self.semi_minor_length:
-            raise ValueError("Semi-major axis must be >= semi-minor axis")
-
-        self.aspect_ratio = self.semi_major_length / self.semi_minor_length
-        self.eccentricity = np.sqrt(
-            1 - ((self.semi_minor_length / self.semi_major_length) ** 2)
-        )
-
-        self._end_point_1 = self.point_at_angle(self.theta_start)
-        self._end_point_2 = self.point_at_angle(self.theta_end)
-
-    @property
-    def area(self) -> DEFAULT_FLOAT:
-        area = (
-            0.5
-            * self.semi_major_length
-            * self.semi_minor_length
-            * (self.theta_end - self.theta_start)
-        )
-        return DEFAULT_FLOAT(area)
-
-    def perimeter(
-        self, closure: Literal["open", "e2e", "ece"] = "open"
-    ) -> DEFAULT_FLOAT:
-        """
-        Computes the perimeter of the elliptical arc.
-
-        Parameters
-        ----------
-        closure : str
-            Type of closure for the arc. Options are:
-            - "open": only the arc length is considered.
-            - "e2e": the arc length and the chord length between
-            the two endpoints are considered.
-            - "ece": the arc length and the chord lengths from the
-            endpoints to the centre are considered.
-        """
-        arc_length, _ = quad(
-            self._arc_len_integrand, self.theta_start, self.theta_end
-        )
-        if closure not in ("open", "e2e", "ece"):
-            raise ValueError(
-                f"Invalid closure type: {closure}. "
-                "Must be 'open', 'e2e', or 'ece'."
-            )
-        if closure == "open":
-            perimeter = arc_length
-        elif closure == "e2e":
-            chord_len = self._end_point_1.distance_to(self._end_point_2)
-            perimeter = arc_length + chord_len
-        elif closure == "ece":
-            chord_len_1 = self._end_point_1.distance_to(self.centre)
-            chord_len_2 = self._end_point_2.distance_to(self.centre)
-            perimeter = arc_length + chord_len_1 + chord_len_2
-        return DEFAULT_FLOAT(perimeter)
-
-    def _arc_len_integrand(self, theta: FloatType) -> FloatType:
-        return np.hypot(
-            self.semi_major_length * np.sin(theta),
-            self.semi_minor_length * np.cos(theta),
-        )
-
-    def sample_points(
-        self,
-        num_points: Optional[int] = None,
-        point_density: FloatType = 10.0,
-    ) -> PointArray2D:
-        """Samples points along the elliptical arc."""
-        if num_points is None:
-            num_points = max(16, int(point_density * self.perimeter()))
-
-        theta = np.linspace(self.theta_start, self.theta_end, num_points)
-        points = self.points_at_parametric_points(theta)
-        if points is None:
-            raise ValueError("Invalid points array")
-        if len(points) == 0:
-            raise ValueError("No points sampled along the arc")
-        return points
-
-    def point_at_angle(self, theta: FloatType) -> Point2D:
-        """Returns the point on the ellipse at the given angle."""
-        x = self.semi_major_length * np.cos(theta)
-        y = self.semi_minor_length * np.sin(theta)
-        return Point2D(x, y).transform(
-            self.major_axis_angle, self.centre.x, self.centre.y
-        )
-
-    def points_at_parametric_points(self, theta: np.ndarray) -> PointArray2D:
-        points = np.column_stack(
-            (
-                self.semi_major_length * np.cos(theta),
-                self.semi_minor_length * np.sin(theta),
-            )
-        )
-        points_arr = PointArray2D(points)
-
-        points_arr.transform(
-            self.major_axis_angle,
-            self.centre.x,
-            self.centre.y,
-            in_place=True,
-            pivot=(0.0, 0.0),
-            order="RT",  # Rotate >> Translate
-        )
-        if points_arr is None:
-            raise ValueError("Invalid points array")
-        return points_arr
-
-    def get_bounding_box(self) -> BoundingBox:
-        raise NotImplementedError(
-            "Bounding box for EllipticalArc is not implemented yet."
-        )
-
-
-# endregion EllipticalArc
-# ============================================================================
-# region CircularArc
-
-
-class CircularArc(EllipticalArc):
-    def __init__(
-        self,
-        radius: FloatType,
-        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
-        theta_1: FloatType = 0.0,
-        theta_2: FloatType = TWO_PI,
-    ):
-        super().__init__(radius, radius, centre, 0.0, theta_1, theta_2)
-
-
-# endregion CircularArc
-# ============================================================================
-# region Ellipse
-
-
-class Ellipse(GShape2D):
-    __slots__ = (
-        "arc",
-        "_boundary_points",
-        "_area",
-        "_perimeter",
-    )
-
-    def __init__(
-        self,
-        semi_major_length: FloatType,
-        semi_minor_length: FloatType,
-        centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
-        major_axis_angle: FloatType = 0.0,
-    ):
-        """
-        Closed ellipse shape.
-
-        Parameters
-        ----------
-        semi_major_length : FloatType
-            Semi-major axis length.
-        semi_minor_length : FloatType
-            Semi-minor axis length.
-        centre : Tuple[FloatType, FloatType]
-            Centre of the ellipse in (x, y) coordinates.
-        major_axis_angle : FloatType
-            Angle of the major axis in radians.
-        """
-        super().__init__()
-        self.arc = EllipticalArc(
-            semi_major_length,
-            semi_minor_length,
-            centre,
-            major_axis_angle,
-            0.0,
-            TWO_PI,
-        )
-        self._boundary_points = None
-
-    def clone(self):
-        return self.__class__(
-            self.arc.semi_major_length,
-            self.arc.semi_minor_length,
-            self.arc.centre,
-            self.arc.major_axis_angle,
-        )
-
-    def translate_and_rotate(
-        self, dx: float, dy: float, dtheta: float
-    ) -> "Ellipse":
-        return self._class__(
-            self.arc.semi_major_length,
-            self.arc.semi_minor_length,
-            self.arc.centre + Point2D(dx, dy),
-            self.arc.major_axis_angle + dtheta,
-        )
-
-    @property
-    def semi_major_length(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.semi_major_length)
-
-    @property
-    def semi_minor_length(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.semi_minor_length)
-
-    @property
-    def centre(self) -> Point2D:
-        return self.arc.centre
-
-    @centre.setter
-    def centre(self, value: Tuple[FloatType, FloatType] | Point2D):
-        self.arc.centre = Point2D(value[0], value[1])
-
-    @property
-    def major_axis_angle(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.major_axis_angle)
-
-    @property
-    def pose(self) -> tuple:
-        return (self.centre.x, self.centre.y, self.major_axis_angle)
-
-    @property
-    def aspect_ratio(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.aspect_ratio)
-
-    @property
-    def eccentricity(self) -> DEFAULT_FLOAT:
-        return DEFAULT_FLOAT(self.arc.eccentricity)
-
-    @property
-    def bounding_box(self) -> BoundingBox:
-        return self.get_bounding_box()
-
-    @property
-    @lru_cache(maxsize=1)
-    def area(self) -> DEFAULT_FLOAT:
-        """Area of the ellipse."""
-        if hasattr(self, "_area"):
-            return self._area
-        else:
-            self._area = DEFAULT_FLOAT(
-                PI * self.semi_major_length * self.semi_minor_length
-            )
-            return self._area
-
-    @property
-    def volume(self) -> DEFAULT_FLOAT:
-        """Calculates the volume of the ellipse as a cylinder."""
-        return DEFAULT_FLOAT(self.area)
-
-    @property
-    @lru_cache(maxsize=1)
-    def perimeter(self) -> DEFAULT_FLOAT:
-        """Perimeter of the ellipse."""
-        if hasattr(self, "_perimeter"):
-            return self._perimeter
-        else:
-            self._perimeter = self.arc.perimeter()
-            return self._perimeter
-
-    @classmethod
-    def from_params(
-        cls,
-        positional_params: dict[str, float],
-        size_params: dict[str, float],
-    ) -> "Ellipse":
-        """
-        Construct an Ellipse from parameter dictionaries.
-
-        Parameters
-        ----------
-        positional_params : dict
-            - 'xc': x-coordinate of the centre.
-            - 'yc': y-coordinate of the centre.
-            - 'major_axis_angle': Rotation angle in radians.
-        size_params : dict
-            - 'semi_major_length': Half-length of the primary axis.
-            - 'semi_minor_length': Half-length of the secondary axis.
-        """
-        pos_params = _validate_dict(
-            positional_params,
-            ["xc", "yc", "major_axis_angle"],
-            [float, float, float],
-            True,
-        )
-        if pos_params is None:
-            raise ValueError("Invalid positional_params")
-        xc, yc, theta = pos_params
-
-        sz_params = _validate_dict(
-            size_params,
-            ["semi_major_length", "semi_minor_length"],
-            [float, float],
-            True,
-        )
-        if sz_params is None:
-            raise ValueError("Invalid size_params")
-        semi_major, semi_minor = sz_params
-
-        return cls(
-            semi_major_length=semi_major,
-            semi_minor_length=semi_minor,
-            centre=(xc, yc),
-            major_axis_angle=theta,
-        )
-
-    def eval_boundary_points(
-        self, num_points: Optional[int] = None, point_density: FloatType = 10.0
-    ) -> None:
-        """Evaluate boundary points of the ellipse."""
-        if self._boundary_points is None:
-            self._boundary_points = self.arc.sample_points(
-                num_points, point_density
-            )
-
-    def get_boundary_points(
-        self, num_points: int = 100, point_density: FloatType = 10.0
-    ) -> PointArray2D:
-        """Returns the boundary points of the ellipse."""
-        self.eval_boundary_points(num_points, point_density)
-        if self._boundary_points is None:
-            raise ValueError("Boundary points is not available")
-        return self._boundary_points
-
-    def get_bounding_box(self) -> BoundingBox:
-        a2, b2 = self.semi_major_length**2, self.semi_minor_length**2
-        cos_2 = np.cos(self.major_axis_angle) ** 2
-        sin_2 = np.sin(self.major_axis_angle) ** 2
-        hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
-        hy = np.sqrt(a2 * sin_2 + b2 * cos_2)
-        x_min = self.centre.x - hx
-        x_max = self.centre.x + hx
-        y_min = self.centre.y - hy
-        y_max = self.centre.y + hy
-        return BoundingBox([x_min, y_min], [x_max, y_max])
-
-    def contains(
-        self, p: Point2D | Tuple[FloatType, FloatType], atol: FloatType = 1e-6
-    ) -> Literal[-1, 0, 1]:
-        """Checks if a point is inside, on, or outside the ellipse.
-
-        Returns
-        -------
-        -1 : point is outside the ellipse
-        0 : point is on the ellipse
-        1 : point is inside the ellipse
-
-        """
-        p = Point2D(p[0], p[1]).transform(
-            -self.major_axis_angle,
-            -self.centre.x,
-            -self.centre.y,
-            order="TR",  # Translate >> Rotate as we are moving backwards
-        )
-        val = (p.x**2 / self.semi_major_length**2) + (
-            p.y**2 / self.semi_minor_length**2
-        )
-        if val > 1.0 + atol:
-            return -1
-        if val < 1.0 - atol:
-            return 1
-        return 0
-
-    def r_shortest(self, xi: FloatType) -> DEFAULT_FLOAT:
-        """Evaluates the shortest distance to the ellipse locus
-        from a point on the major axis located at a distance xi
-        from the centre of the ellipse.
-        """
-        if self.semi_major_length == self.semi_minor_length:
-            return DEFAULT_FLOAT(self.semi_minor_length)
-        else:
-            r_min = self.semi_minor_length * np.sqrt(
-                1.0
-                - (
-                    (xi * xi)
-                    / (self.semi_major_length**2 - self.semi_minor_length**2)
-                )
-            )
-            return DEFAULT_FLOAT(r_min)
-
-    def union_of_nspheres(self, dh: FloatType = 0.0) -> "CirclesArray":
-        # raise NotImplementedError("uns is not implemented")
-        if self.aspect_ratio == 1.0:
-            return CirclesArray([Circle(self.semi_major_length, self.centre)])
-
-        assert dh >= 0, f"Expecting buffer dh >= 0, but got {dh}."
-
-        ell_outer = Ellipse(
-            self.semi_major_length * (1.0 + dh),
-            self.semi_minor_length * (1.0 + dh),
-            self.centre,
-            self.major_axis_angle,
-        )
-        e_i: FloatType = self.eccentricity
-        e_o: FloatType = ell_outer.eccentricity
-        m: FloatType = 2.0 * e_o * e_o / (e_i * e_i)
-
-        def min_radius() -> FloatType:  # r_min : b^2/a
-            r_min = (
-                self.semi_minor_length**2
-            ) / self.semi_major_length  # r_min : b^2/a
-            return DEFAULT_FLOAT(r_min)
-
-        x_max = self.semi_major_length * e_i * e_i  # x range: (-ae^2, ae^2)
-        r_min = min_radius()
-        x_i = -1.0 * x_max  # start at x = -ae^2
-        circles: List[Circle] = []
-
-        # return CirclesArray([Circle(r_min, (x_max, 0.0))])
-        while True:
-            if x_i > x_max:
-                circles.append(Circle(r_min, (x_max, 0.0)))
-                break
-            r_i = self.r_shortest(x_i)
-            circles.append(Circle(r_i, (x_i, 0.0)))
-
-            r_o = ell_outer.r_shortest(x_i)
-            x_i = (x_i * (m - 1.0)) + (
-                m * e_i * np.sqrt(r_o * r_o - r_i * r_i)
-            )
-        circles_array = CirclesArray(circles)
-        circles_array.transform(
-            self.major_axis_angle,
-            dx=self.centre.x,
-            dy=self.centre.y,
-            pivot=(0.0, 0.0),
-        )
-        return circles_array
-
-    def get_patch(self, **kwargs) -> Patch:
-        xy = (float(self.centre.x), float(self.centre.y))
-        width = 2.0 * float(self.semi_major_length)
-        height = 2.0 * float(self.semi_minor_length)
-        angle = float(np.rad2deg(self.major_axis_angle))
-        return EllipsePatch(xy, width, height, angle=angle, **kwargs)
+# class GShape2D(GShape, PlotMixin):
+#     def __init__(self):
+#         super().__init__()
+
+#     @property
+#     def equivalent_radius(self) -> float:
+#         return np.sqrt(self.volume / np.pi)
+
+#     @property
+#     def centre(self) -> Point2D | tuple[float, float]:
+#         raise NotImplementedError(
+#             "Subclasses must implement the centre() method."
+#         )
+
+#     @property
+#     def major_axis_angle(self) -> float:
+#         raise NotImplementedError(
+#             "Subclasses must implement the major_axis_angle() method."
+#         )
+
+#     @property
+#     def pose(self) -> tuple[float, float, float]:
+#         """
+#         A triplet of (x, y, theta)
+#         """
+#         raise NotImplementedError(
+#             "Subclasses must implement the pose() method."
+#         )
+
+#     @property
+#     def bounding_box(self) -> BoundingBox:
+#         raise NotImplementedError(
+#             "Subclasses must implement the bounding_box() method."
+#         )
+
+#     def union_of_nspheres(self):
+#         raise NotImplementedError(
+#             "Subclasses must implement the union_of_nspheres() method."
+#         )
+
+#     def union_of_circles(self, *args, **kwargs) -> "CirclesArray":
+#         return self.union_of_nspheres(*args, **kwargs)
+
+#     @property
+#     def volume(self) -> DEFAULT_FLOAT:
+#         raise NotImplementedError(
+#             "Subclasses must implement the volume() method."
+#         )
+
+#     @property
+#     def area(self) -> DEFAULT_FLOAT:
+#         return DEFAULT_FLOAT(self.volume)
+
+#     @property
+#     def perimeter(self) -> DEFAULT_FLOAT:
+#         raise NotImplementedError(
+#             "Subclasses must implement the perimeter() method."
+#         )
+
+#     def translate_and_rotate(
+#         self, dx: float, dy: float, dtheta: float
+#     ) -> "GShape2D":
+#         raise NotImplementedError(
+#             "Subclasses must implement the translate_and_rotate() method."
+#         )
+
+
+# # TODO add magic methods for comparison, hashing, etc.
+
+# # ============================================================================
+# # region EllipticalArc
+
+
+# class EllipticalArc:
+#     __slots__ = (
+#         "semi_major_length",
+#         "semi_minor_length",
+#         "centre",
+#         "major_axis_angle",
+#         "theta_start",
+#         "theta_end",
+#         "aspect_ratio",
+#         "eccentricity",
+#         "_end_point_1",
+#         "_end_point_2",
+#     )
+
+#     def __init__(
+#         self,
+#         semi_major_length: FloatType,
+#         semi_minor_length: FloatType,
+#         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
+#         major_axis_angle: FloatType = 0.0,
+#         theta_start: FloatType = 0.0,
+#         theta_end: FloatType = TWO_PI,
+#     ):
+#         self.centre = Point2D(centre[0], centre[1])
+#         self.semi_major_length = semi_major_length
+#         self.semi_minor_length = semi_minor_length
+#         self.major_axis_angle = major_axis_angle
+#         self.theta_start = theta_start
+#         self.theta_end = theta_end
+
+#         self._post_init_()
+
+#     def _post_init_(self):
+#         if self.semi_minor_length <= 0.0:
+#             raise ValueError("Semi-minor axis must be positive")
+#         if self.semi_major_length < self.semi_minor_length:
+#             raise ValueError("Semi-major axis must be >= semi-minor axis")
+
+#         self.aspect_ratio = self.semi_major_length / self.semi_minor_length
+#         self.eccentricity = np.sqrt(
+#             1 - ((self.semi_minor_length / self.semi_major_length) ** 2)
+#         )
+
+#         self._end_point_1 = self.point_at_angle(self.theta_start)
+#         self._end_point_2 = self.point_at_angle(self.theta_end)
+
+#     @property
+#     def area(self) -> DEFAULT_FLOAT:
+#         area = (
+#             0.5
+#             * self.semi_major_length
+#             * self.semi_minor_length
+#             * (self.theta_end - self.theta_start)
+#         )
+#         return DEFAULT_FLOAT(area)
+
+#     def perimeter(
+#         self, closure: Literal["open", "e2e", "ece"] = "open"
+#     ) -> DEFAULT_FLOAT:
+#         """
+#         Computes the perimeter of the elliptical arc.
+
+#         Parameters
+#         ----------
+#         closure : str
+#             Type of closure for the arc. Options are:
+#             - "open": only the arc length is considered.
+#             - "e2e": the arc length and the chord length between
+#             the two endpoints are considered.
+#             - "ece": the arc length and the chord lengths from the
+#             endpoints to the centre are considered.
+#         """
+#         arc_length, _ = quad(
+#             self._arc_len_integrand, self.theta_start, self.theta_end
+#         )
+#         if closure not in ("open", "e2e", "ece"):
+#             raise ValueError(
+#                 f"Invalid closure type: {closure}. "
+#                 "Must be 'open', 'e2e', or 'ece'."
+#             )
+#         if closure == "open":
+#             perimeter = arc_length
+#         elif closure == "e2e":
+#             chord_len = self._end_point_1.distance_to(self._end_point_2)
+#             perimeter = arc_length + chord_len
+#         elif closure == "ece":
+#             chord_len_1 = self._end_point_1.distance_to(self.centre)
+#             chord_len_2 = self._end_point_2.distance_to(self.centre)
+#             perimeter = arc_length + chord_len_1 + chord_len_2
+#         return DEFAULT_FLOAT(perimeter)
+
+#     def _arc_len_integrand(self, theta: FloatType) -> FloatType:
+#         return np.hypot(
+#             self.semi_major_length * np.sin(theta),
+#             self.semi_minor_length * np.cos(theta),
+#         )
+
+#     def sample_points(
+#         self,
+#         num_points: Optional[int] = None,
+#         point_density: FloatType = 10.0,
+#     ) -> PointArray2D:
+#         """Samples points along the elliptical arc."""
+#         if num_points is None:
+#             num_points = max(16, int(point_density * self.perimeter()))
+
+#         theta = np.linspace(self.theta_start, self.theta_end, num_points)
+#         points = self.points_at_parametric_points(theta)
+#         if points is None:
+#             raise ValueError("Invalid points array")
+#         if len(points) == 0:
+#             raise ValueError("No points sampled along the arc")
+#         return points
+
+#     def point_at_angle(self, theta: FloatType) -> Point2D:
+#         """Returns the point on the ellipse at the given angle."""
+#         x = self.semi_major_length * np.cos(theta)
+#         y = self.semi_minor_length * np.sin(theta)
+#         return Point2D(x, y).transform(
+#             self.major_axis_angle, self.centre.x, self.centre.y
+#         )
+
+#     def points_at_parametric_points(self, theta: np.ndarray) -> PointArray2D:
+#         points = np.column_stack(
+#             (
+#                 self.semi_major_length * np.cos(theta),
+#                 self.semi_minor_length * np.sin(theta),
+#             )
+#         )
+#         points_arr = PointArray2D(points)
+
+#         points_arr.transform(
+#             self.major_axis_angle,
+#             self.centre.x,
+#             self.centre.y,
+#             in_place=True,
+#             pivot=(0.0, 0.0),
+#             order="RT",  # Rotate >> Translate
+#         )
+#         if points_arr is None:
+#             raise ValueError("Invalid points array")
+#         return points_arr
+
+#     def get_bounding_box(self) -> BoundingBox:
+#         raise NotImplementedError(
+#             "Bounding box for EllipticalArc is not implemented yet."
+#         )
+
+
+# # endregion EllipticalArc
+# # ============================================================================
+# # region CircularArc
+
+
+# class CircularArc(EllipticalArc):
+#     def __init__(
+#         self,
+#         radius: FloatType,
+#         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
+#         theta_1: FloatType = 0.0,
+#         theta_2: FloatType = TWO_PI,
+#     ):
+#         super().__init__(radius, radius, centre, 0.0, theta_1, theta_2)
+
+
+# # endregion CircularArc
+# # ============================================================================
+# # region Ellipse
+
+
+class Ellipse:
+#     __slots__ = (
+#         "arc",
+#         "_boundary_points",
+#         "_area",
+#         "_perimeter",
+#     )
+
+#     def __init__(
+#         self,
+#         semi_major_length: FloatType,
+#         semi_minor_length: FloatType,
+#         centre: Tuple[FloatType, FloatType] | Point2D = (0.0, 0.0),
+#         major_axis_angle: FloatType = 0.0,
+#     ):
+#         """
+#         Closed ellipse shape.
+
+#         Parameters
+#         ----------
+#         semi_major_length : FloatType
+#             Semi-major axis length.
+#         semi_minor_length : FloatType
+#             Semi-minor axis length.
+#         centre : Tuple[FloatType, FloatType]
+#             Centre of the ellipse in (x, y) coordinates.
+#         major_axis_angle : FloatType
+#             Angle of the major axis in radians.
+#         """
+#         super().__init__()
+#         self.arc = EllipticalArc(
+#             semi_major_length,
+#             semi_minor_length,
+#             centre,
+#             major_axis_angle,
+#             0.0,
+#             TWO_PI,
+#         )
+#         self._boundary_points = None
+
+    # def clone(self):
+    #     return self.__class__(
+    #         self.arc.semi_major_length,
+    #         self.arc.semi_minor_length,
+    #         self.arc.centre,
+    #         self.arc.major_axis_angle,
+    #     )
+
+    # def translate_and_rotate(
+    #     self, dx: float, dy: float, dtheta: float
+    # ) -> "Ellipse":
+    #     return self._class__(
+    #         self.arc.semi_major_length,
+    #         self.arc.semi_minor_length,
+    #         self.arc.centre + Point2D(dx, dy),
+    #         self.arc.major_axis_angle + dtheta,
+    #     )
+
+    # @property
+    # def semi_major_length(self) -> DEFAULT_FLOAT:
+    #     return DEFAULT_FLOAT(self.arc.semi_major_length)
+
+    # @property
+    # def semi_minor_length(self) -> DEFAULT_FLOAT:
+    #     return DEFAULT_FLOAT(self.arc.semi_minor_length)
+
+    # @property
+    # def centre(self) -> Point2D:
+    #     return self.arc.centre
+
+    # @centre.setter
+    # def centre(self, value: Tuple[FloatType, FloatType] | Point2D):
+    #     self.arc.centre = Point2D(value[0], value[1])
+
+    # @property
+    # def major_axis_angle(self) -> DEFAULT_FLOAT:
+    #     return DEFAULT_FLOAT(self.arc.major_axis_angle)
+
+    # @property
+    # def pose(self) -> tuple:
+    #     return (self.centre.x, self.centre.y, self.major_axis_angle)
+
+    # @property
+    # def aspect_ratio(self) -> DEFAULT_FLOAT:
+    #     return DEFAULT_FLOAT(self.arc.aspect_ratio)
+
+    # @property
+    # def eccentricity(self) -> DEFAULT_FLOAT:
+    #     return DEFAULT_FLOAT(self.arc.eccentricity)
+
+    # @property
+    # def bounding_box(self) -> BoundingBox:
+    #     return self.get_bounding_box()
+
+    # @property
+    # @lru_cache(maxsize=1)
+    # def area(self) -> DEFAULT_FLOAT:
+    #     """Area of the ellipse."""
+    #     if hasattr(self, "_area"):
+    #         return self._area
+    #     else:
+    #         self._area = DEFAULT_FLOAT(
+    #             PI * self.semi_major_length * self.semi_minor_length
+    #         )
+    #         return self._area
+
+    # @property
+    # def volume(self) -> DEFAULT_FLOAT:
+    #     """Calculates the volume of the ellipse as a cylinder."""
+    #     return DEFAULT_FLOAT(self.area)
+
+    # @property
+    # @lru_cache(maxsize=1)
+    # def perimeter(self) -> DEFAULT_FLOAT:
+    #     """Perimeter of the ellipse."""
+    #     if hasattr(self, "_perimeter"):
+    #         return self._perimeter
+    #     else:
+    #         self._perimeter = self.arc.perimeter()
+    #         return self._perimeter
+
+    # @classmethod
+    # def from_params(
+    #     cls,
+    #     positional_params: dict[str, float],
+    #     size_params: dict[str, float],
+    # ) -> "Ellipse":
+    #     """
+    #     Construct an Ellipse from parameter dictionaries.
+
+    #     Parameters
+    #     ----------
+    #     positional_params : dict
+    #         - 'xc': x-coordinate of the centre.
+    #         - 'yc': y-coordinate of the centre.
+    #         - 'major_axis_angle': Rotation angle in radians.
+    #     size_params : dict
+    #         - 'semi_major_length': Half-length of the primary axis.
+    #         - 'semi_minor_length': Half-length of the secondary axis.
+    #     """
+    #     pos_params = _validate_dict(
+    #         positional_params,
+    #         ["xc", "yc", "major_axis_angle"],
+    #         [float, float, float],
+    #         True,
+    #     )
+    #     if pos_params is None:
+    #         raise ValueError("Invalid positional_params")
+    #     xc, yc, theta = pos_params
+
+    #     sz_params = _validate_dict(
+    #         size_params,
+    #         ["semi_major_length", "semi_minor_length"],
+    #         [float, float],
+    #         True,
+    #     )
+    #     if sz_params is None:
+    #         raise ValueError("Invalid size_params")
+    #     semi_major, semi_minor = sz_params
+
+    #     return cls(
+    #         semi_major_length=semi_major,
+    #         semi_minor_length=semi_minor,
+    #         centre=(xc, yc),
+    #         major_axis_angle=theta,
+    #     )
+
+    # def eval_boundary_points(
+    #     self, num_points: Optional[int] = None, point_density: FloatType = 10.0
+    # ) -> None:
+    #     """Evaluate boundary points of the ellipse."""
+    #     if self._boundary_points is None:
+    #         self._boundary_points = self.arc.sample_points(
+    #             num_points, point_density
+    #         )
+
+    # def get_boundary_points(
+    #     self, num_points: int = 100, point_density: FloatType = 10.0
+    # ) -> PointArray2D:
+    #     """Returns the boundary points of the ellipse."""
+    #     self.eval_boundary_points(num_points, point_density)
+    #     if self._boundary_points is None:
+    #         raise ValueError("Boundary points is not available")
+    #     return self._boundary_points
+
+    # def get_bounding_box(self) -> BoundingBox:
+    #     a2, b2 = self.semi_major_length**2, self.semi_minor_length**2
+    #     cos_2 = np.cos(self.major_axis_angle) ** 2
+    #     sin_2 = np.sin(self.major_axis_angle) ** 2
+    #     hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
+    #     hy = np.sqrt(a2 * sin_2 + b2 * cos_2)
+    #     x_min = self.centre.x - hx
+    #     x_max = self.centre.x + hx
+    #     y_min = self.centre.y - hy
+    #     y_max = self.centre.y + hy
+    #     return BoundingBox([x_min, y_min], [x_max, y_max])
+
+    # def contains(
+    #     self, p: Point2D | Tuple[FloatType, FloatType], atol: FloatType = 1e-6
+    # ) -> Literal[-1, 0, 1]:
+    #     """Checks if a point is inside, on, or outside the ellipse.
+
+    #     Returns
+    #     -------
+    #     -1 : point is outside the ellipse
+    #     0 : point is on the ellipse
+    #     1 : point is inside the ellipse
+
+    #     """
+    #     p = Point2D(p[0], p[1]).transform(
+    #         -self.major_axis_angle,
+    #         -self.centre.x,
+    #         -self.centre.y,
+    #         order="TR",  # Translate >> Rotate as we are moving backwards
+    #     )
+    #     val = (p.x**2 / self.semi_major_length**2) + (
+    #         p.y**2 / self.semi_minor_length**2
+    #     )
+    #     if val > 1.0 + atol:
+    #         return -1
+    #     if val < 1.0 - atol:
+    #         return 1
+    #     return 0
+
+    # def r_shortest(self, xi: FloatType) -> DEFAULT_FLOAT:
+    #     """Evaluates the shortest distance to the ellipse locus
+    #     from a point on the major axis located at a distance xi
+    #     from the centre of the ellipse.
+    #     """
+    #     if self.semi_major_length == self.semi_minor_length:
+    #         return DEFAULT_FLOAT(self.semi_minor_length)
+    #     else:
+    #         r_min = self.semi_minor_length * np.sqrt(
+    #             1.0
+    #             - (
+    #                 (xi * xi)
+    #                 / (self.semi_major_length**2 - self.semi_minor_length**2)
+    #             )
+    #         )
+    #         return DEFAULT_FLOAT(r_min)
+
+    # def union_of_nspheres(self, dh: FloatType = 0.0) -> "CirclesArray":
+    #     # raise NotImplementedError("uns is not implemented")
+    #     if self.aspect_ratio == 1.0:
+    #         return CirclesArray([Circle(self.semi_major_length, self.centre)])
+
+    #     assert dh >= 0, f"Expecting buffer dh >= 0, but got {dh}."
+
+    #     ell_outer = Ellipse(
+    #         self.semi_major_length * (1.0 + dh),
+    #         self.semi_minor_length * (1.0 + dh),
+    #         self.centre,
+    #         self.major_axis_angle,
+    #     )
+    #     e_i: FloatType = self.eccentricity
+    #     e_o: FloatType = ell_outer.eccentricity
+    #     m: FloatType = 2.0 * e_o * e_o / (e_i * e_i)
+
+    #     def min_radius() -> FloatType:  # r_min : b^2/a
+    #         r_min = (
+    #             self.semi_minor_length**2
+    #         ) / self.semi_major_length  # r_min : b^2/a
+    #         return DEFAULT_FLOAT(r_min)
+
+    #     x_max = self.semi_major_length * e_i * e_i  # x range: (-ae^2, ae^2)
+    #     r_min = min_radius()
+    #     x_i = -1.0 * x_max  # start at x = -ae^2
+    #     circles: List[Circle] = []
+
+    #     # return CirclesArray([Circle(r_min, (x_max, 0.0))])
+    #     while True:
+    #         if x_i > x_max:
+    #             circles.append(Circle(r_min, (x_max, 0.0)))
+    #             break
+    #         r_i = self.r_shortest(x_i)
+    #         circles.append(Circle(r_i, (x_i, 0.0)))
+
+    #         r_o = ell_outer.r_shortest(x_i)
+    #         x_i = (x_i * (m - 1.0)) + (
+    #             m * e_i * np.sqrt(r_o * r_o - r_i * r_i)
+    #         )
+    #     circles_array = CirclesArray(circles)
+    #     circles_array.transform(
+    #         self.major_axis_angle,
+    #         dx=self.centre.x,
+    #         dy=self.centre.y,
+    #         pivot=(0.0, 0.0),
+    #     )
+    #     return circles_array
+
+    # def get_patch(self, **kwargs) -> Patch:
+    #     xy = (float(self.centre.x), float(self.centre.y))
+    #     width = 2.0 * float(self.semi_major_length)
+    #     height = 2.0 * float(self.semi_minor_length)
+    #     angle = float(np.rad2deg(self.major_axis_angle))
+    #     return EllipsePatch(xy, width, height, angle=angle, **kwargs)
 
 
 # endregion Ellipse
