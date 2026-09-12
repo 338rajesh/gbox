@@ -48,9 +48,7 @@ class Shape2DPosition:
             self.y += dy
             self.theta += rot_angle
             return self
-        return Shape2DPosition(
-            self.x + dx, self.y + dy, self.theta + rot_angle
-        )
+        return Shape2DPosition(self.x + dx, self.y + dy, self.theta + rot_angle)
 
 
 class Shape2D(ABC):
@@ -59,21 +57,22 @@ class Shape2D(ABC):
     def position(self) -> Shape2DPosition:
         pass
 
+    @property
     @abstractmethod
-    def area(self):
-        pass
-
-    @abstractmethod
-    def perimeter(self):
+    def area(self) -> float:
         pass
 
     @property
     @abstractmethod
-    def equivalent_circle_radius(self):
+    def perimeter(self) -> float:
         pass
 
+    @property
+    def equivalent_circle_radius(self) -> float:
+        return float(np.sqrt(self.area / np.pi))
+
     @abstractmethod
-    def contains_point(self, point):
+    def contains_point(self, point) -> bool:
         pass
 
     @abstractmethod
@@ -84,9 +83,7 @@ class Shape2D(ABC):
         """
         Returns the bounding box of the shape as a tuple (min_x, min_y, max_x, max_y).
         """
-        raise NotImplementedError(
-            "Bounding box method not implemented for this shape."
-        )
+        raise NotImplementedError("Bounding box method not implemented for this shape.")
 
 
 class Shapes2DArray(ABC):
@@ -143,8 +140,8 @@ class Ellipse(Shape2D):
         semi_major_length = _validate_positive_float(
             semi_major_length, "semi_major_length"
         )
-        semi_minor_length = _validate_float(
-            semi_minor_length, "semi_major_length"
+        semi_minor_length = _validate_positive_float(
+            semi_minor_length, "semi_minor_length"
         )
         if semi_major_length < semi_minor_length:
             raise ValueError("Semi-major axis must be >= semi-minor axis")
@@ -177,13 +174,15 @@ class Ellipse(Shape2D):
 
     @property
     def eccentricity(self) -> float:
-        return np.sqrt(
-            1 - ((self._semi_minor_length / self._semi_major_length) ** 2)
-        )
+        return np.sqrt(1 - ((self._semi_minor_length / self._semi_major_length) ** 2))
 
     @property
     def position(self) -> Shape2DPosition:
         return self._position
+
+    @property
+    def centre(self) -> tuple[float, float]:
+        return (self._position.x, self._position.y)
 
     @property
     def theta_start(self) -> float:
@@ -209,11 +208,9 @@ class Ellipse(Shape2D):
         )
 
     @property
-    def perimeter(self):
+    def perimeter(self) -> float:
         """Perimeter of the ellipse along the arc connecting the two endpoints."""
-        return quad(
-            self._arc_length_integrand, self._theta_start, self._theta_end
-        )[0]
+        return quad(self._arc_length_integrand, self._theta_start, self._theta_end)[0]
 
     @property
     def bounding_box(self) -> list[float]:
@@ -226,18 +223,14 @@ class Ellipse(Shape2D):
         sin_2 = np.sin(self._position.theta) ** 2
         hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
         hy = np.sqrt(a2 * sin_2 + b2 * cos_2)
-        return [
-            self._position.centre.x - hx,
-            self._position.centre.y - hy,
-            self._position.centre.x + hx,
-            self._position.centre.y + hy,
-        ]
+        cx, cy = self._position.x, self._position.y
+        return [cx - hx, cy - hy, cx + hx, cy + hy]
 
     def clone(self) -> Self:
         return self.__class__(
             self._semi_major_length,
             self._semi_minor_length,
-            self._position.centre,
+            self.centre,
             self._position.theta,
             self._theta_start,
             self._theta_end,
@@ -272,9 +265,7 @@ class Ellipse(Shape2D):
             order="rotation_then_translation",
         )
         if not isinstance(points_arr, PointArray2D) or len(points_arr) == 0:
-            raise ValueError(
-                "Invalid points array or no points sampled along the arc"
-            )
+            raise ValueError("Invalid points array or no points sampled along the arc")
 
         return points_arr
 
@@ -286,8 +277,9 @@ class Ellipse(Shape2D):
             self._position.theta, self._position.x, self._position.y
         )
 
-    def _origin_to_position(self) -> Self:
-        self._position.transform(in_place=True)
+    def _origin_to_position(self, pose: Shape2DPosition) -> Self:
+        """It transforms the ellipse from the origin to the specified position."""
+        self._position.transform(pose.theta, pose.x, pose.y, in_place=True)
         return self
 
     @classmethod
@@ -336,7 +328,7 @@ class Ellipse(Shape2D):
             size_params.get("theta_end", np.pi * 2.0),
         )
 
-    def contains(
+    def contains_point(
         self, p: Point2D | Sequence[float], atol: float = 1e-6
     ) -> Literal[-1, 0, 1]:
         """Checks if a point is inside, on, or outside the ellipse.
@@ -359,7 +351,7 @@ class Ellipse(Shape2D):
             -self._position.theta,
             -self._position.x,
             -self._position.y,
-            order="TR",  # Translate >> Rotate as we are moving backwards
+            order="translate_then_rotate",
         )
         val = (p.x**2 / self._semi_major_length**2) + (
             p.y**2 / self._semi_minor_length**2
@@ -372,26 +364,63 @@ class Ellipse(Shape2D):
 
     def r_shortest(self, xi: float) -> float:
         """Evaluates the shortest distance to the ellipse locus
-        from a point on the major axis located at a distance xi
-        from the centre of the ellipse.
+        from a point on the major axis located at a distance ``xi``
+        from the centre of the ellipse. This distance is the radius
+        of the circle that is tangent to the ellipse at the point,
+        assuming that the ellipse is centered at the origin and its
+        major axis is aligned with the x-axis.
+
+        Parameters
+        ----------
+        xi : float
+            The x-coordinate of the point on the major axis from which
+            the shortest distance to the ellipse is calculated.
+
+        Returns
+        -------
+        float
+            The shortest distance (radius) from the point on the major axis
+            to the ellipse locus.
+
+        Notes
+        -----
+        The formula used to calculate the shortest distance is derived from
+        the equation of the ellipse and the geometry of the situation.
+
+        $$r_{min} = b \\sqrt{1 - \\frac{x_i^2}{a^2 - b^2}}$$
+
         """
         if self._semi_major_length == self._semi_minor_length:
             return self.semi_minor_length
 
         r_min = self.semi_minor_length * np.sqrt(
-            1.0
-            - (
-                (xi * xi)
-                / (self.semi_major_length**2 - self.semi_minor_length**2)
-            )
+            1.0 - ((xi * xi) / (self.semi_major_length**2 - self.semi_minor_length**2))
         )
         return float(r_min)
 
-    def union_of_circles(self, dh: float = 0.0) -> list:
-        # raise NotImplementedError("uns is not implemented")
+    def union_of_circles(self, dh: float = 0.05) -> list:
+        """
+        Approximates the ellipse as a union of circles along its major axis.
+
+        Parameters
+        ----------
+        dh : float, optional
+            The buffer thickness for the outer ellipse used to determine the
+            spacing of the circles. Must be greater than 0. Default is 0.05
+
+        Returns
+        -------
+        list of Circle
+            A list of Circle objects that approximate the ellipse.
+
+        """
         if self.aspect_ratio == 1.0:
             return [Circle(self.semi_major_length, self.centre)]
 
+        if dh <= 0.0:
+            raise ValueError(
+                "buffer thickness dh must be > 0 for union_of_circles to converge"
+            )
         _validate_float(
             dh,
             low=0.0,
@@ -430,27 +459,11 @@ class Ellipse(Shape2D):
             circles.append(Circle(r_i, (x_i, 0.0)))
 
             r_o = ell_outer.r_shortest(x_i)
-            x_i = (x_i * (m - 1.0)) + (
-                m * e_i * np.sqrt(r_o * r_o - r_i * r_i)
-            )
+            gap = max(r_o * r_o - r_i * r_i, 0.0)  # gap between circles
+            x_i = (x_i * (m - 1.0)) + (m * e_i * np.sqrt(gap))
 
-        # move circles to position
-        # TODO real bug in moving circles to the position
-        circles_array = [c._origin_to_position() for c in circles]
-        # circles_array.transform(
-        #     self.major_axis_angle,
-        #     dx=self.centre.x,
-        #     dy=self.centre.y,
-        #     pivot=(0.0, 0.0),
-        # )
+        circles_array = [c._origin_to_position(self._position) for c in circles]
         return circles_array
-
-    # def get_patch(self, **kwargs) -> Patch:
-    #     xy = (float(self.centre.x), float(self.centre.y))
-    #     width = 2.0 * float(self.semi_major_length)
-    #     height = 2.0 * float(self.semi_minor_length)
-    #     angle = float(np.rad2deg(self.major_axis_angle))
-    #     return EllipsePatch(xy, width, height, angle=angle, **kwargs)
 
 
 class Circle(Ellipse):
@@ -469,10 +482,134 @@ class Circle(Ellipse):
             theta_end=theta_end,
         )
 
+    @property
+    def radius(self) -> float:
+        return self._semi_major_length
 
-class Rectangle(Shape2D):
-    pass
+    def clone(self) -> Self:
+        return self.__class__(
+            self._semi_major_length, self.centre, self._theta_start, self._theta_end
+        )
 
 
 class CirclesArray(Shapes2DArray):
-    pass
+    """A vectorized collection of circles that can be moved and rotated
+    together as a single rigid group.
+    """
+
+    __slots__ = ("_centres", "_radii")
+
+    def __init__(
+        self,
+        centres: PointArray2D | Sequence[tuple[float, float]],
+        radii: Sequence[float] | float,
+    ):
+        if not isinstance(centres, PointArray2D):
+            centres = PointArray2D.from_named_dims(
+                x=np.asarray([c[0] for c in centres], dtype=float),
+                y=np.asarray([c[1] for c in centres], dtype=float),
+            )
+        radii = np.asarray(radii, dtype=float)
+        if radii.ndim == 0:
+            radii = np.full(len(centres), float(radii))
+        if len(radii) != len(centres):
+            raise ValueError("radii length must match number of centres")
+        if np.any(radii <= 0):
+            raise ValueError("all radii must be positive")
+
+        self._centres = centres
+        self._radii = radii
+
+    def __len__(self) -> int:
+        return len(self._radii)
+
+    @property
+    def centres(self) -> PointArray2D:
+        return self._centres
+
+    @property
+    def radii(self) -> np.ndarray:
+        return self._radii
+
+    @classmethod
+    def from_circles(cls, circles: Sequence[Circle]) -> Self:
+        centres = [(c.position.x, c.position.y) for c in circles]
+        radii = [c.radius for c in circles]
+        return cls(centres, radii)
+
+    def to_circles(self) -> list[Circle]:
+        return [
+            Circle(float(r), (float(p.x), float(p.y)))
+            for p, r in zip(self._centres, self._radii)
+        ]
+
+    def clone(self) -> Self:
+        return self.__class__(self._centres.clone(), self._radii.copy())
+
+    def translate(self, dx: float, dy: float, in_place: bool = False) -> Self:
+        """Moves every circle in the group by the same (dx, dy)."""
+        target = self if in_place else self.clone()
+        target._centres.transform(
+            0.0,
+            dx,
+            dy,
+            in_place=True,
+            pivot=(0.0, 0.0),
+            order="rotation_then_translation",
+        )
+        return target
+
+    def rotate(
+        self,
+        rot_angle: float,
+        pivot: tuple[float, float] = (0.0, 0.0),
+        in_place: bool = False,
+    ) -> Self:
+        """Rotates every circle's centre about `pivot` by `rot_angle`.
+        Circle radii are unaffected by rotation.
+        """
+        target = self if in_place else self.clone()
+        target._centres.transform(
+            rot_angle,
+            0.0,
+            0.0,
+            in_place=True,
+            pivot=pivot,
+            order="rotation_then_translation",
+        )
+        return target
+
+    def transform(
+        self,
+        rot_angle: float = 0.0,
+        dx: float = 0.0,
+        dy: float = 0.0,
+        pivot: tuple[float, float] = (0.0, 0.0),
+        in_place: bool = False,
+    ) -> Self:
+        """Combined rotate-then-translate of the whole group, rotating about
+        `pivot`.
+        """
+        target = self if in_place else self.clone()
+        target._centres.transform(
+            rot_angle,
+            dx,
+            dy,
+            in_place=True,
+            pivot=pivot,
+            order="rotation_then_translation",
+        )
+        return target
+
+    def total_area(self) -> float:
+        return float(np.sum(np.pi * self._radii**2))
+
+    def bounding_box(self) -> list[float]:
+        xs, ys = self._centres.x, self._centres.y
+        return [
+            float(np.min(xs - self._radii)),
+            float(np.min(ys - self._radii)),
+            float(np.max(xs + self._radii)),
+            float(np.max(ys + self._radii)),
+        ]
+
