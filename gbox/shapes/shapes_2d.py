@@ -229,6 +229,10 @@ class Ellipse(Shape2D):
         point_density: float = 10.0,
     ) -> np.ndarray:
         """Samples points along the elliptical arc."""
+        if num_points is None or (isinstance(num_points, int) and num_points < 1):
+            raise ValueError(
+                f"num_points must be a positive integer,Got {num_points!r} instead."
+            )
         num_points = _validate_positive_int(
             num_points or max(16, int(point_density * self.perimeter)),
             name="num_points",
