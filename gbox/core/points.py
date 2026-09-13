@@ -1,17 +1,17 @@
 import math
 from collections.abc import Iterator, Sequence
-from typing import Literal, Union, Any, Self
+from typing import Union, Any, Self
 
 import numpy as np
 import numpy.typing as npt
 
-from .transformation import (
-    AngleUnits,
-    transform_points,
-    transformation_matrix_2d,
-    transformation_matrix_3d,
+from .transformation import transform_point_2d, transformation_matrix_2d
+from .utils import (
+    _assert_a_sequence,
+    _assert_a_sequence_of_numbers,
+    Angle,
+    TransformationOrder,
 )
-from .utils import _assert_a_sequence, _assert_a_sequence_of_numbers
 
 
 class PointND:
@@ -56,8 +56,14 @@ class PointND:
         """Returns the number of coordinates in the point"""
         return len(self.coordinates)
 
-    def __getitem__(self, idx: int) -> float:
-        """Returns the coordinate at the given index"""
+    def __eq__(self, other: Any) -> bool:
+        """Checks if the current point is equal to another point"""
+        if not isinstance(other, PointND):
+            return False
+        return self.coordinates == other.coordinates
+
+    def __getitem__(self, idx: int | slice) -> float | Sequence[float]:
+        """Returns the coordinate(s) at the given index or slice"""
         return self.coordinates[idx]
 
     def __iter__(self) -> Iterator[float]:
@@ -76,9 +82,7 @@ class PointND:
         """Returns the dimension of the point"""
         return len(self.coordinates)
 
-    def _check_same_dimension(
-        self, other: Union["PointND", Sequence[float]]
-    ) -> None:
+    def _check_same_dimension(self, other: Union["PointND", Sequence[float]]) -> None:
         """Asserts that the current point and other point have the same dimension"""
         if isinstance(other, PointND):
             other_dim = other.dim
@@ -87,9 +91,7 @@ class PointND:
             other_dim = len(other)
 
         if self.dim != other_dim:
-            raise ValueError(
-                f"Dimension mismatch: {self.dim}D vs {other_dim}D"
-            )
+            raise ValueError(f"Dimension mismatch: {self.dim}D vs {other_dim}D")
 
     # =================================
     #       GEOMETRIC PROPERTIES
@@ -202,9 +204,7 @@ class Point2D(PointND):
     def y(self) -> float:
         return self.coordinates[1]
 
-    def slope(
-        self, q: Union["Point2D", Sequence[float]], eps: float = 1e-06
-    ) -> float:
+    def slope(self, q: Union["Point2D", Sequence[float]], eps: float = 1e-06) -> float:
         """Returns the slope of the line joining the current point and other
         point 'q'.
 
@@ -229,9 +229,7 @@ class Point2D(PointND):
 
         return float((q.y - self.y) / dx)
 
-    def angle(
-        self, q: Union["Point2D", Sequence[float]], degrees=False
-    ) -> float:
+    def angle(self, q: Union["Point2D", Sequence[float]], degrees=False) -> Angle:
         """Returns the angle between the current point and other point `q` in
         radians or degrees, measured counter-clockwise from the positive x-axis.
 
@@ -244,13 +242,13 @@ class Point2D(PointND):
 
         Returns
         -------
-        float
-            The measured angle
+        Angle
+            The measured angle between the current point and other point `q`.
 
         Examples
         --------
         >>> Point2D(1.0, 2.0).angle([3.0, 4.0])
-        0.7853981633974483
+        Angle(0.7853981633974483, 'rad')
 
         """
         q = self.__class__.from_sequence(q)
@@ -259,19 +257,19 @@ class Point2D(PointND):
         if angle < 0:
             angle += 2 * math.pi
 
-        return math.degrees(angle) if degrees else angle
+        if degrees:
+            return Angle.deg(math.degrees(angle))
+        else:
+            return Angle.rad(angle)
 
     def transform(
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        angle: float = 0.0,
+        angle: Angle = Angle.rad(0.0),
         *,
-        angle_units: AngleUnits = "radians",
         pivot: Union["Point2D", Sequence[float]] = (0.0, 0.0),
-        order: Literal[
-            "rotate_then_translate", "translate_then_rotate"
-        ] = "rotate_then_translate",
+        order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
     ) -> "Point2D":
         """Returns a new point transformed by rotation and translation
         around the given pivot point.
@@ -282,10 +280,8 @@ class Point2D(PointND):
             Translation in the x-direction, defaults to 0.0
         dy : float
             Translation in the y-direction, defaults to 0.0
-        angle : float
-            Rotation angle in radians (or degrees if `degrees=True`), defaults to 0.
-        angle_units : AngleUnits
-            Units of the angle, either "radians" or "degrees", defaults to "radians"
+        angle : Angle
+            Rotation angle in radians or degrees, defaults to 0.0 radians
         pivot : Union["Point2D", Sequence[float]]
             The pivot point for rotation, defaults to (0.0, 0.0)
         order : Literal["rotate_then_translate", "translate_then_rotate"]
@@ -299,17 +295,17 @@ class Point2D(PointND):
         Point2D
             The transformed point
         """
-        transformation_martrix = transformation_matrix_2d(
-            angle=angle,
+        pivot = self.__class__.from_sequence(pivot)
+        px, py = transform_point_2d(
+            x=self.x,
+            y=self.y,
             dx=dx,
             dy=dy,
-            angle_units=angle_units,
-            pivot=pivot,
+            angle=angle,
+            pivot=pivot.coordinates,
             order=order,
         )
-        points = np.array([[self.x, self.y]], dtype=np.float64)
-        _p = transform_points(points=points, matrix=transformation_martrix)
-        return self.__class__(_p[0, 0], _p[0, 1])
+        return self.__class__(px, py)
 
 
 # ===========================================================================
@@ -339,6 +335,9 @@ class Point3D(PointND):
     def z(self) -> float:
         return self.coordinates[2]
 
+
+ORIGIN_2D = Point2D(0.0, 0.0)
+ORIGIN_3D = Point3D(0.0, 0.0, 0.0)
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -380,8 +379,7 @@ class PointArrayND:
             points = np.asarray(points, dtype=dtype)
         except (TypeError, ValueError) as e:
             raise TypeError(
-                "PointArray construction requires a sequence "
-                "of points or a NumpyArray"
+                "PointArray construction requires a sequence of points or a NumpyArray"
             ) from e
 
         if points.ndim != 2:
@@ -405,9 +403,7 @@ class PointArrayND:
             return cls(sequences)
 
         if names is not None and len(names) != len(sequences):
-            raise ValueError(
-                f"Expected {len(sequences)} names, got {len(names)}"
-            )
+            raise ValueError(f"Expected {len(sequences)} names, got {len(names)}")
 
         _assert_a_sequence(sequences, name="sequence of dimensions")
 
@@ -434,9 +430,7 @@ class PointArrayND:
         if not data:
             raise ValueError("Input dictionary is empty")
 
-        return cls.from_dim_sequences(
-            list(data.values()), names=list(data.keys())
-        )
+        return cls.from_dim_sequences(list(data.values()), names=list(data.keys()))
 
     # ============================
     #       MAGIC METHODS
@@ -462,9 +456,7 @@ class PointArrayND:
         )
 
     def __str__(self) -> str:
-        return (
-            f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
-        )
+        return f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
 
     # ============================
     #       POINT PROPERTIES
@@ -551,122 +543,62 @@ class PointArray2D(PointArrayND):
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        angle: float = 0.0,
+        angle: Angle = Angle.rad(0.0),
         *,
-        angle_units: AngleUnits = "radians",
-        pivot: Sequence[float] = (0.0, 0.0),
+        pivot: Sequence[float] | Point2D = ORIGIN_2D,
         in_place: bool = False,
-        order: Literal[
-            "rotate_then_translate", "translate_then_rotate"
-        ] = "rotate_then_translate",
-    ) -> Union["PointArray2D", None]:
+        order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
+    ) -> Self | None:
         """Transformation of the points cluster by rotation and translation,
-        either in-place or returning a new PointArray2D
+        either in-place or returning a new PointArray2D. Note that at this
+        time, individual points cannot be transformed, only the entire cluster
+        as a whole.
 
         Parameters
         ----------
-        angle : float
-            Angle of rotation in radians, default: 0.0
         dx : float
             Translation along x axis, default: 0.0
         dy : float
             Translation along y axis, default: 0.0
-        angle_units : AngleUnits
-            Units of the angle, either "radians" or "degrees", default: "radians"
-        pivot : tuple[float, float]
+        angle : Angle
+            Angle of rotation, default: Angle.rad(0.0). See :class:`Angle` for more details.
+        pivot : tuple[float, float] or Point2D
             Pivot point for rotation, default: (0.0, 0.0)
         in_place : bool
             If True, the transformation is applied in-place and the method returns None.
             If False, a new PointArray2D is returned with the transformed points.
-        order : str
-            Order of operations, either "rotate_then_translate" or
-            "translate_then_rotate", default: "rotate_then_translate"
+        order : TransformationOrder
+            Order of transformations, default: TransformationOrder.ROTATE_THEN_TRANSLATE.
+            see :class:`TransformationOrder` for more details.
 
         Returns
         -------
-        PointArray2D
+        PointArray2D or None
+            If in_place is False, returns a new PointArray2D with the transformed points.
+            If in_place is True, returns None and modifies the current PointArray2D in-place
 
         """
+        pivot = Point2D.from_sequence(pivot)
         transformation_matrix = transformation_matrix_2d(
-            angle=angle,
             dx=dx,
             dy=dy,
-            angle_units=angle_units,
-            pivot=pivot,
+            angle=angle,
+            pivot=pivot.coordinates,
             order=order,
         )
 
-        _p = transform_points(
-            points=self._coordinates,
-            transformation_matrix=transformation_matrix,
+        # Convert to homogeneous coordinates
+        points = np.column_stack(
+            (self._coordinates, np.ones(len(self), dtype=np.float64))
         )
 
-        if in_place:
-            self._coordinates = _p
-            return None
+        # Apply the transformation matrix to the points
+        transformed_points = (points @ transformation_matrix.T)[:, :2]
 
-        return self.__class__(_p)
+        if not in_place:
+            return self.__class__(transformed_points)
+        else:
+            self._coordinates = np.ascontiguousarray(transformed_points)
 
 
 # endregion PointArray2D
-# region PointArray3D
-
-
-class PointArray3D(PointArrayND):
-    """PointArray3D, a subclass of PointArray, with three dimensions"""
-
-    __slots__ = ()
-
-    def __init__(
-        self, points: npt.NDArray[np.float64] | Sequence[Sequence[float]]
-    ) -> None:
-        super().__init__(points)
-
-        if self.dim != 3:
-            raise ValueError(f"PointArray3D must have 3 dims, got {self.dim}D")
-
-    @property
-    def x(self) -> np.ndarray:
-        return self._coordinates[:, 0]
-
-    @property
-    def y(self) -> np.ndarray:
-        return self._coordinates[:, 1]
-
-    @property
-    def z(self) -> np.ndarray:
-        return self._coordinates[:, 2]
-
-    def transform(
-        self,
-        *,
-        angles: tuple[float, float, float] = (0.0, 0.0, 0.0),
-        dx: float = 0.0,
-        dy: float = 0.0,
-        dz: float = 0.0,
-        angle_units: AngleUnits = "radians",
-        pivot: tuple[float, float, float] = (0.0, 0.0, 0.0),
-        in_place: bool = False,
-        order: str = "rotate_then_translate",
-        rotation_order: str = "xyz",
-    ) -> Union["PointArray3D", None]:
-        transformation_matrix = transformation_matrix_3d(
-            angles=angles,
-            dx=dx,
-            dy=dy,
-            dz=dz,
-            angle_units=angle_units,
-            pivot=pivot,
-            order=order,
-            rotation_order=rotation_order,
-        )
-        _p = transform_points(
-            points=self._coordinates,
-            transformation_matrix=transformation_matrix,
-        )
-
-        if in_place:
-            self._coordinates = _p
-            return None
-
-        return self.__class__(_p)

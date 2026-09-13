@@ -4,7 +4,6 @@ from .core.points import (
     Point3D,
     PointArrayND,
     PointArray2D,
-    PointArray3D,
 )
 
 __all__ = [
@@ -13,5 +12,4 @@ __all__ = [
     "Point3D",
     "PointArrayND",
     "PointArray2D",
-    "PointArray3D",
 ]
