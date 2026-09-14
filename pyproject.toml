@@ -32,6 +32,7 @@ repository = "https://github.com/338rajesh/gbox"
 
 [dependency-groups]
 dev = [
+    "ipykernel>=7.3.0",
     "numpydoc==1.8.0",
     "pydata-sphinx-theme>=0.16.1",
     "pytest>=8.4.1",

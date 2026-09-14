@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from collections.abc import Sequence
 from typing import Any
@@ -12,12 +13,17 @@ matplotlib.use("Agg")
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.collections import PatchCollection
 from matplotlib.figure import Figure
-from matplotlib.patches import Ellipse as MplEllipse
+from matplotlib.patches import Ellipse as MplEllipse, Circle as MplCircle
 
 import numpy as np
 import numpy.typing as npt
 
 from ..core.utils import _validate_tuple, _validate_int, Bounds2DRectangular
+from ..shapes.shapes_2d import (
+    Circle as GBCircle,
+    Ellipse as GBEllipse,
+    CirclesArray as GBCirclesArray,
+)
 
 
 class ShapesPlotter:
@@ -135,6 +141,7 @@ class ShapesPlotter:
         """
 
         bounds = Bounds2DRectangular.from_sequence(bounds)
+        self._check_aspect_ratio(bounds)
 
         width, height = self._size
 
@@ -178,6 +185,32 @@ class ShapesPlotter:
 
         return image
 
+    def _check_aspect_ratio(
+        self,
+        bounds: Bounds2DRectangular,
+        *,
+        rel_tol: float = 1e-6,
+    ) -> None:
+        """
+        Ensure the requested bounds have the same aspect ratio as the
+        output image size, since ``set_aspect("equal")`` requires this
+        to fill the canvas without distortion or letterboxing.
+        """
+        width, height = self._size
+        image_ratio = width / height
+        bounds_ratio = (bounds.x_max - bounds.x_min) / (
+            bounds.y_max - bounds.y_min
+        )
+
+        if not math.isclose(image_ratio, bounds_ratio, rel_tol=rel_tol):
+            raise ValueError(
+                f"Image size {self._size} has aspect ratio {image_ratio:.6g} "
+                f"(width/height), but bounds {bounds} have aspect ratio "
+                f"{bounds_ratio:.6g} ((x_max-x_min)/(y_max-y_min)). These "
+                "must match so that 'equal' aspect scaling fills the full "
+                "canvas without letterboxing."
+            )
+
     def _add_shapes(self, ax, shapes) -> None:
         """
         Convert supported geometry objects into Matplotlib collections.
@@ -217,19 +250,17 @@ class ShapesPlotter:
         """
         Add a sequence of individual shapes.
 
-        Individual shapes are grouped into a single 
+        Individual shapes are grouped into a single
         PatchCollection where possible.
         """
-        from ..shapes.shapes_2d import Circle, Ellipse, CirclesArray
-
         patches = []
 
         for shape in shapes:
-            if isinstance(shape, Circle):
+            if isinstance(shape, GBCircle):
                 patches.append(self._circle_to_patch(shape))
-            elif isinstance(shape, Ellipse):
+            elif isinstance(shape, GBEllipse):
                 patches.append(self._ellipse_to_patch(shape))
-            elif isinstance(shape, CirclesArray):
+            elif isinstance(shape, GBCirclesArray):
                 # Keep vectorized circle arrays on their optimized path.
                 if patches:
                     self._add_patch_collection(ax, patches)
@@ -244,23 +275,23 @@ class ShapesPlotter:
         if patches:
             self._add_patch_collection(ax, patches)
 
-    def _add_circle(self, ax, circle) -> None:
+    def _add_circle(self, ax, circle: GBCircle) -> None:
         self._add_patch_collection(
             ax,
             [self._circle_to_patch(circle)],
         )
 
-    def _add_ellipse(self, ax, ellipse) -> None:
+    def _add_ellipse(self, ax, ellipse: GBEllipse) -> None:
         self._add_patch_collection(
             ax,
             [self._ellipse_to_patch(ellipse)],
         )
 
-    def _add_circles_array(self, ax, circles) -> None:
+    def _add_circles_array(self, ax, circles: GBCirclesArray) -> None:
         """
         Add a CirclesArray as a single PatchCollection.
         """
-        from matplotlib.patches import Circle as MplCircle
+        # from matplotlib.patches import Circle as MplCircle
 
         patches = [
             MplCircle(
@@ -277,7 +308,10 @@ class ShapesPlotter:
         if patches:
             self._add_patch_collection(ax, patches)
 
-    def _circle_to_patch(self, circle):
+    def _circle_to_patch(self, circle: GBCircle) -> MplCircle:
+        """
+        Convert a Circle geometry object to a Matplotlib circle patch
+        """
         from matplotlib.patches import Circle as MplCircle
 
         return MplCircle(
@@ -288,7 +322,7 @@ class ShapesPlotter:
             radius=float(circle.radius),
         )
 
-    def _ellipse_to_patch(self, ellipse):
+    def _ellipse_to_patch(self, ellipse: GBEllipse):
         """
         Convert an Ellipse geometry object to a Matplotlib ellipse patch.
         """
@@ -299,7 +333,7 @@ class ShapesPlotter:
             ),
             width=2.0 * float(ellipse.semi_major_length),
             height=2.0 * float(ellipse.semi_minor_length),
-            angle=float(np.degrees(ellipse.position.orientation.rad)),
+            angle=ellipse.position.orientation.degrees,
         )
 
     def _add_patch_collection(self, ax, patches) -> None:
@@ -341,7 +375,6 @@ class ShapesPlotter:
 
         normalized = value / 255.0
         return normalized, normalized, normalized
-
 
     @staticmethod
     def _resize_nearest(
