@@ -35,7 +35,9 @@ class Angle:
                 f"Angle value must be a number (int or float), but got {type(self.value)}"
             )
         if self.unit not in ("deg", "rad"):
-            raise ValueError(f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'.")
+            raise ValueError(
+                f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'."
+            )
 
     @property
     def radians(self) -> float:
@@ -93,7 +95,9 @@ class Angle:
     def __eq__(self, other: Self) -> bool:
         if not isinstance(other, Angle):
             return False
-        return math.isclose(self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9)
+        return math.isclose(
+            self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9
+        )
 
     def __repr__(self) -> str:
         return f"Angle({self.value}, '{self.unit}')"
@@ -102,7 +106,34 @@ class Angle:
         return f"{self.value} {self.unit}"
 
 
-def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logger:
+@dataclass(frozen=True, slots=True)
+class Bounds2DRectangular:
+    x_min: float
+    y_min: float
+    x_max: float
+    y_max: float
+
+    def __post_init__(self):
+        if not self.x_min < self.x_max:
+            raise ValueError(f"x_min >= x_max: {self.x_min} >= {self.x_max}")
+        if not self.y_min < self.y_max:
+            raise ValueError(f"y_min >= y_max: {self.y_min} >= {self.y_max}")
+
+    @classmethod
+    def from_sequence(cls, s: Sequence) -> Self:
+        if isinstance(s, cls):
+            return s
+        if len(s) != 4:
+            raise ValueError(
+                f"The sequence used for creating {cls.__name__} must have "
+                f"exactly four elements,  but got {len(s)}"
+            )
+        return cls(*s)
+
+
+def get_logger(
+    name: str = __name__, level: int = logging.INFO
+) -> logging.Logger:
     """Returns a logger with the given name and level"""
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -121,7 +152,9 @@ def _assert_a_sequence(seq, name: str = "input") -> bool:
     return True
 
 
-def _assert_a_sequence_of_numbers(seq, name: str = "input", length=None) -> bool:
+def _assert_a_sequence_of_numbers(
+    seq, name: str = "input", length=None
+) -> bool:
     """Checks if the input is a sequence of numbers"""
     if not all(_is_a_number(x) for x in seq):
         raise TypeError(
@@ -135,7 +168,9 @@ def _assert_a_sequence_of_numbers(seq, name: str = "input", length=None) -> bool
                 f"the length argument must be an int, but got {type(length)}"
             )
         if len(seq) != length:
-            raise ValueError(f"{name} must have length {length}, but got {len(seq)}")
+            raise ValueError(
+                f"{name} must have length {length}, but got {len(seq)}"
+            )
     return True
 
 
@@ -243,8 +278,40 @@ def _validate_dict(
                 _validate_type(d[k], t, name)
     else:
         if types is not None:
-            raise ValueError("When types is specified, keys must also be specified")
+            raise ValueError(
+                "When types is specified, keys must also be specified"
+            )
         if reject_extra_keys:
             raise ValueError(
                 "When reject_extra_keys is True, keys must also be provided"
             )
+
+
+def _validate_tuple(
+    v: Any,
+    ele_type: type | None = None,
+    length: int | None = None,
+    non_empty: bool = None,
+    name: str | None = None,
+) -> tuple:
+    if not isinstance(v, tuple):
+        raise ValueError(f"{name} must be a tuple, but got {type(v).__name__}")
+    errors = []
+    if ele_type is not None:
+        if not all(isinstance(a, ele_type) for a in v):
+            errors.append(f"Not all elements of {name} are of {ele_type}")
+    if non_empty and len(v) == 0:
+        errors.append(f"The given {name} tuple is empty")
+    if length is not None:
+        if not isinstance(length, int):
+            raise ValueError(
+                f"If given, 'length' should be an integer. "
+                f"Got {type(length).__name__}"
+            )
+        if len(v) != length:
+            errors.append(
+                f"Given tuple must have {length}, but contains only {len(v)}"
+            )
+    if errors:
+        raise ValueError(f"Invalid {name} tuple:',\n" + "\n".join(errors))
+    return v
