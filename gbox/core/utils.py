@@ -216,6 +216,7 @@ def _validate_dict(
     keys: list[Any] = None,
     types: list[type | tuple] = None,
     name: str | None = None,
+    reject_extra_keys: bool = False,
 ):
     _validate_type(d, dict, name)
 
@@ -223,7 +224,11 @@ def _validate_dict(
         _validate_type(keys, list, name)
         missing_keys = [k for k in keys if k not in d]
         if missing_keys:
-            raise ValueError(f"Keys {missing_keys} not found in {name}")
+            raise ValueError(f"In {name}, Missing Keys: {missing_keys}")
+        if reject_extra_keys:
+            extra_keys = [k for k in d if k not in keys]
+            if len(extra_keys) > 0:
+                raise ValueError(f"In {name}, Extra Keys: {extra_keys}")
 
         if types is not None:
             _validate_type(types, list, name)
@@ -239,3 +244,7 @@ def _validate_dict(
     else:
         if types is not None:
             raise ValueError("When types is specified, keys must also be specified")
+        if reject_extra_keys:
+            raise ValueError(
+                "When reject_extra_keys is True, keys must also be provided"
+            )

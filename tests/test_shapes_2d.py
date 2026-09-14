@@ -881,7 +881,7 @@ class TestEllipseFromParams:
             )
 
     def test_extra_keys_are_rejected(self):
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError):
             Ellipse.from_params(
                 {
                     "xc": 0.0,

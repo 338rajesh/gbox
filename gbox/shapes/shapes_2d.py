@@ -331,12 +331,14 @@ class Ellipse(Shape2D):
             ["xc", "yc", "major_axis_angle"],
             [float, float, Angle],
             name="position_params",
+            reject_extra_keys=True
         )
         _validate_dict(
             size_params,
             ["semi_major_length", "semi_minor_length"],
             [float, float],
             name="size_params",
+            reject_extra_keys=True,
         )
         return cls(
             size_params["semi_major_length"],
