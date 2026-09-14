@@ -1,62 +1,25 @@
-# =================================================================
-#                     Exporting classes and functions
-# =================================================================
-
-from .base import (
+from .core.points import (
     PointND,
-    Point1D,
     Point2D,
     Point3D,
     PointArrayND,
-    PointArray1D,
     PointArray2D,
-    PointArray3D,
-    BoundingBox,
 )
-from .gshape.gshape import GShape, GShape3D
-from .gshape.ellipse import (
-    GShape2D,
-    Circle,
-    Ellipse,
-    Rectangle,
-    CirclesArray,
-)
-
-from .utils import configure_axes
-
-# Constants
-from .base import PI as PI
+from .core.utils import Angle, Bounds2DRectangular
+from .shapes import shapes_2d
+from .plots.render import ShapesPlotter
 
 __all__ = [
-    "PI",
-    #
     "PointND",
-    "Point1D",
     "Point2D",
     "Point3D",
     "PointArrayND",
-    "PointArray1D",
     "PointArray2D",
-    "PointArray3D",
-    "BoundingBox",
     #
-    "GShape",
-    "GShape2D",
-    "GShape3D",
+    "Angle",
+    "Bounds2DRectangular",
     #
-    "Circle",
-    "Ellipse",
-    "Rectangle",
-    "CirclesArray",
+    "shapes_2d",
     #
-    "configure_axes",
+    "ShapesPlotter",
 ]
-
-
-# module order
-# 0 __init__.py
-# gshape
-#   b_box, ellipse, lines
-#   __init__.py
-# 2 base
-# 3 utils
