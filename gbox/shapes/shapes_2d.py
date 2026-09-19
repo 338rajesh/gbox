@@ -210,8 +210,8 @@ class Ellipse(Shape2D):
         b2 = self._semi_minor_length**2
         cos_2 = self._position.orientation.cos**2
         sin_2 = self._position.orientation.sin**2
-        hx = np.sqrt(a2 * cos_2 + b2 * sin_2)
-        hy = np.sqrt(a2 * sin_2 + b2 * cos_2)
+        hx = float(np.sqrt(a2 * cos_2 + b2 * sin_2))
+        hy = float(np.sqrt(a2 * sin_2 + b2 * cos_2))
         cx, cy = self._position.x, self._position.y
         return [cx - hx, cy - hy, cx + hx, cy + hy]
 
