@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 requires-python = ">=3.11"
 name = "gbox"
-version = "1.0.0"
+version = "1.0.1"
 description = "A convenience package for geometry related operations"
 readme = "README.md"
 license = "MIT"
@@ -42,5 +42,5 @@ dev = [
     "sphinx-rtd-theme>=3.1.0",
 ]
 
-[tool.setuptools]
-packages = ["gbox"]
+[tool.setuptools.packages.find]
+where = ["."]

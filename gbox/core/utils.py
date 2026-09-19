@@ -1,11 +1,10 @@
 import logging
 import math
-from collections.abc import Sequence
+from collections.abc import Sequence, Collection
 from dataclasses import dataclass
 from enum import StrEnum
-from numbers import Number
+from pathlib import Path
 from typing import Any, Self
-
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -140,178 +139,209 @@ def get_logger(
     return logger
 
 
-def _is_a_number(x) -> bool:
-    """Checks if the input is a number as defined in the numbers module"""
-    return isinstance(x, Number)
-
-
-def _assert_a_sequence(seq, name: str = "input") -> bool:
-    """Checks if the input is a sequence"""
-    if not isinstance(seq, Sequence):
-        raise TypeError(f"{name} must be a sequence, but got {type(seq)}")
-    return True
-
-
-def _assert_a_sequence_of_numbers(
-    seq, name: str = "input", length=None
-) -> bool:
-    """Checks if the input is a sequence of numbers"""
-    if not all(_is_a_number(x) for x in seq):
-        raise TypeError(
-            f"All elements of {name} must be numbers (int or float), "
-            f"but got {[type(x) for x in seq]}",
-        )
-    if length is not None:
-        if not isinstance(length, int):
-            raise ValueError(
-                f"While asserting {name} to be a sequence of numbers, "
-                f"the length argument must be an int, but got {type(length)}"
+class Validator:
+    @staticmethod
+    def is_type(
+        v,
+        types: type | tuple,
+        *,
+        exclusion_types: type | tuple | None = None,
+        name: str | None = None,
+    ) -> bool:
+        name = "" if name is None else name
+        if not isinstance(v, types):
+            raise TypeError(
+                f"Given value '{name}' must be of type {types}, but got {type(v)}"
             )
-        if len(seq) != length:
-            raise ValueError(
-                f"{name} must have length {length}, but got {len(seq)}"
-            )
-    return True
+        if exclusion_types is not None:
+            if isinstance(v, exclusion_types):
+                raise TypeError(
+                    f"Given value '{name}' must not be of type "
+                    f"{exclusion_types}, but got {type(v)}"
+                )
+        return True
 
-
-def _validate_type(v, types: type | tuple, name: str | None = None):
-    name = "" if name is None else name
-    if not isinstance(v, types):
-        raise ValueError(
-            f"Given value '{name}' must be of type {types}, but got {type(v)}"
-        )
-
-
-def _validate_bounds(
-    v: Any,
-    low: Any = None,
-    high: Any = None,
-    name: str | None = None,
-    closed_bounds: bool = True,
-) -> None:
-    if low is not None:
-        if closed_bounds and v < low:
-            raise ValueError(
-                f"Given value '{name}' must be >= {low}, but got {v}",
-            )
-        elif not closed_bounds and v <= low:
-            raise ValueError(
-                f"Given value '{name}' must be > {low}, but got {v}",
-            )
-
-    if high is not None:
-        if closed_bounds and v > high:
-            raise ValueError(
-                f"Given value '{name}' must be <= {high}, but got {v}",
-            )
-        elif not closed_bounds and v >= high:
-            raise ValueError(
-                f"Given value '{name}' must be < {high}, but got {v}",
-            )
-
-
-def _validate_float(
-    v: Any,
-    low: float = None,
-    high: float = None,
-    name: str | None = None,
-    closed_bounds: bool = True,
-    coerce_type: bool = True,
-) -> float:
-    name = "" if name is None else name
-    _validate_type(v, (int, float), name)
-    v = float(v) if coerce_type else v
-    _validate_bounds(v, low, high, name, closed_bounds)
-    return v
-
-
-def _validate_int(
-    v: Any,
-    low: float = None,
-    high: float = None,
-    name: str | None = None,
-    closed_bounds: bool = True,
-) -> int:
-    name = "" if name is None else name
-    _validate_type(v, int, name)
-    _validate_bounds(v, low, high, name, closed_bounds)
-    return v
-
-
-def _validate_positive_float(v: Any, name: str | None = None):
-    return _validate_float(v, 0.0, float("inf"), name, False)
-
-
-def _validate_positive_int(v: Any, name: str | None = None):
-    return _validate_int(v, 0, float("inf"), name, False)
-
-
-def _validate_dict(
-    d: Any,
-    keys: list[Any] = None,
-    types: list[type | tuple] = None,
-    name: str | None = None,
-    reject_extra_keys: bool = False,
-):
-    _validate_type(d, dict, name)
-
-    if keys is not None:
-        _validate_type(keys, list, name)
-        missing_keys = [k for k in keys if k not in d]
-        if missing_keys:
-            raise ValueError(f"In {name}, Missing Keys: {missing_keys}")
-        if reject_extra_keys:
-            extra_keys = [k for k in d if k not in keys]
-            if len(extra_keys) > 0:
-                raise ValueError(f"In {name}, Extra Keys: {extra_keys}")
-
-        if types is not None:
-            _validate_type(types, list, name)
-
-            if len(keys) != len(types):
+    @staticmethod
+    def bounds(
+        v: Any,
+        low: Any = None,
+        high: Any = None,
+        name: str | None = None,
+        closed_bounds: bool = True,
+    ) -> bool:
+        if low is not None:
+            if closed_bounds and v < low:
                 raise ValueError(
-                    "When types and keys are specified, they must have "
-                    f"the same length, but got {len(keys)} and {len(types)}"
+                    f"Given value '{name}' must be >= {low}, but got {v}",
+                )
+            elif not closed_bounds and v <= low:
+                raise ValueError(
+                    f"Given value '{name}' must be > {low}, but got {v}",
                 )
 
-            for k, t in zip(keys, types):
-                _validate_type(d[k], t, name)
-    else:
-        if types is not None:
-            raise ValueError(
-                "When types is specified, keys must also be specified"
-            )
-        if reject_extra_keys:
-            raise ValueError(
-                "When reject_extra_keys is True, keys must also be provided"
+        if high is not None:
+            if closed_bounds and v > high:
+                raise ValueError(
+                    f"Given value '{name}' must be <= {high}, but got {v}",
+                )
+            elif not closed_bounds and v >= high:
+                raise ValueError(
+                    f"Given value '{name}' must be < {high}, but got {v}",
+                )
+        return True
+
+    @staticmethod
+    def sequence(
+        seq,
+        *,
+        name: str = "input",
+        ele_type: type | None = None,
+        length: int | None = None,
+        allow_none: bool = False,
+        req_elements: Collection[Any] | None = None,
+    ) -> Sequence[Any] | None:
+        """Returns validated sequence"""
+        if allow_none and seq is None:
+            return None
+        
+        try:
+            len(seq)
+            iter(seq)
+        except TypeError:
+            raise TypeError(
+                f"Given value '{name}' must be a sequence, but got {type(seq)}"
             )
 
+        seq_len = len(seq)
+        if length is not None:
+            Validator.int(length, low=0, name="sequence length")
+            if seq_len != length:
+                raise ValueError(
+                    f"{name} must have length {length}, got {seq_len}"
+                )
 
-def _validate_tuple(
-    v: Any,
-    ele_type: type | None = None,
-    length: int | None = None,
-    non_empty: bool = None,
-    name: str | None = None,
-) -> tuple:
-    if not isinstance(v, tuple):
-        raise ValueError(f"{name} must be a tuple, but got {type(v).__name__}")
-    errors = []
-    if ele_type is not None:
-        if not all(isinstance(a, ele_type) for a in v):
-            errors.append(f"Not all elements of {name} are of {ele_type}")
-    if non_empty and len(v) == 0:
-        errors.append(f"The given {name} tuple is empty")
-    if length is not None:
-        if not isinstance(length, int):
-            raise ValueError(
-                f"If given, 'length' should be an integer. "
-                f"Got {type(length).__name__}"
+        if ele_type is not None:
+            invalid_elements = [e for e in seq if not isinstance(e, ele_type)]
+            if invalid_elements:
+                raise TypeError(
+                    f"All elements of {name} must be of type, "
+                    f"got different types for {invalid_elements}"
+                )
+
+        if isinstance(req_elements, Collection):
+            missing_elements = [e for e in req_elements if e not in seq]
+            if missing_elements:
+                raise ValueError(
+                    f"It is expected sequence {name}, contains elements "
+                    f"{req_elements}, but '{missing_elements}' are missing."
+                )
+
+        return seq
+
+    @staticmethod
+    def float(
+        v: Any,
+        low: float = None,
+        high: float = None,
+        name: str | None = None,
+        *,
+        closed_bounds: bool = True,
+        allow_none: bool = False,
+    ) -> float | None:
+        if allow_none and v is None:
+            return None
+        name = "" if name is None else name
+        Validator.is_type(v, (int, float), name=name, exclusion_types=bool)
+        v = float(v)
+        Validator.bounds(v, low, high, name, closed_bounds)
+        return v
+
+    @staticmethod
+    def int(
+        v: Any,
+        low: float = None,
+        high: float = None,
+        name: str | None = None,
+        *,
+        closed_bounds: bool = True,
+        allow_none: bool = False,
+    ) -> int | None:
+        """Return the validated int"""
+        if allow_none and v is None:
+            return None
+        name = "" if name is None else name
+        Validator.is_type(v, int, name=name, exclusion_types=bool)
+        Validator.bounds(v, low, high, name, closed_bounds)
+        return v
+
+    @staticmethod
+    def dict(
+        d: Any,
+        keys: list[Any] = None,
+        types: list[type | tuple] = None,
+        name: str | None = None,
+        *,
+        reject_extra_keys: bool = False,
+        allow_none: bool = False,
+    ) -> dict | None:
+        if allow_none and d is None:
+            return None
+        Validator.is_type(d, dict, name=name)
+        if keys is not None:
+            Validator.is_type(keys, list, name=name)
+            missing_keys = [k for k in keys if k not in d]
+            if missing_keys:
+                raise ValueError(f"In {name}, Missing Keys: {missing_keys}")
+            if reject_extra_keys:
+                extra_keys = [k for k in d if k not in keys]
+                if len(extra_keys) > 0:
+                    raise ValueError(f"In {name}, Extra Keys: {extra_keys}")
+
+            if types is not None:
+                Validator.is_type(types, list, name=name)
+
+                if len(keys) != len(types):
+                    raise ValueError(
+                        "When types and keys are specified, they must have "
+                        f"the same length, but got {len(keys)} and {len(types)}"
+                    )
+
+                for k, t in zip(keys, types):
+                    Validator.is_type(d[k], t, name=k)
+        else:
+            if types is not None:
+                raise ValueError(
+                    "When types is specified, keys must also be specified"
+                )
+            if reject_extra_keys:
+                raise ValueError(
+                    "When reject_extra_keys is True, keys must also be provided"
+                )
+        return d
+
+    @staticmethod
+    def file_path(
+        file_path: Any,
+        must_exist: bool | None = None,
+        extensions: list[str] | None = None,
+        *,
+        create_parent: bool = False,
+        resolve_path: bool = True,
+    ) -> Path:
+        """Returns validated file path."""
+        Validator.is_type(file_path, (str, Path), name="file_path")
+        fp = Path(file_path).resolve() if resolve_path else Path(file_path)
+        if must_exist is not None:
+            if must_exist and not fp.exists():
+                raise FileNotFoundError(f"File '{fp}' does not exist.")
+            elif must_exist is False and fp.exists():
+                raise FileExistsError(f"File '{fp}' already exists.")
+        if extensions is not None:
+            Validator.sequence(
+                extensions,
+                ele_type=str,
+                req_elements=(fp.suffix,),
             )
-        if len(v) != length:
-            errors.append(
-                f"Given tuple must have {length}, but contains only {len(v)}"
-            )
-    if errors:
-        raise ValueError(f"Invalid {name} tuple:',\n" + "\n".join(errors))
-    return v
+        if create_parent:
+            fp.parent.mkdir(parents=True, exist_ok=True)
+        return fp

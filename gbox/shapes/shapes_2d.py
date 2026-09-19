@@ -7,14 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from scipy.integrate import quad
 
-from ..core.utils import (
-    Angle,
-    TransformationOrder,
-    _validate_positive_float,
-    _validate_float,
-    _validate_positive_int,
-    _validate_dict,
-)
+from ..core.utils import Angle, TransformationOrder, Validator
 from ..core.points import Point2D, PointArray2D
 from ..core.transformation import transform_point_2d
 
@@ -90,7 +83,9 @@ class Shape2D(ABC):
         return float(np.sqrt(self.area / PI))
 
     @abstractmethod
-    def contains_point(self, point: Point2D | Sequence[float]) -> Literal[-1, 0, 1]:
+    def contains_point(
+        self, point: Point2D | Sequence[float]
+    ) -> Literal[-1, 0, 1]:
         """
         Checks if a point is inside, on, or outside the shape.
 
@@ -113,7 +108,9 @@ class Shape2D(ABC):
         Returns the bounding box of the shape as a list of
         four floats: [min_x, min_y, max_x, max_y].
         """
-        raise NotImplementedError("Bounding box method not implemented for this shape.")
+        raise NotImplementedError(
+            "Bounding box method not implemented for this shape."
+        )
 
 
 class Shapes2DArray(ABC):
@@ -146,15 +143,17 @@ class Ellipse(Shape2D):
     def _validate_args(
         self, semi_major_length, semi_minor_length, centre, major_axis_angle
     ) -> dict:
-        semi_major_length = _validate_positive_float(
-            semi_major_length, "semi_major_length"
+        bounds_dict = {"low": 0.0, "high": None, "closed_bounds": False}
+        semi_major_length = Validator.float(
+            semi_major_length, name="semi_major_length", **bounds_dict
         )
-        semi_minor_length = _validate_positive_float(
-            semi_minor_length, "semi_minor_length"
+        semi_minor_length = Validator.float(
+            semi_minor_length, name="semi_minor_length", **bounds_dict
         )
         if semi_major_length < semi_minor_length:
             raise ValueError("Semi-major axis must be >= semi-minor axis")
-        centre = _validate_float(centre[0]), _validate_float(centre[1])
+        centre = Validator.sequence(centre, length=2, ele_type=(int, float))
+        centre = tuple(float(i) for i in centre)
         return dict(
             semi_major_length=semi_major_length,
             semi_minor_length=semi_minor_length,
@@ -176,7 +175,9 @@ class Ellipse(Shape2D):
 
     @property
     def eccentricity(self) -> float:
-        return np.sqrt(1 - ((self._semi_minor_length / self._semi_major_length) ** 2))
+        return np.sqrt(
+            1 - ((self._semi_minor_length / self._semi_major_length) ** 2)
+        )
 
     @property
     def position(self) -> Shape2DPose:
@@ -229,16 +230,21 @@ class Ellipse(Shape2D):
         point_density: float = 10.0,
     ) -> np.ndarray:
         """Samples points along the elliptical arc."""
-        if num_points is None or (isinstance(num_points, int) and num_points < 1):
+        if num_points is None or (
+            isinstance(num_points, int) and num_points < 1
+        ):
             raise ValueError(
                 f"num_points must be a positive integer,Got {num_points!r} instead."
             )
-        num_points = _validate_positive_int(
+        num_points = Validator.int(
             num_points or max(16, int(point_density * self.perimeter)),
+            low=1,
             name="num_points",
         )
 
-        return self.points_at_parametric_points(np.linspace(0, 2 * PI, num_points))
+        return self.points_at_parametric_points(
+            np.linspace(0, 2 * PI, num_points)
+        )
 
     def points_at_parametric_points(self, theta: Sequence) -> PointArray2D:
         points_arr = PointArray2D.from_named_dims(
@@ -252,7 +258,9 @@ class Ellipse(Shape2D):
             in_place=True,
         )
         if not isinstance(points_arr, PointArray2D) or len(points_arr) == 0:
-            raise ValueError("Invalid points array or no points sampled along the arc")
+            raise ValueError(
+                "Invalid points array or no points sampled along the arc"
+            )
 
         return points_arr
 
@@ -326,14 +334,14 @@ class Ellipse(Shape2D):
         -------
         Ellipse
         """
-        _validate_dict(
+        Validator.dict(
             position_params,
             ["xc", "yc", "major_axis_angle"],
             [float, float, Angle],
             name="position_params",
-            reject_extra_keys=True
+            reject_extra_keys=True,
         )
-        _validate_dict(
+        Validator.dict(
             size_params,
             ["semi_major_length", "semi_minor_length"],
             [float, float],
@@ -420,7 +428,11 @@ class Ellipse(Shape2D):
             return self.semi_minor_length
 
         r_min = self.semi_minor_length * np.sqrt(
-            1.0 - ((xi * xi) / (self.semi_major_length**2 - self.semi_minor_length**2))
+            1.0
+            - (
+                (xi * xi)
+                / (self.semi_major_length**2 - self.semi_minor_length**2)
+            )
         )
         return float(r_min)
 
@@ -447,7 +459,7 @@ class Ellipse(Shape2D):
             raise ValueError(
                 "buffer thickness dh must be > 0 for union_of_circles to converge"
             )
-        _validate_float(
+        Validator.float(
             dh,
             low=0.0,
             high=self._semi_minor_length,
@@ -489,7 +501,9 @@ class Ellipse(Shape2D):
             x_i = (x_i * (m - 1.0)) + (m * e_i * np.sqrt(gap))
 
         circles_array = [
-            c.transform(self._position.x, self._position.y, self._position.orientation)
+            c.transform(
+                self._position.x, self._position.y, self._position.orientation
+            )
             for c in circles
         ]
         return circles_array
@@ -520,7 +534,9 @@ class Circle(Ellipse):
         new_position = self._position.transform(
             dx, dy, d_theta, pivot=pivot, order=order
         )
-        return self.__class__(self._semi_major_length, (new_position.x, new_position.y))
+        return self.__class__(
+            self._semi_major_length, (new_position.x, new_position.y)
+        )
 
     @property
     def radius(self) -> float:
@@ -539,7 +555,9 @@ class CirclesArray(Shapes2DArray):
 
     def __init__(
         self,
-        centres: PointArray2D | Sequence[tuple[float, float]] | npt.NDArray[np.float64],
+        centres: PointArray2D
+        | Sequence[tuple[float, float]]
+        | npt.NDArray[np.float64],
         radii: Sequence[float] | float | npt.NDArray[np.float64],
     ):
         if isinstance(centres, np.ndarray):
