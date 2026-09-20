@@ -112,6 +112,33 @@ class Shape2D(ABC):
             "Bounding box method not implemented for this shape."
         )
 
+    @abstractmethod
+    def from_params(
+        self,
+        position_params: dict[str, float],
+        size_params: dict[str, float],
+    ) -> Self:
+        """
+        Constructs the current Shape2D based on the size and positional
+        parameters.
+        """
+        raise NotImplementedError(
+            "Subclasses must implement the from_params method."
+        )
+
+    @abstractmethod
+    def to_dict(self) -> dict:
+        raise NotImplementedError(
+            "Subclasses must implement the to_dict method."
+        )
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, d: dict) -> Self:
+        raise NotImplementedError(
+            "Subclasses must implement the from_dict method."
+        )
+
 
 class Shapes2DArray(ABC):
     pass
@@ -144,15 +171,15 @@ class Ellipse(Shape2D):
         self, semi_major_length, semi_minor_length, centre, major_axis_angle
     ) -> dict:
         bounds_dict = {"low": 0.0, "high": None, "closed_bounds": False}
-        semi_major_length = Validator.float(
+        semi_major_length = Validator.as_float(
             semi_major_length, name="semi_major_length", **bounds_dict
         )
-        semi_minor_length = Validator.float(
+        semi_minor_length = Validator.as_float(
             semi_minor_length, name="semi_minor_length", **bounds_dict
         )
         if semi_major_length < semi_minor_length:
             raise ValueError("Semi-major axis must be >= semi-minor axis")
-        centre = Validator.sequence(centre, length=2, ele_type=(int, float))
+        centre = Validator.as_sequence(centre, length=2, ele_type=(int, float))
         centre = tuple(float(i) for i in centre)
         return dict(
             semi_major_length=semi_major_length,
@@ -224,6 +251,21 @@ class Ellipse(Shape2D):
             self._position.orientation,
         )
 
+    def to_dict(self) -> dict:
+        return {
+            "semi_major_length": self._semi_major_length,
+            "semi_minor_length": self._semi_minor_length,
+            "centre": self.centre,
+            "major_axis_angle": self.major_axis_angle,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Self:
+        d = Validator.as_dict(
+            d,
+            keys=["semi_major_length"],
+        )
+
     def sample_points(
         self,
         num_points: int | None = None,
@@ -236,7 +278,7 @@ class Ellipse(Shape2D):
             raise ValueError(
                 f"num_points must be a positive integer,Got {num_points!r} instead."
             )
-        num_points = Validator.int(
+        num_points = Validator.as_int(
             num_points or max(16, int(point_density * self.perimeter)),
             low=1,
             name="num_points",
@@ -334,14 +376,14 @@ class Ellipse(Shape2D):
         -------
         Ellipse
         """
-        Validator.dict(
+        Validator.as_dict(
             position_params,
             ["xc", "yc", "major_axis_angle"],
             [float, float, Angle],
             name="position_params",
             reject_extra_keys=True,
         )
-        Validator.dict(
+        Validator.as_dict(
             size_params,
             ["semi_major_length", "semi_minor_length"],
             [float, float],
@@ -459,7 +501,7 @@ class Ellipse(Shape2D):
             raise ValueError(
                 "buffer thickness dh must be > 0 for union_of_circles to converge"
             )
-        Validator.float(
+        Validator.as_float(
             dh,
             low=0.0,
             high=self._semi_minor_length,
@@ -544,6 +586,48 @@ class Circle(Ellipse):
 
     def clone(self) -> Self:
         return self.__class__(self._semi_major_length, self.centre)
+
+    @classmethod
+    def from_params(
+        cls,
+        position_params: dict[str, float],
+        size_params: dict[str, float],
+    ) -> Self:
+        """
+        Construct a Circle from parameter dictionaries.
+
+        Parameters
+        ----------
+        position_params : dict
+            - 'xc': x-coordinate of the centre.
+            - 'yc': y-coordinate of the centre.
+        size_params : dict
+            - 'radius': Radius of the circle
+
+        Returns
+        -------
+        Ellipse
+        """
+        Validator.as_dict(
+            position_params,
+            ["xc", "yc", "major_axis_angle"],
+            [float, float, Angle],
+            name="position_params",
+            reject_extra_keys=True,
+        )
+        Validator.as_dict(
+            size_params,
+            ["semi_major_length", "semi_minor_length"],
+            [float, float],
+            name="size_params",
+            reject_extra_keys=True,
+        )
+        return cls(
+            size_params["semi_major_length"],
+            size_params["semi_minor_length"],
+            (position_params["xc"], position_params["yc"]),
+            position_params["major_axis_angle"],
+        )
 
 
 class CirclesArray(Shapes2DArray):

@@ -239,39 +239,39 @@ class TestValidatorIsType:
 
 class TestValidatorBounds:
     def test_closed_lower_bound(self):
-        assert Validator.bounds(1, low=1) is True
+        assert Validator.in_bounds(1, low=1) is True
 
     def test_closed_upper_bound(self):
-        assert Validator.bounds(1, high=1) is True
+        assert Validator.in_bounds(1, high=1) is True
 
     def test_closed_lower_bound_failure(self):
         with pytest.raises(ValueError, match=r">= 1"):
-            Validator.bounds(0, low=1)
+            Validator.in_bounds(0, low=1)
 
     def test_closed_upper_bound_failure(self):
         with pytest.raises(ValueError, match=r"<= 1"):
-            Validator.bounds(2, high=1)
+            Validator.in_bounds(2, high=1)
 
     def test_open_lower_bound(self):
-        assert Validator.bounds(2, low=1, closed_bounds=False) is True
+        assert Validator.in_bounds(2, low=1, closed_bounds=False) is True
 
     def test_open_upper_bound(self):
-        assert Validator.bounds(0, high=1, closed_bounds=False) is True
+        assert Validator.in_bounds(0, high=1, closed_bounds=False) is True
 
     def test_open_lower_bound_failure_at_boundary(self):
         with pytest.raises(ValueError, match=r"> 1"):
-            Validator.bounds(1, low=1, closed_bounds=False)
+            Validator.in_bounds(1, low=1, closed_bounds=False)
 
     def test_open_upper_bound_failure_at_boundary(self):
         with pytest.raises(ValueError, match=r"< 1"):
-            Validator.bounds(1, high=1, closed_bounds=False)
+            Validator.in_bounds(1, high=1, closed_bounds=False)
 
     def test_unbounded_value(self):
-        assert Validator.bounds(123) is True
+        assert Validator.in_bounds(123) is True
 
     def test_name_is_in_error_message(self):
         with pytest.raises(ValueError, match="length"):
-            Validator.bounds(0, low=1, name="length")
+            Validator.in_bounds(0, low=1, name="length")
 
 
 # ============================================================
@@ -290,11 +290,11 @@ class TestValidatorSequence:
         ],
     )
     def test_accepts_sequences(self, seq):
-        assert Validator.sequence(seq) is seq
+        assert Validator.as_sequence(seq) is seq
 
     def test_rejects_non_sequence_without_len(self):
         with pytest.raises(TypeError):
-            Validator.sequence(123)
+            Validator.as_sequence(123)
 
     @pytest.mark.parametrize(
         "seq",
@@ -306,189 +306,189 @@ class TestValidatorSequence:
         ],
     )
     def test_validates_element_type(self, seq):
-        assert Validator.sequence(seq, ele_type=Number) is seq
+        assert Validator.as_sequence(seq, ele_type=Number) is seq
 
     def test_rejects_invalid_element_type(self):
         with pytest.raises(TypeError, match="All elements"):
-            Validator.sequence([1, "x", 3], ele_type=Number)
+            Validator.as_sequence([1, "x", 3], ele_type=Number)
 
     def test_validates_length(self):
-        assert Validator.sequence([1, 2], length=2) == [1, 2]
+        assert Validator.as_sequence([1, 2], length=2) == [1, 2]
 
     def test_rejects_wrong_length(self):
-        with pytest.raises(ValueError, match="length 3"):
-            Validator.sequence([1, 2], length=3)
+        with pytest.raises(ValueError, match="length 2"):
+            Validator.as_sequence([1, 2], length=3)
 
     def test_rejects_invalid_length_argument(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.sequence([1, 2], length=2.0)
+            Validator.as_sequence([1, 2], length=2.0)
 
     def test_validates_required_elements(self):
         seq = ["x", "y", "z"]
-        assert Validator.sequence(seq, req_elements=["x", "z"]) is seq
+        assert Validator.as_sequence(seq, req_elements=["x", "z"]) is seq
 
     def test_rejects_missing_required_elements(self):
         with pytest.raises(ValueError, match="missing"):
-            Validator.sequence(["x", "y"], req_elements=["x", "z"])
+            Validator.as_sequence(["x", "y"], req_elements=["x", "z"])
 
     def test_allows_none_when_requested(self):
-        assert Validator.sequence(None, allow_none=True) is None
+        assert Validator.as_sequence(None, allow_none=True) is None
 
     def test_rejects_none_by_default(self):
         with pytest.raises(TypeError):
-            Validator.sequence(None)
+            Validator.as_sequence(None)
 
     def test_validates_length_argument_even_for_zero(self):
-        assert Validator.sequence([], length=0) == []
+        assert Validator.as_sequence([], length=0) == []
 
 
 # ============================================================
-# Validator.float
+# Validator.as_float
 # ============================================================
 
 
 class TestValidatorFloat:
     def test_converts_int_to_float(self):
-        result = Validator.float(2)
+        result = Validator.as_float(2)
 
         assert result == 2.0
         assert isinstance(result, float)
 
     def test_preserves_float(self):
-        result = Validator.float(2.5)
+        result = Validator.as_float(2.5)
 
         assert result == 2.5
         assert isinstance(result, float)
 
     def test_validates_bounds(self):
-        assert Validator.float(5, low=0, high=10) == 5.0
+        assert Validator.as_float(5, low=0, high=10) == 5.0
 
     def test_rejects_string(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.float("1.5")
+            Validator.as_float("1.5")
 
     def test_rejects_bool(self):
         with pytest.raises(TypeError, match="must not be of type"):
-            Validator.float(True)
+            Validator.as_float(True)
 
     def test_open_lower_bound(self):
         with pytest.raises(ValueError, match=r"> 0"):
-            Validator.float(0, low=0, closed_bounds=False)
+            Validator.as_float(0, low=0, closed_bounds=False)
 
     def test_open_upper_bound(self):
         with pytest.raises(ValueError, match=r"< 1"):
-            Validator.float(1, high=1, closed_bounds=False)
+            Validator.as_float(1, high=1, closed_bounds=False)
 
     def test_zero_is_valid_by_default(self):
-        assert Validator.float(0) == 0.0
+        assert Validator.as_float(0) == 0.0
 
     def test_negative_values_are_valid_by_default(self):
-        assert Validator.float(-1) == -1.0
+        assert Validator.as_float(-1) == -1.0
 
     def test_allow_none(self):
-        assert Validator.float(None, allow_none=True) is None
+        assert Validator.as_float(None, allow_none=True) is None
 
     def test_none_is_rejected_by_default(self):
         with pytest.raises(TypeError):
-            Validator.float(None)
+            Validator.as_float(None)
 
 
 # ============================================================
-# Validator.int
+# Validator.as_int
 # ============================================================
 
 
 class TestValidatorInt:
     def test_accepts_int(self):
-        result = Validator.int(3)
+        result = Validator.as_int(3)
 
         assert result == 3
         assert isinstance(result, int)
 
     def test_validates_bounds(self):
-        assert Validator.int(3, low=1, high=5) == 3
+        assert Validator.as_int(3, low=1, high=5) == 3
 
     def test_rejects_string(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.int("3")
+            Validator.as_int("3")
 
     def test_rejects_bool(self):
         with pytest.raises(TypeError, match="must not be of type"):
-            Validator.int(True)
+            Validator.as_int(True)
 
     def test_rejects_fractional_values(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.int(1.5)
+            Validator.as_int(1.5)
 
     def test_open_lower_bound(self):
         with pytest.raises(ValueError, match=r"> 0"):
-            Validator.int(0, low=0, closed_bounds=False)
+            Validator.as_int(0, low=0, closed_bounds=False)
 
     def test_open_upper_bound(self):
         with pytest.raises(ValueError, match=r"< 3"):
-            Validator.int(3, high=3, closed_bounds=False)
+            Validator.as_int(3, high=3, closed_bounds=False)
 
     def test_allow_none(self):
-        assert Validator.int(None, allow_none=True) is None
+        assert Validator.as_int(None, allow_none=True) is None
 
     def test_none_is_rejected_by_default(self):
         with pytest.raises(TypeError):
-            Validator.int(None)
+            Validator.as_int(None)
 
 
 # ============================================================
-# Validator.dict
+# Validator.as_dict
 # ============================================================
 
 
 class TestValidatorDict:
     def test_accepts_dict(self):
         value = {"x": 1}
-        assert Validator.dict(value) is value
+        assert Validator.as_dict(value) is value
 
     def test_rejects_non_dict(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.dict([])
+            Validator.as_dict([])
 
     def test_checks_required_keys(self):
         value = {"x": 1}
-        assert Validator.dict(value, keys=["x"]) is value
+        assert Validator.as_dict(value, keys=["x"]) is value
 
     def test_missing_key(self):
         with pytest.raises(ValueError, match="Missing Keys"):
-            Validator.dict({"x": 1}, keys=["x", "y"])
+            Validator.as_dict({"x": 1}, keys=["x", "y"])
 
     def test_checks_value_types(self):
         value = {"x": 1}
-        assert Validator.dict(value, keys=["x"], types=[int]) is value
+        assert Validator.as_dict(value, keys=["x"], types=[int]) is value
 
     def test_wrong_value_type(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.dict({"x": "1"}, keys=["x"], types=[int])
+            Validator.as_dict({"x": "1"}, keys=["x"], types=[int])
 
     def test_keys_and_types_length_must_match(self):
         with pytest.raises(ValueError, match="same length"):
-            Validator.dict({"x": 1}, keys=["x"], types=[int, float])
+            Validator.as_dict({"x": 1}, keys=["x"], types=[int, float])
 
     def test_types_require_keys(self):
         with pytest.raises(ValueError, match="keys"):
-            Validator.dict({"x": 1}, types=[int])
+            Validator.as_dict({"x": 1}, types=[int])
 
     def test_keys_must_be_list(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.dict({"x": 1}, keys=("x",))
+            Validator.as_dict({"x": 1}, keys=("x",))
 
     def test_types_must_be_list(self):
         with pytest.raises(TypeError, match="must be of type"):
-            Validator.dict({"x": 1}, keys=["x"], types=(int,))
+            Validator.as_dict({"x": 1}, keys=["x"], types=(int,))
 
     def test_extra_keys_are_allowed_by_default(self):
         value = {"x": 1, "y": 2}
-        assert Validator.dict(value, keys=["x"]) is value
+        assert Validator.as_dict(value, keys=["x"]) is value
 
     def test_extra_keys_can_be_rejected(self):
         with pytest.raises(ValueError, match="Extra Keys"):
-            Validator.dict(
+            Validator.as_dict(
                 {"x": 1, "y": 2},
                 keys=["x"],
                 reject_extra_keys=True,
@@ -496,14 +496,14 @@ class TestValidatorDict:
 
     def test_reject_extra_keys_requires_keys(self):
         with pytest.raises(ValueError, match="keys must also be provided"):
-            Validator.dict({"x": 1}, reject_extra_keys=True)
+            Validator.as_dict({"x": 1}, reject_extra_keys=True)
 
     def test_allow_none(self):
-        assert Validator.dict(None, allow_none=True) is None
+        assert Validator.as_dict(None, allow_none=True) is None
 
     def test_none_is_rejected_by_default(self):
         with pytest.raises(TypeError):
-            Validator.dict(None)
+            Validator.as_dict(None)
 
 
 # ============================================================

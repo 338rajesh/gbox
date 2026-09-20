@@ -417,7 +417,7 @@ class TestPointArrayND:
         )
 
     def test_from_dim_sequences_rejects_name_count_mismatch(self):
-        with pytest.raises(ValueError, match="must have length 2"):
+        with pytest.raises(ValueError, match="must have exact length 2"):
             PointArrayND.from_dim_sequences(
                 [[1, 2], [3, 4]],
                 names=["x"],

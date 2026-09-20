@@ -64,10 +64,12 @@ class ShapesPlotter:
         foreground: int | float = 255,
         dpi: int = 100,
     ):
-        Validator.sequence(size, ele_type=int, length=2, name="Image size")
-        Validator.int(background, low=0, high=255, name="Background")
-        Validator.int(foreground, low=0, high=255, name="Foreground")
-        Validator.int(dpi, low=0, name="DPI")
+        Validator.as_sequence(
+            size, ele_type=int, length=2, name="Image size"
+        )
+        Validator.as_int(background, low=0, high=255, name="Background")
+        Validator.as_int(foreground, low=0, high=255, name="Foreground")
+        Validator.as_int(dpi, low=0, name="DPI")
 
         self._size = size
         self._background = background

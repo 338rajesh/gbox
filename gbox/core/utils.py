@@ -1,6 +1,6 @@
 import logging
 import math
-from collections.abc import Sequence, Collection
+from collections.abc import Sequence, Mapping, Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -129,6 +129,41 @@ class Bounds2DRectangular:
             )
         return cls(*s)
 
+    @classmethod
+    def from_mapping(cls, d: Mapping) -> Self:
+        if isinstance(d, cls):
+            return d
+        if not isinstance(d, Mapping) and len(d) != 4:
+            raise ValueError(
+                f"The dictionary used for creating {cls.__name__} must be a "
+                f"mapping of length 4, but got {type(d)} of length {len(d)}."
+            )
+        return cls(**d)
+
+    def to_dict(self) -> dict[str, float]:
+        return dict(
+            x_min=self.x_min,
+            y_min=self.y_min,
+            x_max=self.x_max,
+            y_max=self.y_max,
+        )
+
+    @property
+    def bounds(self) -> Mapping[str, float]:
+        return self.to_dict()
+
+    @property
+    def x_len(self) -> float:
+        return self.x_max - self.x_min
+
+    @property
+    def y_len(self) -> float:
+        return self.y_max - self.y_min
+
+    @property
+    def area(self) -> float:
+        return self.x_len * self.y_len
+
 
 def get_logger(
     name: str = __name__, level: int = logging.INFO
@@ -162,7 +197,29 @@ class Validator:
         return True
 
     @staticmethod
-    def bounds(
+    def has(
+        v: Any,
+        collection: Collection,
+        *,
+        name: str | None = None,
+        num_repeats: int = 1,
+        allow_none: bool = False,
+    ) -> bool:
+        name = "" if name is None else name
+        if allow_none and v is None:
+            return True
+        actual_repeats = len([x for x in collection if x == v])
+        Validator.as_int(num_repeats, low=1, name="num_repeats")
+        if actual_repeats != num_repeats:
+            raise ValueError(
+                f"The given value '{name}' does not have "
+                f"the expected number of repeats {num_repeats}"
+            )
+
+        return True
+
+    @staticmethod
+    def in_bounds(
         v: Any,
         low: Any = None,
         high: Any = None,
@@ -191,19 +248,21 @@ class Validator:
         return True
 
     @staticmethod
-    def sequence(
+    def as_sequence(
         seq,
         *,
         name: str = "input",
         ele_type: type | None = None,
         length: int | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
         allow_none: bool = False,
         req_elements: Collection[Any] | None = None,
     ) -> Sequence[Any] | None:
         """Returns validated sequence"""
         if allow_none and seq is None:
             return None
-        
+
         try:
             len(seq)
             iter(seq)
@@ -213,11 +272,33 @@ class Validator:
             )
 
         seq_len = len(seq)
+        if min_length is not None:
+            Validator.is_type(min_length, int)
+            if max_length is not None:
+                Validator.is_type(max_length, int)
+                if min_length > max_length:
+                    raise ValueError("Given minimum length > maximum length")
+
+            if seq_len < min_length:
+                raise ValueError(
+                    f"Given value '{name}' must have a length of at least "
+                    f"{min_length}, but got a sequence of length {seq_len}"
+                )
+
+        if max_length is not None:
+            Validator.is_type(max_length, int)
+            if seq_len > max_length:
+                raise ValueError(
+                    f"Given value '{name}' must have a length of at most "
+                    f"{max_length}, but got a sequence of length {seq_len}"
+                )
+
         if length is not None:
-            Validator.int(length, low=0, name="sequence length")
+            Validator.is_type(length, int)
             if seq_len != length:
                 raise ValueError(
-                    f"{name} must have length {length}, got {seq_len}"
+                    f"Given sequence '{name}' must have exact length {length} "
+                    f"but got a sequence of length {seq_len}"
                 )
 
         if ele_type is not None:
@@ -239,7 +320,7 @@ class Validator:
         return seq
 
     @staticmethod
-    def float(
+    def as_float(
         v: Any,
         low: float = None,
         high: float = None,
@@ -253,11 +334,11 @@ class Validator:
         name = "" if name is None else name
         Validator.is_type(v, (int, float), name=name, exclusion_types=bool)
         v = float(v)
-        Validator.bounds(v, low, high, name, closed_bounds)
+        Validator.in_bounds(v, low, high, name, closed_bounds)
         return v
 
     @staticmethod
-    def int(
+    def as_int(
         v: Any,
         low: float = None,
         high: float = None,
@@ -271,22 +352,73 @@ class Validator:
             return None
         name = "" if name is None else name
         Validator.is_type(v, int, name=name, exclusion_types=bool)
-        Validator.bounds(v, low, high, name, closed_bounds)
+        Validator.in_bounds(v, low, high, name, closed_bounds)
         return v
 
     @staticmethod
-    def dict(
+    def as_string(
+        v: Any,
+        *,
+        name: str | None = None,
+        target: str | None = None,
+        min_length: int | None = None,
+        max_length: int | None = None,
+        allow_none: bool = False,
+    ) -> str | None:
+        """Return the validated string."""
+        if allow_none and v is None:
+            return None
+        name = "" if name is None else name
+
+        Validator.is_type(v, str, name=name)
+        if Validator.is_type(target, str) and v != target:
+            raise ValueError(
+                f"The given string '{name}' does not match "
+                f"the target string {target}"
+            )
+
+        v_len = len(v)
+        if Validator.is_type(min_length, int) and v_len < min_length:
+            raise ValueError(
+                f"The given string '{name}' is too short {v_len} "
+                f"(minimum length: {min_length})"
+            )
+
+        if Validator.is_type(max_length, int) and v_len > max_length:
+            raise ValueError(
+                f"The given string '{name}' is tool long {v_len} "
+                f"(maximum length {max_length})"
+            )
+
+        return v
+
+    @staticmethod
+    def as_dict(
         d: Any,
         keys: list[Any] = None,
         types: list[type | tuple] = None,
         name: str | None = None,
         *,
+        key_type_map: Mapping = None,
         reject_extra_keys: bool = False,
         allow_none: bool = False,
     ) -> dict | None:
         if allow_none and d is None:
             return None
         Validator.is_type(d, dict, name=name)
+
+        if key_type_map is not None and (
+            keys is not None or types is not None
+        ):
+            raise ValueError(
+                "When key_type_map is provided, keys and types should "
+                "not be provided."
+            )
+
+        if key_type_map is not None:
+            keys = list(key_type_map.keys())
+            types = list(key_type_map.values())
+
         if keys is not None:
             Validator.is_type(keys, list, name=name)
             missing_keys = [k for k in keys if k not in d]
@@ -307,7 +439,8 @@ class Validator:
                     )
 
                 for k, t in zip(keys, types):
-                    Validator.is_type(d[k], t, name=k)
+                    if t is not None:
+                        Validator.is_type(d[k], t, name=f"{name}.{k}")
         else:
             if types is not None:
                 raise ValueError(
@@ -337,7 +470,7 @@ class Validator:
             elif must_exist is False and fp.exists():
                 raise FileExistsError(f"File '{fp}' already exists.")
         if extensions is not None:
-            Validator.sequence(
+            Validator.as_sequence(
                 extensions,
                 ele_type=str,
                 req_elements=(fp.suffix,),
@@ -345,3 +478,26 @@ class Validator:
         if create_parent:
             fp.parent.mkdir(parents=True, exist_ok=True)
         return fp
+
+    @staticmethod
+    def dir_path(
+        dir_path: Any,
+        must_exist: bool | None = None,
+        *,
+        mkdir: bool = False,
+        resolve_path: bool = True,
+    ) -> Path:
+        """Returns validated directory path."""
+        Validator.is_type(dir_path, (str, Path), name="dir_path")
+        dp = Path(dir_path).resolve() if resolve_path else Path(dir_path)
+
+        if must_exist is not None:
+            if must_exist and not dp.exists():
+                raise FileNotFoundError(f"Directory '{dp}' does not exist.")
+            elif must_exist and not dp.is_dir():
+                raise NotADirectoryError(f"Path '{dp}' is not a directory.")
+            elif must_exist is False and dp.exists():
+                raise FileExistsError(f"Directory '{dp}' already exists.")
+        if mkdir:
+            dp.mkdir(parents=True, exist_ok=True)
+        return dp
