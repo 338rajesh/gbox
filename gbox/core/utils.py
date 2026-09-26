@@ -1,6 +1,6 @@
 import logging
 import math
-from collections.abc import Sequence, Mapping, Collection
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -34,7 +34,9 @@ class Angle:
                 f"Angle value must be a number (int or float), but got {type(self.value)}"
             )
         if self.unit not in ("deg", "rad"):
-            raise ValueError(f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'.")
+            raise ValueError(
+                f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'."
+            )
 
     @property
     def radians(self) -> float:
@@ -92,7 +94,9 @@ class Angle:
     def __eq__(self, other: Self) -> bool:
         if not isinstance(other, Angle):
             return False
-        return math.isclose(self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9)
+        return math.isclose(
+            self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9
+        )
 
     def __repr__(self) -> str:
         return f"Angle({self.value}, '{self.unit}')"
@@ -137,12 +141,12 @@ class Bounds2DRectangular:
         return cls(**d)
 
     def to_dict(self) -> dict[str, float]:
-        return dict(
-            x_min=self.x_min,
-            y_min=self.y_min,
-            x_max=self.x_max,
-            y_max=self.y_max,
-        )
+        return {
+            "x_min": self.x_min,
+            "y_min": self.y_min,
+            "x_max": self.x_max,
+            "y_max": self.y_max,
+        }
 
     @property
     def bounds(self) -> Mapping[str, float]:
@@ -160,8 +164,23 @@ class Bounds2DRectangular:
     def area(self) -> float:
         return self.x_len * self.y_len
 
+    def overlaps(self, bb: Bounds2DRectangular) -> bool:
+        Validator.is_type(
+            bb,
+            Bounds2DRectangular,
+            name="Other bounding box of overlap checking",
+        )
+        return (
+            self.x_max >= bb.x_min
+            and self.x_min <= bb.x_max
+            and self.y_max >= bb.y_min
+            and self.y_min <= bb.y_max
+        )
 
-def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logger:
+
+def get_logger(
+    name: str = __name__, level: int = logging.INFO
+) -> logging.Logger:
     """Returns a logger with the given name and level"""
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -182,12 +201,11 @@ class Validator:
             raise TypeError(
                 f"Given value '{name}' must be of type {types}, but got {type(v)}"
             )
-        if exclusion_types is not None:
-            if isinstance(v, exclusion_types):
-                raise TypeError(
-                    f"Given value '{name}' must not be of type "
-                    f"{exclusion_types}, but got {type(v)}"
-                )
+        if exclusion_types is not None and isinstance(v, exclusion_types):
+            raise TypeError(
+                f"Given value '{name}' must not be of type "
+                f"{exclusion_types}, but got {type(v)}"
+            )
         return True
 
     @staticmethod
@@ -316,8 +334,8 @@ class Validator:
     @staticmethod
     def as_float(
         v: Any,
-        low: float = None,
-        high: float = None,
+        low: float | None = None,
+        high: float | None = None,
         name: str | None = None,
         *,
         closed_bounds: bool = True,
@@ -334,8 +352,8 @@ class Validator:
     @staticmethod
     def as_int(
         v: Any,
-        low: float = None,
-        high: float = None,
+        low: float | None = None,
+        high: float | None = None,
         name: str | None = None,
         *,
         closed_bounds: bool = True,
@@ -388,11 +406,11 @@ class Validator:
     @staticmethod
     def as_dict(
         d: Any,
-        keys: list[Any] = None,
-        types: list[type | tuple] = None,
+        keys: list[Any] | None = None,
+        types: list[type | tuple] | None = None,
         name: str | None = None,
         *,
-        key_type_map: Mapping = None,
+        key_type_map: Mapping | None = None,
         reject_extra_keys: bool = False,
         allow_none: bool = False,
     ) -> dict | None:
@@ -400,7 +418,9 @@ class Validator:
             return None
         Validator.is_type(d, dict, name=name)
 
-        if key_type_map is not None and (keys is not None or types is not None):
+        if key_type_map is not None and (
+            keys is not None or types is not None
+        ):
             raise ValueError(
                 "When key_type_map is provided, keys and types should not be provided."
             )
@@ -433,7 +453,9 @@ class Validator:
                         Validator.is_type(d[k], t, name=f"{name}.{k}")
         else:
             if types is not None:
-                raise ValueError("When types is specified, keys must also be specified")
+                raise ValueError(
+                    "When types is specified, keys must also be specified"
+                )
             if reject_extra_keys:
                 raise ValueError(
                     "When reject_extra_keys is True, keys must also be provided"
