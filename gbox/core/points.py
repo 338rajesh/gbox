@@ -1,14 +1,14 @@
 import math
 from collections.abc import Iterator, Sequence
 from typing import Union, Any, Self
+from numbers import Number
 
 import numpy as np
 import numpy.typing as npt
 
 from .transformation import transform_point_2d, transformation_matrix_2d
 from .utils import (
-    _assert_a_sequence,
-    _assert_a_sequence_of_numbers,
+    Validator,
     Angle,
     TransformationOrder,
 )
@@ -27,7 +27,7 @@ class PointND:
         *coords : float
             The coordinates of the point in N-dimensional space
         """
-        _assert_a_sequence_of_numbers(coords, name="coordinates")
+        Validator.as_sequence(coords, ele_type=Number, name="coordinates")
         self.coordinates = tuple(float(c) for c in coords)
 
     # ============================
@@ -46,7 +46,7 @@ class PointND:
         if isinstance(s, cls):
             return s
 
-        _assert_a_sequence(s, name="coordinates")
+        Validator.as_sequence(s, name="coordinates")
         return cls(*s)
 
     # ============================
@@ -87,7 +87,7 @@ class PointND:
         if isinstance(other, PointND):
             other_dim = other.dim
         else:
-            _assert_a_sequence(other, name="other point")
+            Validator.as_sequence(other, name="other point")
             other_dim = len(other)
 
         if self.dim != other_dim:
@@ -402,14 +402,19 @@ class PointArrayND:
         if isinstance(sequences, np.ndarray):
             return cls(sequences)
 
-        if names is not None and len(names) != len(sequences):
-            raise ValueError(f"Expected {len(sequences)} names, got {len(names)}")
-
-        _assert_a_sequence(sequences, name="sequence of dimensions")
+        Validator.as_sequence(
+            names,
+            length=len(sequences),
+            ele_type=str,
+            name="names",
+            allow_none=True,
+        )
+        Validator.as_sequence(sequences, name="sequence of dimensions")
 
         for idx, sequence in enumerate(sequences):
-            _assert_a_sequence_of_numbers(
+            Validator.as_sequence(
                 sequence,
+                ele_type=Number,
                 name=f"Dimension {idx} sequence" if not names else names[idx],
             )
 

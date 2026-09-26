@@ -3,9 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]  # Minimum versions of required build t
 build-backend = "setuptools.build_meta"
 
 [project]
-requires-python = ">=3.11"
 name = "gbox"
-version = "1.0.0"
+version = "1.1.0"
 description = "A convenience package for geometry related operations"
 readme = "README.md"
 license = "MIT"
@@ -20,10 +19,11 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
 ]
+requires-python = ">=3.14"
 dependencies = [
-    "numpy==2.2.0",
-    "matplotlib==3.10.0",
-    "scipy==1.15.2",
+    "numpy~=2.5",
+    "matplotlib~=3.11",
+    "scipy~=1.18",
 ]
 
 [project.urls]
@@ -32,15 +32,15 @@ repository = "https://github.com/338rajesh/gbox"
 
 [dependency-groups]
 dev = [
-    "ipykernel>=7.3.0",
-    "numpydoc==1.8.0",
-    "pydata-sphinx-theme>=0.16.1",
-    "pytest>=8.4.1",
-    "pytest-cov>=6.0.0",
-    "ruff>=0.14.8",
-    "sphinx>=9.0.4",
-    "sphinx-rtd-theme>=3.1.0",
+    "ipykernel~=7.3.0",
+    "numpydoc~=1.11",
+    "pydata-sphinx-theme~=0.21",
+    "pytest~=9.1",
+    "pytest-cov~=7.1",
+    "ruff~=0.16",
+    "sphinx~=9.1",
+    "sphinx-rtd-theme~=3.1",
 ]
 
-[tool.setuptools]
-packages = ["gbox"]
+[tool.setuptools.packages.find]
+where = ["."]

@@ -18,7 +18,7 @@ from matplotlib.patches import Ellipse as MplEllipse, Circle as MplCircle
 import numpy as np
 import numpy.typing as npt
 
-from ..core.utils import _validate_tuple, _validate_int, Bounds2DRectangular
+from ..core.utils import Validator, Bounds2DRectangular
 from ..shapes.shapes_2d import (
     Circle as GBCircle,
     Ellipse as GBEllipse,
@@ -32,7 +32,7 @@ class ShapesPlotter:
 
     Parameters
     ----------
-    size : tuple[int, int], default=(256, 256)
+    size : Sequence[int, int], default=(256, 256)
         Output image size as ``(width, height)`` in pixels.
     background : int or float, default=0
         Background pixel value.
@@ -59,15 +59,15 @@ class ShapesPlotter:
     def __init__(
         self,
         *,
-        size: tuple[float, float] = (256, 256),
+        size: Sequence[float, float] = (256, 256),
         background: int | float = 0,
         foreground: int | float = 255,
         dpi: int = 100,
     ):
-        _validate_tuple(size, ele_type=int, length=2, name="Image size")
-        _validate_int(background, low=0, high=255, name="Background")
-        _validate_int(foreground, low=0, high=255, name="Foreground")
-        _validate_int(dpi, low=0, name="DPI")
+        Validator.as_sequence(size, ele_type=int, length=2, name="Image size")
+        Validator.as_int(background, low=0, high=255, name="Background")
+        Validator.as_int(foreground, low=0, high=255, name="Foreground")
+        Validator.as_int(dpi, low=0, name="DPI")
 
         self._size = size
         self._background = background
@@ -198,9 +198,7 @@ class ShapesPlotter:
         """
         width, height = self._size
         image_ratio = width / height
-        bounds_ratio = (bounds.x_max - bounds.x_min) / (
-            bounds.y_max - bounds.y_min
-        )
+        bounds_ratio = (bounds.x_max - bounds.x_min) / (bounds.y_max - bounds.y_min)
 
         if not math.isclose(image_ratio, bounds_ratio, rel_tol=rel_tol):
             raise ValueError(
