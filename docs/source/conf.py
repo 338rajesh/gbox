@@ -36,7 +36,9 @@ sys.path.insert(0, dirname(dirname(dirname(__file__))))
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-autodoc_member_order = "bysource"  # to avoid the sorting of methods in the alphabetical order
+autodoc_member_order = (
+    "bysource"  # to avoid the sorting of methods in the alphabetical order
+)
 
 numpydoc_show_class_members = False
 numpydoc_class_members_toctree = False

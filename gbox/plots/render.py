@@ -64,9 +64,7 @@ class ShapesPlotter:
         foreground: int | float = 255,
         dpi: int = 100,
     ):
-        Validator.as_sequence(
-            size, ele_type=int, length=2, name="Image size"
-        )
+        Validator.as_sequence(size, ele_type=int, length=2, name="Image size")
         Validator.as_int(background, low=0, high=255, name="Background")
         Validator.as_int(foreground, low=0, high=255, name="Foreground")
         Validator.as_int(dpi, low=0, name="DPI")
@@ -200,9 +198,7 @@ class ShapesPlotter:
         """
         width, height = self._size
         image_ratio = width / height
-        bounds_ratio = (bounds.x_max - bounds.x_min) / (
-            bounds.y_max - bounds.y_min
-        )
+        bounds_ratio = (bounds.x_max - bounds.x_min) / (bounds.y_max - bounds.y_min)
 
         if not math.isclose(image_ratio, bounds_ratio, rel_tol=rel_tol):
             raise ValueError(

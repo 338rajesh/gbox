@@ -82,9 +82,7 @@ class PointND:
         """Returns the dimension of the point"""
         return len(self.coordinates)
 
-    def _check_same_dimension(
-        self, other: Union["PointND", Sequence[float]]
-    ) -> None:
+    def _check_same_dimension(self, other: Union["PointND", Sequence[float]]) -> None:
         """Asserts that the current point and other point have the same dimension"""
         if isinstance(other, PointND):
             other_dim = other.dim
@@ -93,9 +91,7 @@ class PointND:
             other_dim = len(other)
 
         if self.dim != other_dim:
-            raise ValueError(
-                f"Dimension mismatch: {self.dim}D vs {other_dim}D"
-            )
+            raise ValueError(f"Dimension mismatch: {self.dim}D vs {other_dim}D")
 
     # =================================
     #       GEOMETRIC PROPERTIES
@@ -208,9 +204,7 @@ class Point2D(PointND):
     def y(self) -> float:
         return self.coordinates[1]
 
-    def slope(
-        self, q: Union["Point2D", Sequence[float]], eps: float = 1e-06
-    ) -> float:
+    def slope(self, q: Union["Point2D", Sequence[float]], eps: float = 1e-06) -> float:
         """Returns the slope of the line joining the current point and other
         point 'q'.
 
@@ -235,9 +229,7 @@ class Point2D(PointND):
 
         return float((q.y - self.y) / dx)
 
-    def angle(
-        self, q: Union["Point2D", Sequence[float]], degrees=False
-    ) -> Angle:
+    def angle(self, q: Union["Point2D", Sequence[float]], degrees=False) -> Angle:
         """Returns the angle between the current point and other point `q` in
         radians or degrees, measured counter-clockwise from the positive x-axis.
 
@@ -443,9 +435,7 @@ class PointArrayND:
         if not data:
             raise ValueError("Input dictionary is empty")
 
-        return cls.from_dim_sequences(
-            list(data.values()), names=list(data.keys())
-        )
+        return cls.from_dim_sequences(list(data.values()), names=list(data.keys()))
 
     # ============================
     #       MAGIC METHODS
@@ -471,9 +461,7 @@ class PointArrayND:
         )
 
     def __str__(self) -> str:
-        return (
-            f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
-        )
+        return f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
 
     # ============================
     #       POINT PROPERTIES

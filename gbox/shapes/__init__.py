@@ -14,9 +14,7 @@ SHAPES_2D_MAPPING: dict[str, Shape2D] = {
     "circle": Circle,
     "ellipse": Ellipse,
 }
-SHAPES_2D_ARRAY_MAPPING: dict[str, Shapes2DArray] = {
-    "circles_array": CirclesArray
-}
+SHAPES_2D_ARRAY_MAPPING: dict[str, Shapes2DArray] = {"circles_array": CirclesArray}
 
 __all__ = [
     "Shape2D",

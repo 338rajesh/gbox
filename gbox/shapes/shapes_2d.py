@@ -83,9 +83,7 @@ class Shape2D(ABC):
         return float(np.sqrt(self.area / PI))
 
     @abstractmethod
-    def contains_point(
-        self, point: Point2D | Sequence[float]
-    ) -> Literal[-1, 0, 1]:
+    def contains_point(self, point: Point2D | Sequence[float]) -> Literal[-1, 0, 1]:
         """
         Checks if a point is inside, on, or outside the shape.
 
@@ -108,9 +106,7 @@ class Shape2D(ABC):
         Returns the bounding box of the shape as a list of
         four floats: [min_x, min_y, max_x, max_y].
         """
-        raise NotImplementedError(
-            "Bounding box method not implemented for this shape."
-        )
+        raise NotImplementedError("Bounding box method not implemented for this shape.")
 
     @abstractmethod
     def from_params(
@@ -122,22 +118,16 @@ class Shape2D(ABC):
         Constructs the current Shape2D based on the size and positional
         parameters.
         """
-        raise NotImplementedError(
-            "Subclasses must implement the from_params method."
-        )
+        raise NotImplementedError("Subclasses must implement the from_params method.")
 
     @abstractmethod
     def to_dict(self) -> dict:
-        raise NotImplementedError(
-            "Subclasses must implement the to_dict method."
-        )
+        raise NotImplementedError("Subclasses must implement the to_dict method.")
 
     @classmethod
     @abstractmethod
     def from_dict(cls, d: dict) -> Self:
-        raise NotImplementedError(
-            "Subclasses must implement the from_dict method."
-        )
+        raise NotImplementedError("Subclasses must implement the from_dict method.")
 
 
 class Shapes2DArray(ABC):
@@ -202,9 +192,7 @@ class Ellipse(Shape2D):
 
     @property
     def eccentricity(self) -> float:
-        return np.sqrt(
-            1 - ((self._semi_minor_length / self._semi_major_length) ** 2)
-        )
+        return np.sqrt(1 - ((self._semi_minor_length / self._semi_major_length) ** 2))
 
     @property
     def position(self) -> Shape2DPose:
@@ -272,9 +260,7 @@ class Ellipse(Shape2D):
         point_density: float = 10.0,
     ) -> np.ndarray:
         """Samples points along the elliptical arc."""
-        if num_points is None or (
-            isinstance(num_points, int) and num_points < 1
-        ):
+        if num_points is None or (isinstance(num_points, int) and num_points < 1):
             raise ValueError(
                 f"num_points must be a positive integer,Got {num_points!r} instead."
             )
@@ -284,9 +270,7 @@ class Ellipse(Shape2D):
             name="num_points",
         )
 
-        return self.points_at_parametric_points(
-            np.linspace(0, 2 * PI, num_points)
-        )
+        return self.points_at_parametric_points(np.linspace(0, 2 * PI, num_points))
 
     def points_at_parametric_points(self, theta: Sequence) -> PointArray2D:
         points_arr = PointArray2D.from_named_dims(
@@ -300,9 +284,7 @@ class Ellipse(Shape2D):
             in_place=True,
         )
         if not isinstance(points_arr, PointArray2D) or len(points_arr) == 0:
-            raise ValueError(
-                "Invalid points array or no points sampled along the arc"
-            )
+            raise ValueError("Invalid points array or no points sampled along the arc")
 
         return points_arr
 
@@ -470,11 +452,7 @@ class Ellipse(Shape2D):
             return self.semi_minor_length
 
         r_min = self.semi_minor_length * np.sqrt(
-            1.0
-            - (
-                (xi * xi)
-                / (self.semi_major_length**2 - self.semi_minor_length**2)
-            )
+            1.0 - ((xi * xi) / (self.semi_major_length**2 - self.semi_minor_length**2))
         )
         return float(r_min)
 
@@ -543,9 +521,7 @@ class Ellipse(Shape2D):
             x_i = (x_i * (m - 1.0)) + (m * e_i * np.sqrt(gap))
 
         circles_array = [
-            c.transform(
-                self._position.x, self._position.y, self._position.orientation
-            )
+            c.transform(self._position.x, self._position.y, self._position.orientation)
             for c in circles
         ]
         return circles_array
@@ -576,9 +552,7 @@ class Circle(Ellipse):
         new_position = self._position.transform(
             dx, dy, d_theta, pivot=pivot, order=order
         )
-        return self.__class__(
-            self._semi_major_length, (new_position.x, new_position.y)
-        )
+        return self.__class__(self._semi_major_length, (new_position.x, new_position.y))
 
     @property
     def radius(self) -> float:
@@ -639,9 +613,7 @@ class CirclesArray(Shapes2DArray):
 
     def __init__(
         self,
-        centres: PointArray2D
-        | Sequence[tuple[float, float]]
-        | npt.NDArray[np.float64],
+        centres: PointArray2D | Sequence[tuple[float, float]] | npt.NDArray[np.float64],
         radii: Sequence[float] | float | npt.NDArray[np.float64],
     ):
         if isinstance(centres, np.ndarray):

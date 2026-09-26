@@ -7,14 +7,13 @@ from gbox.core.points import Point2D, PointArray2D
 from gbox.shapes.shapes_2d import (
     PI,
     Angle,
-    TransformationOrder,
-    Shape2D,
-    Shape2DPose,
-    Ellipse,
     Circle,
     CirclesArray,
+    Ellipse,
+    Shape2D,
+    Shape2DPose,
+    TransformationOrder,
 )
-
 
 # =====================================================================
 # Shared helpers
@@ -48,9 +47,7 @@ class TestShape2DPose:
         orientation = Angle.rad(np.pi / 4)
         pose = Shape2DPose(1.5, -2.5, orientation)
 
-        assert repr(pose) == (
-            f"Shape2DPose(x=1.5, y=-2.5, orientation={orientation})"
-        )
+        assert repr(pose) == (f"Shape2DPose(x=1.5, y=-2.5, orientation={orientation})")
 
     def test_is_immutable(self):
         pose = Shape2DPose(1.0, 2.0, Angle.rad(0.5))
@@ -103,9 +100,7 @@ class TestShape2DPose:
 
         # Rotating about its own position leaves x/y unchanged.
         assert (result.x, result.y) == pytest.approx((3.0, 4.0))
-        assert result.orientation.radians == pytest.approx(
-            0.2 + np.pi / 2
-        )
+        assert result.orientation.radians == pytest.approx(0.2 + np.pi / 2)
 
     def test_transform_rotate_about_origin(self):
         pose = Shape2DPose(1.0, 0.0, Angle.rad(0.0))
@@ -193,6 +188,17 @@ class TestShape2DInterface:
             def bounding_box(self):
                 return [0.0, 0.0, 1.0, 1.0]
 
+            @classmethod
+            def from_dict(cls, d):
+                return cls()
+
+            @classmethod
+            def from_params(cls, position_params, size_params):
+                return cls()
+
+            def to_dict(self, ds):
+                return {}
+
         shape = DummyShape()
 
         assert shape.equivalent_circle_radius == pytest.approx(2.0)
@@ -220,6 +226,17 @@ class TestShape2DInterface:
             @property
             def bounding_box(self):
                 return super().bounding_box
+
+            @classmethod
+            def from_dict(cls, d):
+                return cls()
+
+            @classmethod
+            def from_params(cls, position_params, size_params):
+                return cls()
+
+            def to_dict(self, ds):
+                return {}
 
         with pytest.raises(
             NotImplementedError,
@@ -325,9 +342,7 @@ class TestEllipseProperties:
         assert ellipse.eccentricity == pytest.approx(0.8)
 
     def test_equivalent_circle_radius(self, ellipse):
-        assert ellipse.equivalent_circle_radius == pytest.approx(
-            math.sqrt(15.0)
-        )
+        assert ellipse.equivalent_circle_radius == pytest.approx(math.sqrt(15.0))
 
     @pytest.mark.parametrize(
         "a,b",
@@ -602,7 +617,6 @@ class TestEllipseSampling:
         assert isinstance(points, PointArray2D)
         assert len(points) == 100
 
-
     def test_sampling_explicit_num_points_takes_precedence(self):
         ellipse = Ellipse(5.0, 3.0)
 
@@ -678,9 +692,7 @@ class TestEllipseTransform:
         )
 
         assert result.centre == pytest.approx((2.0, 4.0))
-        assert result.position.orientation.radians == pytest.approx(
-            0.25 + np.pi / 2
-        )
+        assert result.position.orientation.radians == pytest.approx(0.25 + np.pi / 2)
 
     def test_rotate_about_origin(self):
         ellipse = Ellipse(
@@ -696,9 +708,7 @@ class TestEllipseTransform:
         )
 
         assert result.centre == pytest.approx((0.0, 2.0))
-        assert result.position.orientation.radians == pytest.approx(
-            np.pi / 2
-        )
+        assert result.position.orientation.radians == pytest.approx(np.pi / 2)
 
     def test_rotate_about_arbitrary_pivot(self):
         ellipse = Ellipse(
@@ -714,9 +724,7 @@ class TestEllipseTransform:
         )
 
         assert result.centre == pytest.approx((2.0, 4.0))
-        assert result.position.orientation.radians == pytest.approx(
-            np.pi / 2
-        )
+        assert result.position.orientation.radians == pytest.approx(np.pi / 2)
 
     def test_transform_combines_rotation_and_translation(self):
         ellipse = Ellipse(
@@ -920,18 +928,14 @@ class TestEllipseRShortest:
 
         ellipse = Ellipse(a, b)
 
-        expected = b * math.sqrt(
-            1.0 - xi**2 / (a**2 - b**2)
-        )
+        expected = b * math.sqrt(1.0 - xi**2 / (a**2 - b**2))
 
         assert ellipse.r_shortest(xi) == pytest.approx(expected)
 
     def test_symmetry_about_origin(self):
         ellipse = Ellipse(5.0, 3.0)
 
-        assert ellipse.r_shortest(1.5) == pytest.approx(
-            ellipse.r_shortest(-1.5)
-        )
+        assert ellipse.r_shortest(1.5) == pytest.approx(ellipse.r_shortest(-1.5))
 
     def test_zero_at_a_squared_minus_b_squared_boundary(self):
         a = 5.0
@@ -1029,10 +1033,7 @@ class TestEllipseUnionOfCircles:
 
         # At least one generated circle should be displaced from the
         # ellipse centre for a non-circular ellipse.
-        assert any(
-            not np.allclose(c.centre, ellipse.centre)
-            for c in circles
-        )
+        assert any(not np.allclose(c.centre, ellipse.centre) for c in circles)
 
     def test_union_generation_is_deterministic(self):
         ellipse = Ellipse(5.0, 3.0)
@@ -1152,7 +1153,6 @@ class TestCircle:
 
 
 class TestCirclesArrayConstruction:
-
     def test_from_tuples(self):
         circles = CirclesArray(
             [(0.0, 0.0), (1.0, 2.0)],
@@ -1324,9 +1324,7 @@ class TestCirclesArrayConversions:
             assert circle.radius == pytest.approx(radius)
 
     def test_round_trip(self, circles_array):
-        recovered = CirclesArray.from_circles(
-            circles_array.to_circles()
-        )
+        recovered = CirclesArray.from_circles(circles_array.to_circles())
 
         assert np.allclose(
             recovered.centres.coordinates,
@@ -1450,9 +1448,7 @@ class TestCirclesArrayTranslate:
 
         result = circles.translate(dx, dy)
 
-        assert result.centres[0].tolist() == pytest.approx(
-            [1.0 + dx, 2.0 + dy]
-        )
+        assert result.centres[0].tolist() == pytest.approx([1.0 + dx, 2.0 + dy])
 
 
 # =====================================================================
@@ -1472,12 +1468,8 @@ class TestCirclesArrayRotate:
             pivot=(0.0, 0.0),
         )
 
-        assert result.centres[0].tolist() == pytest.approx(
-            [0.0, 1.0]
-        )
-        assert result.centres[1].tolist() == pytest.approx(
-            [-1.0, 0.0]
-        )
+        assert result.centres[0].tolist() == pytest.approx([0.0, 1.0])
+        assert result.centres[1].tolist() == pytest.approx([-1.0, 0.0])
 
     def test_rotate_about_arbitrary_pivot(self):
         circles = CirclesArray(
@@ -1490,9 +1482,7 @@ class TestCirclesArrayRotate:
             pivot=(2.0, 2.0),
         )
 
-        assert result.centres[0].tolist() == pytest.approx(
-            [2.0, 3.0]
-        )
+        assert result.centres[0].tolist() == pytest.approx([2.0, 3.0])
 
     def test_rotation_does_not_change_radii(self):
         circles = CirclesArray(
@@ -1518,9 +1508,7 @@ class TestCirclesArrayRotate:
             pivot=(0.0, 0.0),
         )
 
-        assert circles.centres[0].tolist() == pytest.approx(
-            [1.0, 0.0]
-        )
+        assert circles.centres[0].tolist() == pytest.approx([1.0, 0.0])
 
     def test_rotate_in_place(self):
         circles = CirclesArray(
@@ -1535,9 +1523,7 @@ class TestCirclesArrayRotate:
         )
 
         assert result is circles
-        assert circles.centres[0].tolist() == pytest.approx(
-            [0.0, 1.0]
-        )
+        assert circles.centres[0].tolist() == pytest.approx([0.0, 1.0])
 
 
 # =====================================================================
@@ -1560,9 +1546,7 @@ class TestCirclesArrayTransform:
             order=TransformationOrder.ROTATE_THEN_TRANSLATE,
         )
 
-        assert result.centres[0].tolist() == pytest.approx(
-            [2.0, 4.0]
-        )
+        assert result.centres[0].tolist() == pytest.approx([2.0, 4.0])
 
     def test_transform_defaults_pivot_to_origin(self):
         circles = CirclesArray(
@@ -1574,9 +1558,7 @@ class TestCirclesArrayTransform:
             rot_angle=Angle.rad(np.pi / 2),
         )
 
-        assert result.centres[0].tolist() == pytest.approx(
-            [0.0, 1.0]
-        )
+        assert result.centres[0].tolist() == pytest.approx([0.0, 1.0])
 
     def test_transform_out_of_place(self):
         circles = CirclesArray(
@@ -1587,12 +1569,8 @@ class TestCirclesArrayTransform:
         result = circles.transform(dx=10.0)
 
         assert result is not circles
-        assert circles.centres[0].tolist() == pytest.approx(
-            [1.0, 0.0]
-        )
-        assert result.centres[0].tolist() == pytest.approx(
-            [11.0, 0.0]
-        )
+        assert circles.centres[0].tolist() == pytest.approx([1.0, 0.0])
+        assert result.centres[0].tolist() == pytest.approx([11.0, 0.0])
 
     def test_transform_in_place(self):
         circles = CirclesArray(
@@ -1606,9 +1584,7 @@ class TestCirclesArrayTransform:
         )
 
         assert result is circles
-        assert circles.centres[0].tolist() == pytest.approx(
-            [11.0, 0.0]
-        )
+        assert circles.centres[0].tolist() == pytest.approx([11.0, 0.0])
 
     def test_transform_preserves_count(self):
         circles = CirclesArray(
@@ -1705,7 +1681,6 @@ class TestCirclesArrayBoundingBox:
             assert y + radius <= bbox[3] + 1e-12
 
 
-
 # =====================================================================
 # Cross-class / invariants
 # =====================================================================
@@ -1785,9 +1760,7 @@ class TestGeometricInvariants:
         assert ellipse.perimeter == pytest.approx(circle.perimeter)
         assert ellipse.eccentricity == pytest.approx(circle.eccentricity)
         assert ellipse.aspect_ratio == pytest.approx(circle.aspect_ratio)
-        assert ellipse.bounding_box == pytest.approx(
-            circle.bounding_box
-        )
+        assert ellipse.bounding_box == pytest.approx(circle.bounding_box)
 
     def test_circle_transform_preserves_geometry(self):
         circle = Circle(3.0, (1.0, 2.0))

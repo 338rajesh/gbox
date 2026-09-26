@@ -34,9 +34,7 @@ class Angle:
                 f"Angle value must be a number (int or float), but got {type(self.value)}"
             )
         if self.unit not in ("deg", "rad"):
-            raise ValueError(
-                f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'."
-            )
+            raise ValueError(f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'.")
 
     @property
     def radians(self) -> float:
@@ -94,9 +92,7 @@ class Angle:
     def __eq__(self, other: Self) -> bool:
         if not isinstance(other, Angle):
             return False
-        return math.isclose(
-            self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9
-        )
+        return math.isclose(self.radians, other.radians, rel_tol=1e-9, abs_tol=1e-9)
 
     def __repr__(self) -> str:
         return f"Angle({self.value}, '{self.unit}')"
@@ -165,9 +161,7 @@ class Bounds2DRectangular:
         return self.x_len * self.y_len
 
 
-def get_logger(
-    name: str = __name__, level: int = logging.INFO
-) -> logging.Logger:
+def get_logger(name: str = __name__, level: int = logging.INFO) -> logging.Logger:
     """Returns a logger with the given name and level"""
     logger = logging.getLogger(name)
     logger.setLevel(level)
@@ -373,8 +367,7 @@ class Validator:
         Validator.is_type(v, str, name=name)
         if Validator.is_type(target, str) and v != target:
             raise ValueError(
-                f"The given string '{name}' does not match "
-                f"the target string {target}"
+                f"The given string '{name}' does not match the target string {target}"
             )
 
         v_len = len(v)
@@ -407,12 +400,9 @@ class Validator:
             return None
         Validator.is_type(d, dict, name=name)
 
-        if key_type_map is not None and (
-            keys is not None or types is not None
-        ):
+        if key_type_map is not None and (keys is not None or types is not None):
             raise ValueError(
-                "When key_type_map is provided, keys and types should "
-                "not be provided."
+                "When key_type_map is provided, keys and types should not be provided."
             )
 
         if key_type_map is not None:
@@ -443,9 +433,7 @@ class Validator:
                         Validator.is_type(d[k], t, name=f"{name}.{k}")
         else:
             if types is not None:
-                raise ValueError(
-                    "When types is specified, keys must also be specified"
-                )
+                raise ValueError("When types is specified, keys must also be specified")
             if reject_extra_keys:
                 raise ValueError(
                     "When reject_extra_keys is True, keys must also be provided"
