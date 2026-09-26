@@ -3,8 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from .utils import Angle, get_logger, TransformationOrder
-
+from .utils import Angle, TransformationOrder, get_logger
 
 logger = get_logger(__name__)
 
@@ -44,7 +43,7 @@ def transformation_matrix_2d(
     *,
     dx: float = 0.0,
     dy: float = 0.0,
-    angle: Angle = Angle.rad(0.0),
+    angle: Angle = None,
     pivot: Sequence[float] = (0.0, 0.0),
     order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
 ) -> npt.NDArray[np.float64]:
@@ -61,6 +60,7 @@ def transformation_matrix_2d(
 
         p' = R @ T @ p
     """
+    angle = angle or Angle(0.0, units="radians")
     if len(pivot) != 2:
         raise ValueError("2D pivot must contain exactly 2 coordinates.")
 
@@ -75,7 +75,9 @@ def transformation_matrix_2d(
     #       = R @ p + (pivot - R @ pivot)
 
     pivot = np.asarray(pivot, dtype=np.float64)
-    pivot_offset = (pivot - rotation_2x2 @ pivot).reshape(2, 1)  # column vector
+    pivot_offset = (pivot - rotation_2x2 @ pivot).reshape(
+        2, 1
+    )  # column vector
     rotation = np.block(
         [
             [rotation_2x2, pivot_offset],
@@ -98,7 +100,7 @@ def transform_point_2d(
     *,
     dx: float = 0.0,
     dy: float = 0.0,
-    angle: Angle = Angle.rad(0.0),
+    angle: Angle = None,
     pivot: Sequence[float] = (0.0, 0.0),
     order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
 ) -> tuple[float, float]:
@@ -126,6 +128,7 @@ def transform_point_2d(
     tuple[float, float]
         The transformed ``(x, y)`` coordinates.
     """
+    angle = angle or Angle.rad(0.0)
     matrix = transformation_matrix_2d(
         dx=dx, dy=dy, angle=angle, pivot=pivot, order=order
     )  # 3x3 matrix

@@ -1,17 +1,19 @@
 import math
 from collections.abc import Iterator, Sequence
-from typing import Union, Any, Self
 from numbers import Number
+from typing import Any, Self
 
 import numpy as np
 import numpy.typing as npt
 
 from .transformation import transform_point_2d, transformation_matrix_2d
 from .utils import (
-    Validator,
     Angle,
     TransformationOrder,
+    Validator,
 )
+
+NumpyFloat64DType = np.dtype(np.float64)
 
 
 class PointND:
@@ -35,7 +37,7 @@ class PointND:
     # ============================
 
     @classmethod
-    def from_sequence(cls, s: Union[Sequence[float], "PointND"]) -> "PointND":
+    def from_sequence(cls, s: Sequence[float] | PointND) -> PointND:
         """Constructs a point from a sequence of coordinates
 
         Parameters
@@ -56,7 +58,7 @@ class PointND:
         """Returns the number of coordinates in the point"""
         return len(self.coordinates)
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Checks if the current point is equal to another point"""
         if not isinstance(other, PointND):
             return False
@@ -82,7 +84,7 @@ class PointND:
         """Returns the dimension of the point"""
         return len(self.coordinates)
 
-    def _check_same_dimension(self, other: Union["PointND", Sequence[float]]) -> None:
+    def _check_same_dimension(self, other: PointND | Sequence[float]) -> None:
         """Asserts that the current point and other point have the same dimension"""
         if isinstance(other, PointND):
             other_dim = other.dim
@@ -91,12 +93,14 @@ class PointND:
             other_dim = len(other)
 
         if self.dim != other_dim:
-            raise ValueError(f"Dimension mismatch: {self.dim}D vs {other_dim}D")
+            raise ValueError(
+                f"Dimension mismatch: {self.dim}D vs {other_dim}D"
+            )
 
     # =================================
     #       GEOMETRIC PROPERTIES
     # =================================
-    def distance_to(self, q: Union["PointND", Sequence[float]]) -> float:
+    def distance_to(self, q: PointND | Sequence[float]) -> float:
         """
         Returns the Euclidean distance between the current point
         and another point 'q'
@@ -117,8 +121,8 @@ class PointND:
 
     def in_bounds(
         self,
-        lower_bound: Union["PointND", Sequence[float]],
-        upper_bound: Union["PointND", Sequence[float]],
+        lower_bound: PointND | Sequence[float],
+        upper_bound: PointND | Sequence[float],
     ) -> bool:
         """Checks if the current point is within the given bounds
 
@@ -145,7 +149,7 @@ class PointND:
 
     def is_close_to(
         self,
-        q: Union["PointND", Sequence[float]],
+        q: PointND | Sequence[float],
         rtol: float = 1e-5,
         atol: float = 1e-8,
     ) -> bool:
@@ -204,7 +208,7 @@ class Point2D(PointND):
     def y(self) -> float:
         return self.coordinates[1]
 
-    def slope(self, q: Union["Point2D", Sequence[float]], eps: float = 1e-06) -> float:
+    def slope(self, q: Point2D | Sequence[float], eps: float = 1e-06) -> float:
         """Returns the slope of the line joining the current point and other
         point 'q'.
 
@@ -229,7 +233,7 @@ class Point2D(PointND):
 
         return float((q.y - self.y) / dx)
 
-    def angle(self, q: Union["Point2D", Sequence[float]], degrees=False) -> Angle:
+    def angle(self, q: Point2D | Sequence[float], degrees=False) -> Angle:
         """Returns the angle between the current point and other point `q` in
         radians or degrees, measured counter-clockwise from the positive x-axis.
 
@@ -266,11 +270,11 @@ class Point2D(PointND):
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        angle: Angle = Angle.rad(0.0),
+        angle: Angle = None,
         *,
-        pivot: Union["Point2D", Sequence[float]] = (0.0, 0.0),
+        pivot: Point2D | Sequence[float] = (0.0, 0.0),
         order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
-    ) -> "Point2D":
+    ) -> Point2D:
         """Returns a new point transformed by rotation and translation
         around the given pivot point.
 
@@ -295,6 +299,7 @@ class Point2D(PointND):
         Point2D
             The transformed point
         """
+        angle = angle or Angle(0.0, units="radian")
         pivot = self.__class__.from_sequence(pivot)
         px, py = transform_point_2d(
             x=self.x,
@@ -339,8 +344,6 @@ class Point3D(PointND):
 ORIGIN_2D = Point2D(0.0, 0.0)
 ORIGIN_3D = Point3D(0.0, 0.0, 0.0)
 
-# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 
 class PointArrayND:
     """A collection of points in N-dimensional space. Coordinates are stored
@@ -371,7 +374,7 @@ class PointArrayND:
     # ============================
     @staticmethod
     def _validate_points(
-        points: Any, dtype: np.dtype = np.dtype(np.float64)
+        points: Any, dtype: np.dtype = NumpyFloat64DType
     ) -> npt.NDArray[np.float64]:
         """Validates the points in the array and returns a NumpyArray of points
         with the expected dtype"""
@@ -395,7 +398,7 @@ class PointArrayND:
         cls,
         sequences: Sequence[Sequence[float]],
         names: Sequence[str] | None = None,
-    ) -> "PointArrayND":
+    ) -> PointArrayND:
         """
         Constructs a PointArray from a sequence of sequences of coordinates
         """
@@ -435,7 +438,9 @@ class PointArrayND:
         if not data:
             raise ValueError("Input dictionary is empty")
 
-        return cls.from_dim_sequences(list(data.values()), names=list(data.keys()))
+        return cls.from_dim_sequences(
+            list(data.values()), names=list(data.keys())
+        )
 
     # ============================
     #       MAGIC METHODS
@@ -461,7 +466,9 @@ class PointArrayND:
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
+        return (
+            f"{self.__class__.__name__} with {len(self)} points in {self.dim}D"
+        )
 
     # ============================
     #       POINT PROPERTIES
@@ -494,7 +501,7 @@ class PointArrayND:
     #       UTILITY METHODS
     # ============================
 
-    def copy(self) -> "PointArrayND":
+    def copy(self) -> PointArrayND:
         """Returns a copy of the current PointArray"""
         return self.__class__(self._coordinates.copy())
 
@@ -548,7 +555,7 @@ class PointArray2D(PointArrayND):
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        angle: Angle = Angle.rad(0.0),
+        angle: Angle = None,
         *,
         pivot: Sequence[float] | Point2D = ORIGIN_2D,
         in_place: bool = False,
@@ -583,6 +590,7 @@ class PointArray2D(PointArrayND):
             If in_place is True, returns None and modifies the current PointArray2D in-place
 
         """
+        angle = angle or Angle.rad(0.0)
         pivot = Point2D.from_sequence(pivot)
         transformation_matrix = transformation_matrix_2d(
             dx=dx,

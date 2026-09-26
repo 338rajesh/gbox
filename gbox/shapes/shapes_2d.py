@@ -1,15 +1,20 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
-from typing import Self, Literal
+from typing import Literal, Self
 
 import numpy as np
 import numpy.typing as npt
 from scipy.integrate import quad
 
-from ..core.utils import Angle, TransformationOrder, Validator
 from ..core.points import Point2D, PointArray2D
 from ..core.transformation import transform_point_2d
+from ..core.utils import (
+    Angle,
+    Bounds2DRectangular,
+    TransformationOrder,
+    Validator,
+)
 
 PI = float(np.pi)
 
@@ -43,11 +48,12 @@ class Shape2DPose:
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        rot_angle: Angle = Angle.rad(0.0),
-        pivot: tuple[float, float] = None,
+        rot_angle: Angle | None = None,
+        pivot: tuple[float, float] | None = None,
         order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
     ) -> Self:
         """Returns a new Shape2DPose with a new (x, y) and orientation."""
+        rot_angle = rot_angle or Angle.rad(0.0)
         if pivot is None:
             pivot = self.x, self.y
         new_x, new_y = transform_point_2d(
@@ -60,6 +66,11 @@ class Shape2DPose:
             order=order,
         )
         return Shape2DPose(new_x, new_y, self.orientation + rot_angle)
+
+    def to_tuple(self) -> tuple[float, float, float]:
+        """Returns a tuple of three float values, containing
+        the x, y, and orientation in radian for the shape position"""
+        return (self.x, self.y, self.orientation.rad())
 
 
 class Shape2D(ABC):
@@ -83,7 +94,9 @@ class Shape2D(ABC):
         return float(np.sqrt(self.area / PI))
 
     @abstractmethod
-    def contains_point(self, point: Point2D | Sequence[float]) -> Literal[-1, 0, 1]:
+    def contains_point(
+        self, point: Point2D | Sequence[float]
+    ) -> Literal[-1, 0, 1]:
         """
         Checks if a point is inside, on, or outside the shape.
 
@@ -93,20 +106,21 @@ class Shape2D(ABC):
         `0` : point is on the shape
         `1` : point is inside the shape
         """
-        pass
 
     @abstractmethod
-    def union_of_circles(self):
+    def union_of_circles(self) -> CirclesArray:
         pass
 
     @property
     @abstractmethod
-    def bounding_box(self) -> list[float]:
+    def bounding_box(self) -> Bounds2DRectangular:
         """
         Returns the bounding box of the shape as a list of
         four floats: [min_x, min_y, max_x, max_y].
         """
-        raise NotImplementedError("Bounding box method not implemented for this shape.")
+        raise NotImplementedError(
+            "Bounding box method not implemented for this shape."
+        )
 
     @abstractmethod
     def from_params(
@@ -118,16 +132,22 @@ class Shape2D(ABC):
         Constructs the current Shape2D based on the size and positional
         parameters.
         """
-        raise NotImplementedError("Subclasses must implement the from_params method.")
+        raise NotImplementedError(
+            "Subclasses must implement the from_params method."
+        )
 
     @abstractmethod
     def to_dict(self) -> dict:
-        raise NotImplementedError("Subclasses must implement the to_dict method.")
+        raise NotImplementedError(
+            "Subclasses must implement the to_dict method."
+        )
 
     @classmethod
     @abstractmethod
     def from_dict(cls, d: dict) -> Self:
-        raise NotImplementedError("Subclasses must implement the from_dict method.")
+        raise NotImplementedError(
+            "Subclasses must implement the from_dict method."
+        )
 
 
 class Shapes2DArray(ABC):
@@ -138,16 +158,17 @@ class Shapes2DArray(ABC):
 
 
 class Ellipse(Shape2D):
-    __slots__ = ("_semi_major_length", "_semi_minor_length", "_position")
+    __slots__ = ("_position", "_semi_major_length", "_semi_minor_length")
 
     def __init__(
         self,
         semi_major_length: float,
         semi_minor_length: float,
         centre: tuple[float, float] = (0.0, 0.0),
-        major_axis_angle: Angle = Angle.rad(0.0),
+        major_axis_angle: Angle | None = None,
     ):
         super().__init__()
+        major_axis_angle = Angle.rad(0.0)
         _args = self._validate_args(
             semi_major_length, semi_minor_length, centre, major_axis_angle
         )
@@ -171,12 +192,12 @@ class Ellipse(Shape2D):
             raise ValueError("Semi-major axis must be >= semi-minor axis")
         centre = Validator.as_sequence(centre, length=2, ele_type=(int, float))
         centre = tuple(float(i) for i in centre)
-        return dict(
-            semi_major_length=semi_major_length,
-            semi_minor_length=semi_minor_length,
-            centre=centre,
-            major_axis_angle=major_axis_angle,
-        )
+        return {
+            "semi_major_length": semi_major_length,
+            "semi_minor_length": semi_minor_length,
+            "centre": centre,
+            "major_axis_angle": major_axis_angle,
+        }
 
     @property
     def semi_major_length(self):
@@ -192,11 +213,19 @@ class Ellipse(Shape2D):
 
     @property
     def eccentricity(self) -> float:
-        return np.sqrt(1 - ((self._semi_minor_length / self._semi_major_length) ** 2))
+        return np.sqrt(
+            1 - ((self._semi_minor_length / self._semi_major_length) ** 2)
+        )
 
     @property
     def position(self) -> Shape2DPose:
         return self._position
+
+    @position.setter
+    def position(self, value: Shape2DPose):
+        Validator.is_type(value, Shape2DPose)
+        self._position = value
+        return self
 
     @property
     def centre(self) -> tuple[float, float]:
@@ -218,7 +247,7 @@ class Ellipse(Shape2D):
         return quad(self._arc_length_integrand, 0, 2 * PI)[0]
 
     @property
-    def bounding_box(self) -> list[float]:
+    def bounding_box(self) -> Bounds2DRectangular:
         """Returns the axis-aligned bounding box of the ellipse as
         a list of [min_x, min_y, max_x, max_y].
         """
@@ -228,8 +257,12 @@ class Ellipse(Shape2D):
         sin_2 = self._position.orientation.sin**2
         hx = float(np.sqrt(a2 * cos_2 + b2 * sin_2))
         hy = float(np.sqrt(a2 * sin_2 + b2 * cos_2))
-        cx, cy = self._position.x, self._position.y
-        return [cx - hx, cy - hy, cx + hx, cy + hy]
+        return Bounds2DRectangular(
+            self._position.x - hx,
+            self._position.y - hy,
+            self._position.x + hx,
+            self._position.y + hy,
+        )
 
     def clone(self) -> Self:
         return self.__class__(
@@ -260,7 +293,9 @@ class Ellipse(Shape2D):
         point_density: float = 10.0,
     ) -> np.ndarray:
         """Samples points along the elliptical arc."""
-        if num_points is None or (isinstance(num_points, int) and num_points < 1):
+        if num_points is None or (
+            isinstance(num_points, int) and num_points < 1
+        ):
             raise ValueError(
                 f"num_points must be a positive integer,Got {num_points!r} instead."
             )
@@ -270,7 +305,9 @@ class Ellipse(Shape2D):
             name="num_points",
         )
 
-        return self.points_at_parametric_points(np.linspace(0, 2 * PI, num_points))
+        return self.points_at_parametric_points(
+            np.linspace(0, 2 * PI, num_points)
+        )
 
     def points_at_parametric_points(self, theta: Sequence) -> PointArray2D:
         points_arr = PointArray2D.from_named_dims(
@@ -284,7 +321,9 @@ class Ellipse(Shape2D):
             in_place=True,
         )
         if not isinstance(points_arr, PointArray2D) or len(points_arr) == 0:
-            raise ValueError("Invalid points array or no points sampled along the arc")
+            raise ValueError(
+                "Invalid points array or no points sampled along the arc"
+            )
 
         return points_arr
 
@@ -300,9 +339,9 @@ class Ellipse(Shape2D):
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        d_theta: Angle = Angle.rad(0.0),
+        d_theta: Angle | None = None,
         *,
-        pivot: tuple[float, float] = None,
+        pivot: tuple[float, float] | None = None,
         order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
     ) -> Self:
         """Returns a new Ellipse whose position is transformed
@@ -322,6 +361,8 @@ class Ellipse(Shape2D):
             The order of transformations. Default is ROTATE_THEN_TRANSLATE.
             see :class:`gbox.core.utils.TransformationOrder` for more details.
         """
+        if d_theta is None:
+            d_theta = Angle.rad(0.0)
         if pivot is None:
             pivot = self._position.x, self._position.y
 
@@ -452,7 +493,11 @@ class Ellipse(Shape2D):
             return self.semi_minor_length
 
         r_min = self.semi_minor_length * np.sqrt(
-            1.0 - ((xi * xi) / (self.semi_major_length**2 - self.semi_minor_length**2))
+            1.0
+            - (
+                (xi * xi)
+                / (self.semi_major_length**2 - self.semi_minor_length**2)
+            )
         )
         return float(r_min)
 
@@ -521,7 +566,9 @@ class Ellipse(Shape2D):
             x_i = (x_i * (m - 1.0)) + (m * e_i * np.sqrt(gap))
 
         circles_array = [
-            c.transform(self._position.x, self._position.y, self._position.orientation)
+            c.transform(
+                self._position.x, self._position.y, self._position.orientation
+            )
             for c in circles
         ]
         return circles_array
@@ -541,18 +588,22 @@ class Circle(Ellipse):
         self,
         dx=0,
         dy=0,
-        d_theta=Angle.rad(0),
+        d_theta: Angle | None = None,
         *,
         pivot=None,
         order=TransformationOrder.ROTATE_THEN_TRANSLATE,
     ):
+        if d_theta:
+            d_theta = Angle.rad(0)
         if pivot is None:
             pivot = self._position.x, self._position.y
 
         new_position = self._position.transform(
             dx, dy, d_theta, pivot=pivot, order=order
         )
-        return self.__class__(self._semi_major_length, (new_position.x, new_position.y))
+        return self.__class__(
+            self._semi_major_length, (new_position.x, new_position.y)
+        )
 
     @property
     def radius(self) -> float:
@@ -613,7 +664,9 @@ class CirclesArray(Shapes2DArray):
 
     def __init__(
         self,
-        centres: PointArray2D | Sequence[tuple[float, float]] | npt.NDArray[np.float64],
+        centres: PointArray2D
+        | Sequence[tuple[float, float]]
+        | npt.NDArray[np.float64],
         radii: Sequence[float] | float | npt.NDArray[np.float64],
     ):
         if isinstance(centres, np.ndarray):
@@ -659,6 +712,20 @@ class CirclesArray(Shapes2DArray):
     def radii(self) -> np.ndarray:
         return self._radii
 
+    def __getitem__(
+        self, index: int | slice
+    ) -> tuple[float, float, float] | Self:
+        if isinstance(index, slice):
+            return self.__class__(self._centres[index], self._radii[index])
+
+        center = self._centres[index]
+        radius = self._radii[index]
+        return float(center[0]), float(center[1]), float(radius)
+
+    def __iter__(self) -> Iterator[tuple[float, float, float]]:
+        for c, r in zip(self._centres, self._radii):
+            yield float(c[0]), float(c[1]), float(r)
+
     @classmethod
     def from_circles(cls, circles: Sequence[Circle]) -> Self:
         centres = [(c.position.x, c.position.y) for c in circles]
@@ -688,13 +755,14 @@ class CirclesArray(Shapes2DArray):
 
     def rotate(
         self,
-        rot_angle: Angle = Angle.rad(0.0),
+        rot_angle: Angle | None = None,
         pivot: tuple[float, float] = (0.0, 0.0),
         in_place: bool = False,
     ) -> Self:
         """Rotates every circle's centre about `pivot` by `rot_angle`.
         Circle radii are unaffected by rotation.
         """
+        rot_angle = rot_angle or Angle.rad(0.0)
         target = self if in_place else self.clone()
         target._centres.transform(
             0.0,
@@ -710,14 +778,15 @@ class CirclesArray(Shapes2DArray):
         self,
         dx: float = 0.0,
         dy: float = 0.0,
-        rot_angle: Angle = Angle.rad(0.0),
-        pivot: tuple[float, float] = None,
+        rot_angle: Angle | None = None,
+        pivot: tuple[float, float] | None = None,
         in_place: bool = False,
         order: TransformationOrder = TransformationOrder.ROTATE_THEN_TRANSLATE,
     ) -> Self:
         """Combined rotate-then-translate of the whole group, rotating about
         `pivot`.
         """
+        rot_angle = rot_angle or Angle.rad(0.0)
         target = self if in_place else self.clone()
         if pivot is None:
             pivot = Point2D(0.0, 0.0)
@@ -731,11 +800,12 @@ class CirclesArray(Shapes2DArray):
         )
         return target
 
-    def bounding_box(self) -> list[float]:
+    @property
+    def bounding_box(self) -> Bounds2DRectangular:
         xs, ys = self._centres.x, self._centres.y
-        return [
+        return Bounds2DRectangular(
             float(np.min(xs - self._radii)),
             float(np.min(ys - self._radii)),
             float(np.max(xs + self._radii)),
             float(np.max(ys + self._radii)),
-        ]
+        )
