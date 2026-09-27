@@ -70,7 +70,7 @@ class Shape2DPose:
     def to_tuple(self) -> tuple[float, float, float]:
         """Returns a tuple of three float values, containing
         the x, y, and orientation in radian for the shape position"""
-        return (self.x, self.y, self.orientation.rad())
+        return (self.x, self.y, self.orientation.radians)
 
 
 class Shape2D(ABC):
@@ -633,25 +633,22 @@ class Circle(Ellipse):
         -------
         Ellipse
         """
+        tag = f"{cls.__name__}.from_params"
         Validator.as_dict(
             position_params,
-            ["xc", "yc", "major_axis_angle"],
-            [float, float, Angle],
-            name="position_params",
+            key_type_map={"xc": float, "yc": float},
+            name=f"{tag}.position_params",
             reject_extra_keys=True,
         )
         Validator.as_dict(
             size_params,
-            ["semi_major_length", "semi_minor_length"],
-            [float, float],
-            name="size_params",
+            key_type_map={"radius": float},
+            name=f"{tag}.size_params",
             reject_extra_keys=True,
         )
         return cls(
-            size_params["semi_major_length"],
-            size_params["semi_minor_length"],
+            size_params["radius"],
             (position_params["xc"], position_params["yc"]),
-            position_params["major_axis_angle"],
         )
 
 

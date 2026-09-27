@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from gbox.core.points import Point2D, PointArray2D
+from gbox.core.utils import Bounds2DRectangular
 from gbox.shapes.shapes_2d import (
     PI,
     Angle,
@@ -25,7 +26,7 @@ def assert_point_close(point, expected, *, abs=1e-9):
     assert point.y == pytest.approx(expected[1], abs=abs)
 
 
-def assert_bbox_close(bbox, expected, *, abs=1e-9):
+def assert_bbox_close(bbox: Bounds2DRectangular, expected, *, abs=1e-9):
     assert list(bbox.bounds.values()) == pytest.approx(expected, abs=abs)
 
 
@@ -47,7 +48,9 @@ class TestShape2DPose:
         orientation = Angle.rad(np.pi / 4)
         pose = Shape2DPose(1.5, -2.5, orientation)
 
-        assert repr(pose) == (f"Shape2DPose(x=1.5, y=-2.5, orientation={orientation})")
+        assert repr(pose) == (
+            f"Shape2DPose(x=1.5, y=-2.5, orientation={orientation})"
+        )
 
     def test_is_immutable(self):
         pose = Shape2DPose(1.0, 2.0, Angle.rad(0.5))
@@ -342,7 +345,9 @@ class TestEllipseProperties:
         assert ellipse.eccentricity == pytest.approx(0.8)
 
     def test_equivalent_circle_radius(self, ellipse):
-        assert ellipse.equivalent_circle_radius == pytest.approx(math.sqrt(15.0))
+        assert ellipse.equivalent_circle_radius == pytest.approx(
+            math.sqrt(15.0)
+        )
 
     @pytest.mark.parametrize(
         "a,b",
@@ -692,7 +697,9 @@ class TestEllipseTransform:
         )
 
         assert result.centre == pytest.approx((2.0, 4.0))
-        assert result.position.orientation.radians == pytest.approx(0.25 + np.pi / 2)
+        assert result.position.orientation.radians == pytest.approx(
+            0.25 + np.pi / 2
+        )
 
     def test_rotate_about_origin(self):
         ellipse = Ellipse(
@@ -798,7 +805,7 @@ class TestEllipseClone:
         assert clone.position.orientation == ellipse.position.orientation
         assert clone.area == pytest.approx(ellipse.area)
         assert clone.perimeter == pytest.approx(ellipse.perimeter)
-        assert clone.bounding_box == pytest.approx(ellipse.bounding_box)
+        assert clone.bounding_box == ellipse.bounding_box
 
     def test_clone_is_independent(self):
         ellipse = Ellipse(5.0, 3.0)
@@ -935,7 +942,9 @@ class TestEllipseRShortest:
     def test_symmetry_about_origin(self):
         ellipse = Ellipse(5.0, 3.0)
 
-        assert ellipse.r_shortest(1.5) == pytest.approx(ellipse.r_shortest(-1.5))
+        assert ellipse.r_shortest(1.5) == pytest.approx(
+            ellipse.r_shortest(-1.5)
+        )
 
     def test_zero_at_a_squared_minus_b_squared_boundary(self):
         a = 5.0
@@ -1019,7 +1028,9 @@ class TestEllipseUnionOfCircles:
 
         circles = ellipse.union_of_circles(dh=0.1)
 
-        assert all(c.radius <= ellipse.semi_minor_length + 1e-9 for c in circles)
+        assert all(
+            c.radius <= ellipse.semi_minor_length + 1e-9 for c in circles
+        )
 
     def test_generated_circles_are_transformed_to_ellipse_pose(self):
         ellipse = Ellipse(
@@ -1448,7 +1459,9 @@ class TestCirclesArrayTranslate:
 
         result = circles.translate(dx, dy)
 
-        assert result.centres[0].tolist() == pytest.approx([1.0 + dx, 2.0 + dy])
+        assert result.centres[0].tolist() == pytest.approx(
+            [1.0 + dx, 2.0 + dy]
+        )
 
 
 # =====================================================================
@@ -1760,7 +1773,7 @@ class TestGeometricInvariants:
         assert ellipse.perimeter == pytest.approx(circle.perimeter)
         assert ellipse.eccentricity == pytest.approx(circle.eccentricity)
         assert ellipse.aspect_ratio == pytest.approx(circle.aspect_ratio)
-        assert ellipse.bounding_box == pytest.approx(circle.bounding_box)
+        assert ellipse.bounding_box == circle.bounding_box
 
     def test_circle_transform_preserves_geometry(self):
         circle = Circle(3.0, (1.0, 2.0))

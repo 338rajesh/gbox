@@ -5,6 +5,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+import matplotlib
+
+# Important for headless/server/dataset-generation environments.
+matplotlib.use("Agg")
+
 import numpy as np
 import numpy.typing as npt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
