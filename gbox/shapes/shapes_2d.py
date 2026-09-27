@@ -501,7 +501,7 @@ class Ellipse(Shape2D):
         )
         return float(r_min)
 
-    def union_of_circles(self, dh: float = 0.05) -> list:
+    def union_of_circles(self, dh: float = 0.05) -> CirclesArray:
         """
         Approximates the ellipse as a union of circles along its major axis.
 
@@ -518,7 +518,9 @@ class Ellipse(Shape2D):
 
         """
         if self.aspect_ratio == 1.0:
-            return [Circle(self.semi_major_length, self.centre)]
+            return CirclesArray.from_circles(
+                [Circle(self.semi_major_length, self.centre)]
+            )
 
         if dh <= 0.0:
             raise ValueError(
@@ -571,7 +573,7 @@ class Ellipse(Shape2D):
             )
             for c in circles
         ]
-        return circles_array
+        return CirclesArray.from_circles(circles_array)
 
 
 class Circle(Ellipse):
@@ -719,9 +721,9 @@ class CirclesArray(Shapes2DArray):
         radius = self._radii[index]
         return float(center[0]), float(center[1]), float(radius)
 
-    def __iter__(self) -> Iterator[tuple[float, float, float]]:
+    def __iter__(self) -> Iterator[Circle]:
         for c, r in zip(self._centres, self._radii):
-            yield float(c[0]), float(c[1]), float(r)
+            yield Circle(r, c)
 
     @classmethod
     def from_circles(cls, circles: Sequence[Circle]) -> Self:

@@ -980,9 +980,9 @@ class TestEllipseUnionOfCircles:
         circles = ellipse.union_of_circles()
 
         assert len(circles) == 1
-        assert isinstance(circles[0], Circle)
-        assert circles[0].radius == pytest.approx(3.0)
-        assert circles[0].centre == pytest.approx((1.0, 2.0))
+        assert isinstance(circles, CirclesArray)
+        assert circles.radii[0] == pytest.approx(3.0)
+        assert tuple(circles.centres[0]) == pytest.approx((1.0, 2.0))
 
     def test_dh_must_be_positive(self):
         ellipse = Ellipse(5.0, 3.0)
