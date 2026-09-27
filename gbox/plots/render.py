@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import matplotlib
@@ -10,19 +10,23 @@ import matplotlib
 # Important for headless/server/dataset-generation environments.
 matplotlib.use("Agg")
 
+import numpy as np
+import numpy.typing as npt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.collections import PatchCollection
 from matplotlib.figure import Figure
-from matplotlib.patches import Ellipse as MplEllipse, Circle as MplCircle
+from matplotlib.patches import Circle as MplCircle
+from matplotlib.patches import Ellipse as MplEllipse
 
-import numpy as np
-import numpy.typing as npt
-
-from ..core.utils import Validator, Bounds2DRectangular
+from ..core.utils import Bounds2DRectangular, Validator
 from ..shapes.shapes_2d import (
     Circle as GBCircle,
-    Ellipse as GBEllipse,
+)
+from ..shapes.shapes_2d import (
     CirclesArray as GBCirclesArray,
+)
+from ..shapes.shapes_2d import (
+    Ellipse as GBEllipse,
 )
 
 
@@ -50,18 +54,18 @@ class ShapesPlotter:
     """
 
     __slots__ = (
-        "_size",
         "_background",
-        "_foreground",
         "_dpi",
+        "_foreground",
+        "_size",
     )
 
     def __init__(
         self,
         *,
         size: Sequence[float, float] = (256, 256),
-        background: int | float = 0,
-        foreground: int | float = 255,
+        background: float = 0,
+        foreground: float = 255,
         dpi: int = 100,
     ):
         Validator.as_sequence(size, ele_type=int, length=2, name="Image size")
@@ -198,7 +202,9 @@ class ShapesPlotter:
         """
         width, height = self._size
         image_ratio = width / height
-        bounds_ratio = (bounds.x_max - bounds.x_min) / (bounds.y_max - bounds.y_min)
+        bounds_ratio = (bounds.x_max - bounds.x_min) / (
+            bounds.y_max - bounds.y_min
+        )
 
         if not math.isclose(image_ratio, bounds_ratio, rel_tol=rel_tol):
             raise ValueError(
@@ -362,7 +368,7 @@ class ShapesPlotter:
         Image.fromarray(image, mode="L").save(path)
 
     @staticmethod
-    def _mpl_color(value: int | float) -> tuple[float, float, float]:
+    def _mpl_color(value: float) -> tuple[float, float, float]:
         """
         Convert a grayscale pixel value into a Matplotlib grayscale color.
         """

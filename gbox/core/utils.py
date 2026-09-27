@@ -1,5 +1,6 @@
 import logging
 import math
+from abc import ABC, abstractmethod
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -114,18 +115,59 @@ class Angle:
         return f"{self.value} {self.unit}"
 
 
-@dataclass(frozen=True, slots=True)
-class Bounds2DRectangular:
-    x_min: float
-    y_min: float
-    x_max: float
-    y_max: float
+class Bounds(ABC):
+    def __init__(self):
+        pass
 
-    def __post_init__(self):
+    @abstractmethod
+    def from_sequence(self, s: Sequence) -> Self:
+        raise NotImplementedError("Sub-classes must implement this method")
+
+    @abstractmethod
+    def from_mapping(self, d: Mapping) -> Self:
+        raise NotImplementedError("Sub-classes must implement this method")
+
+    @abstractmethod
+    def to_dict(self) -> dict[str, float]:
+        raise NotImplementedError("Sub-classes must implement this method")
+
+    @abstractmethod
+    def overlaps(self, bb: Bounds) -> bool:
+        raise NotImplementedError("Sub-classes must implement this method")
+
+    @property
+    @abstractmethod
+    def bounds(self) -> Mapping[str, float]:
+        raise NotImplementedError("Sub-classes must implement this property")
+
+
+class Bounds2DRectangular(Bounds):
+    def __init__(self, x_min, y_min, x_max, y_max):
+        self.x_min = x_min
+        self.y_min = y_min
+        self.x_max = x_max
+        self.y_max = y_max
+
+        self._post_init_()
+
+    def _post_init_(self):
         if not self.x_min < self.x_max:
             raise ValueError(f"x_min >= x_max: {self.x_min} >= {self.x_max}")
         if not self.y_min < self.y_max:
             raise ValueError(f"y_min >= y_max: {self.y_min} >= {self.y_max}")
+
+    def __eq__(self, bb: Bounds2DRectangular) -> bool:
+        if not isinstance(bb, Bounds2DRectangular):
+            raise TypeError(
+                f"Cannot compare {self.__class__.__name__} with object of "
+                f"type {type(bb).__name__}"
+            )
+        return (
+            self.x_min == bb.x_min
+            and self.y_min == bb.y_min
+            and self.x_max == bb.x_max
+            and self.y_max == bb.y_max
+        )
 
     @classmethod
     def from_sequence(cls, s: Sequence) -> Self:
@@ -392,19 +434,20 @@ class Validator:
         name = "" if name is None else name
 
         Validator.is_type(v, str, name=name)
-        if Validator.is_type(target, str) and v != target:
+        if isinstance(target, str) and v != target:
             raise ValueError(
-                f"The given string '{name}' does not match the target string {target}"
+                f"The given string '{name}' does not match "
+                f"the target string {target}"
             )
 
         v_len = len(v)
-        if Validator.is_type(min_length, int) and v_len < min_length:
+        if isinstance(min_length, int) and v_len < min_length:
             raise ValueError(
                 f"The given string '{name}' is too short {v_len} "
                 f"(minimum length: {min_length})"
             )
 
-        if Validator.is_type(max_length, int) and v_len > max_length:
+        if isinstance(max_length, int) and v_len > max_length:
             raise ValueError(
                 f"The given string '{name}' is tool long {v_len} "
                 f"(maximum length {max_length})"

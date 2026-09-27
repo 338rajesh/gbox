@@ -168,12 +168,6 @@ class TestBounds2DRectangular:
         with pytest.raises(ValueError, match="exactly four elements"):
             Bounds2DRectangular.from_sequence([0, 1, 2])
 
-    def test_is_frozen(self):
-        bounds = Bounds2DRectangular(0, 0, 1, 1)
-
-        with pytest.raises((AttributeError, TypeError)):
-            bounds.x_min = -1
-
 
 # ============================================================
 # TransformationOrder
