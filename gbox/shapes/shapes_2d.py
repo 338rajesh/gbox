@@ -168,7 +168,7 @@ class Ellipse(Shape2D):
         major_axis_angle: Angle | None = None,
     ):
         super().__init__()
-        major_axis_angle = Angle.rad(0.0)
+        major_axis_angle = major_axis_angle or Angle.rad(0.0)
         _args = self._validate_args(
             semi_major_length, semi_minor_length, centre, major_axis_angle
         )
@@ -593,7 +593,7 @@ class Circle(Ellipse):
         pivot=None,
         order=TransformationOrder.ROTATE_THEN_TRANSLATE,
     ):
-        if d_theta:
+        if d_theta is None:
             d_theta = Angle.rad(0)
         if pivot is None:
             pivot = self._position.x, self._position.y

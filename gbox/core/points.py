@@ -299,7 +299,7 @@ class Point2D(PointND):
         Point2D
             The transformed point
         """
-        angle = angle or Angle(0.0, units="radian")
+        angle = angle or Angle(0.0, unit="radian")
         pivot = self.__class__.from_sequence(pivot)
         px, py = transform_point_2d(
             x=self.x,

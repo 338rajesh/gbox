@@ -13,7 +13,6 @@ from gbox.core.utils import (
     get_logger,
 )
 
-
 # ============================================================
 # Angle
 # ============================================================
@@ -92,11 +91,11 @@ class TestAngle:
         assert Angle.deg(50) - Angle.deg(20) == Angle.deg(30)
 
     def test_add_different_units_rejected(self):
-        with pytest.raises(ValueError, match="different units"):
+        with pytest.raises(ValueError, match="different unit"):
             Angle.deg(90) + Angle.rad(math.pi / 2)
 
     def test_subtract_different_units_rejected(self):
-        with pytest.raises(ValueError, match="different units"):
+        with pytest.raises(ValueError, match="different unit"):
             Angle.deg(90) - Angle.rad(math.pi / 2)
 
     def test_add_non_angle_rejected(self):

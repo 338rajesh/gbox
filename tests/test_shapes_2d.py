@@ -26,7 +26,7 @@ def assert_point_close(point, expected, *, abs=1e-9):
 
 
 def assert_bbox_close(bbox, expected, *, abs=1e-9):
-    assert bbox == pytest.approx(expected, abs=abs)
+    assert list(bbox.bounds.values()) == pytest.approx(expected, abs=abs)
 
 
 # =====================================================================
@@ -443,10 +443,10 @@ class TestEllipseBoundingBox:
         bbox = ellipse.bounding_box
         points = ellipse.sample_points(num_points=500)
 
-        assert np.all(points.x >= bbox[0] - 1e-9)
-        assert np.all(points.x <= bbox[2] + 1e-9)
-        assert np.all(points.y >= bbox[1] - 1e-9)
-        assert np.all(points.y <= bbox[3] + 1e-9)
+        assert np.all(points.x >= bbox.x_min - 1e-9)
+        assert np.all(points.x <= bbox.x_max + 1e-9)
+        assert np.all(points.y >= bbox.y_min - 1e-9)
+        assert np.all(points.y <= bbox.y_max + 1e-9)
 
 
 # =====================================================================
@@ -1631,7 +1631,7 @@ class TestCirclesArrayBoundingBox:
         )
 
         assert_bbox_close(
-            circles.bounding_box(),
+            circles.bounding_box,
             [-2.0, -2.0, 6.0, 4.0],
         )
 
@@ -1642,7 +1642,7 @@ class TestCirclesArrayBoundingBox:
         )
 
         assert_bbox_close(
-            circles.bounding_box(),
+            circles.bounding_box,
             [-2.0, -7.0, 6.0, 1.0],
         )
 
@@ -1653,7 +1653,7 @@ class TestCirclesArrayBoundingBox:
         )
 
         assert_bbox_close(
-            circles.bounding_box(),
+            circles.bounding_box,
             [-11.0, -21.0, -3.0, -1.0],
         )
 
@@ -1667,7 +1667,7 @@ class TestCirclesArrayBoundingBox:
             [2.0, 1.0, 4.0],
         )
 
-        bbox = circles.bounding_box()
+        bbox = circles.bounding_box
 
         for centre, radius in zip(
             circles.centres.coordinates,
@@ -1675,10 +1675,10 @@ class TestCirclesArrayBoundingBox:
         ):
             x, y = centre
 
-            assert x - radius >= bbox[0] - 1e-12
-            assert y - radius >= bbox[1] - 1e-12
-            assert x + radius <= bbox[2] + 1e-12
-            assert y + radius <= bbox[3] + 1e-12
+            assert x - radius >= bbox.x_min - 1e-12
+            assert y - radius >= bbox.y_min - 1e-12
+            assert x + radius <= bbox.x_max + 1e-12
+            assert y + radius <= bbox.y_max + 1e-12
 
 
 # =====================================================================
@@ -1748,8 +1748,8 @@ class TestGeometricInvariants:
         bbox = ellipse.bounding_box
 
         for point in ellipse.sample_points(num_points=1000):
-            assert bbox[0] - 1e-9 <= point[0] <= bbox[2] + 1e-9
-            assert bbox[1] - 1e-9 <= point[1] <= bbox[3] + 1e-9
+            assert bbox.x_min - 1e-9 <= point[0] <= bbox.x_max + 1e-9
+            assert bbox.y_min - 1e-9 <= point[1] <= bbox.y_max + 1e-9
 
     def test_circle_is_special_case_of_ellipse(self):
         radius = 4.0

@@ -11,6 +11,15 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+ACCEPTABLE_ANGLE_UNITS = (
+    "radians",
+    "radian",
+    "rad",
+    "degrees",
+    "deg",
+    "degree",
+)
+
 
 class TransformationOrder(StrEnum):
     ROTATE_THEN_TRANSLATE = "rotate_then_translate"
@@ -33,7 +42,7 @@ class Angle:
             raise TypeError(
                 f"Angle value must be a number (int or float), but got {type(self.value)}"
             )
-        if self.unit not in ("deg", "rad"):
+        if self.unit not in ACCEPTABLE_ANGLE_UNITS:
             raise ValueError(
                 f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'."
             )
@@ -78,7 +87,7 @@ class Angle:
             raise TypeError(f"Cannot add Angle with {type(other)}")
         if self.unit != other.unit:
             raise ValueError(
-                f"Cannot add Angle with different units: {self.unit} and {other.unit}"
+                f"Cannot add Angle with different unit: {self.unit} and {other.unit}"
             )
         return Angle(self.value + other.value, self.unit)
 
@@ -87,7 +96,7 @@ class Angle:
             raise TypeError(f"Cannot subtract Angle with {type(other)}")
         if self.unit != other.unit:
             raise ValueError(
-                f"Cannot subtract Angle with different units: {self.unit} and {other.unit}"
+                f"Cannot subtract Angle with different unit: {self.unit} and {other.unit}"
             )
         return Angle(self.value - other.value, self.unit)
 

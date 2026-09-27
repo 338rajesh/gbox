@@ -60,7 +60,7 @@ def transformation_matrix_2d(
 
         p' = R @ T @ p
     """
-    angle = angle or Angle(0.0, units="radians")
+    angle = angle or Angle(0.0, unit="radians")
     if len(pivot) != 2:
         raise ValueError("2D pivot must contain exactly 2 coordinates.")
 
