@@ -653,6 +653,26 @@ class Circle(Ellipse):
             (position_params["xc"], position_params["yc"]),
         )
 
+    def overlaps(self, other: Circle, sep: float = 0.0) -> bool:
+        """
+        Check if this circle overlaps with another circle.
+        """
+        tag = f"{self.__class__.__name__}.overlaps"
+        if not isinstance(other, Circle):
+            raise TypeError(
+                f"{tag}.other must be a Circle, got '{type(other).__name__}'"
+            )
+        centre_distance = Point2D.from_sequence(self.centre).distance_to(
+            Point2D.from_sequence(other.centre)
+        )
+        centre_distance = float(
+            np.sqrt(
+                (self.centre[0] - other.centre[0]) ** 2
+                + (self.centre[1] - other.centre[1]) ** 2
+            )
+        )
+        return centre_distance < self.radius + other.radius + sep
+
 
 class CirclesArray(Shapes2DArray):
     """A vectorized collection of circles that can be moved and rotated
@@ -711,15 +731,13 @@ class CirclesArray(Shapes2DArray):
     def radii(self) -> np.ndarray:
         return self._radii
 
-    def __getitem__(
-        self, index: int | slice
-    ) -> tuple[float, float, float] | Self:
+    def __getitem__(self, index: int | slice) -> Circle:
         if isinstance(index, slice):
             return self.__class__(self._centres[index], self._radii[index])
 
         center = self._centres[index]
         radius = self._radii[index]
-        return float(center[0]), float(center[1]), float(radius)
+        return Circle(float(radius), (float(center[0]), float(center[1])))
 
     def __iter__(self) -> Iterator[Circle]:
         for c, r in zip(self._centres, self._radii):
@@ -808,3 +826,13 @@ class CirclesArray(Shapes2DArray):
             float(np.max(xs + self._radii)),
             float(np.max(ys + self._radii)),
         )
+
+    def get_overlap_matrix(self, sep: float = 0.0) -> npt.NDArray[np.bool_]:
+        """
+        Returns a matrix indicating circles pairwise overlaps.
+        """
+        n = len(self)
+        overlap_matrix = np.zeros((n, n), dtype=bool)
+        for i in range(n):
+            for j in range(i + 1, n):
+                overlap_matrix[i, j] = self[i].overlaps(self[j])
