@@ -184,6 +184,10 @@ class PointND:
             for a, b in zip(self.coordinates, q)
         )
 
+    def tolist(self) -> list[float]:
+        """Converts the point to a list of its coordinates."""
+        return list(self.coordinates)
+
 
 # ===========================================================================
 #                               Point2D

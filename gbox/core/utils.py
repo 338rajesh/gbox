@@ -48,6 +48,9 @@ class Angle:
                 f"Unknown unit {self.unit!r}. Expected 'deg' or 'rad'."
             )
 
+    def tolist(self) -> list[float, str]:
+        return [self.value, self.unit]
+
     @property
     def radians(self) -> float:
         """Returns the angle in radians"""
