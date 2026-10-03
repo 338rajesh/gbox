@@ -24,6 +24,8 @@ class Shape2DPose:
     """
     A triplet of (x, y, orientation) where orientation is in radians
     measured in the counter-clockwise direction from the positive x-axis.
+    Here, (x, y) is the position of the shape's center and orientation is
+    the angle of the shape's principal axis.
 
     NOTE: This class is immutable. Use the `rotate`, `translate`, and `transform`
     methods to create new instances with modified values.
@@ -35,6 +37,11 @@ class Shape2DPose:
 
     def __repr__(self):
         return f"Shape2DPose(x={self.x}, y={self.y}, orientation={self.orientation})"
+
+    @property
+    def point(self) -> Point2D:
+        """Returns the (x, y) position of the shape's center."""
+        return Point2D(self.x, self.y)
 
     def rotate(self, rot_angle: Angle) -> Self:
         """Returns a new Shape2DPose with the same (x, y) but a new orientation."""
@@ -72,12 +79,47 @@ class Shape2DPose:
         the x, y, and orientation in radian for the shape position"""
         return (self.x, self.y, self.orientation.radians)
 
+    @classmethod
+    def from_dict(cls, d: dict[str, float]) -> Self:
+        """Returns a new Shape2DPose from a dictionary."""
+        Validator.as_dict(
+            d,
+            key_type_map={"x": float, "y": float, "orientation": Angle},
+            reject_extra_keys=True,
+            name=f"{cls.__name__}.from_dict",
+        )
+        return cls(**d)
+
+    def to_dict(self) -> dict[str, float]:
+        """Returns a dictionary representation of the shape."""
+        return {
+            "x": self.x,
+            "y": self.y,
+            "orientation": self.orientation.radians,
+        }
+
 
 class Shape2D(ABC):
     @property
     @abstractmethod
     def position(self) -> Shape2DPose:
         pass
+
+    @position.setter
+    def position(
+        self,
+        position: Shape2DPose
+        | tuple[float, float, Angle]
+        | dict[str, float | Angle],
+    ) -> None:
+        if isinstance(position, Shape2DPose):
+            self._position = position
+        elif isinstance(position, tuple):
+            self._position = Shape2DPose(*position)
+        elif isinstance(position, dict):
+            self._position = Shape2DPose.from_dict(position)
+        else:
+            raise TypeError("Invalid position type")
 
     @property
     @abstractmethod
@@ -276,16 +318,24 @@ class Ellipse(Shape2D):
         return {
             "semi_major_length": self._semi_major_length,
             "semi_minor_length": self._semi_minor_length,
-            "centre": self.centre,
-            "major_axis_angle": self.major_axis_angle,
+            "centre": self._position.point.tolist(),
+            "major_axis_angle": self._position.orientation.tolist(),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = Validator.as_dict(
             d,
-            keys=["semi_major_length"],
+            key_type_map={
+                "semi_major_length": float,
+                "semi_minor_length": float,
+                "centre": list,
+                "major_axis_angle": list,
+            },
+            reject_extra_keys=True,
+            name=f"{cls.__name__}.from_dict",
         )
+        return cls(**d)
 
     def sample_points(
         self,
