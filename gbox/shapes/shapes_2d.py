@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -190,6 +191,16 @@ class Shape2D(ABC):
         raise NotImplementedError(
             "Subclasses must implement the from_dict method."
         )
+
+    def distance_to(self, s: Self) -> float:
+        if not isinstance(s, Shape2D):
+            raise TypeError(
+                "Expecting other object to be of Shape2D type to "
+                f"find the distance, but got {type(s).__name__}"
+            )
+        dx = abs(self.position.x - s.position.x)
+        dy = abs(self.position.y - s.position.y)
+        return float(math.hypot(dx, dy))
 
 
 class Shapes2DArray(ABC):
@@ -792,6 +803,12 @@ class CirclesArray(Shapes2DArray):
     def __iter__(self) -> Iterator[Circle]:
         for c, r in zip(self._centres, self._radii):
             yield Circle(r, c)
+
+    def to_dict(self) -> dict:
+        return {
+            f"circle_{i}": (c.position.x, c.position.y, c.radius)
+            for i, c in enumerate(self)
+        }
 
     @classmethod
     def from_circles(cls, circles: Sequence[Circle]) -> Self:
