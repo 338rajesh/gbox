@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gbox"
-version = "1.1.0"
+version = "1.2.0"
 description = "A convenience package for geometry related operations"
 readme = "README.md"
 license = "MIT"
