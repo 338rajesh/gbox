@@ -1,3 +1,4 @@
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -24,6 +25,8 @@ class Shape2DPose:
     """
     A triplet of (x, y, orientation) where orientation is in radians
     measured in the counter-clockwise direction from the positive x-axis.
+    Here, (x, y) is the position of the shape's center and orientation is
+    the angle of the shape's principal axis.
 
     NOTE: This class is immutable. Use the `rotate`, `translate`, and `transform`
     methods to create new instances with modified values.
@@ -35,6 +38,11 @@ class Shape2DPose:
 
     def __repr__(self):
         return f"Shape2DPose(x={self.x}, y={self.y}, orientation={self.orientation})"
+
+    @property
+    def point(self) -> Point2D:
+        """Returns the (x, y) position of the shape's center."""
+        return Point2D(self.x, self.y)
 
     def rotate(self, rot_angle: Angle) -> Self:
         """Returns a new Shape2DPose with the same (x, y) but a new orientation."""
@@ -70,7 +78,26 @@ class Shape2DPose:
     def to_tuple(self) -> tuple[float, float, float]:
         """Returns a tuple of three float values, containing
         the x, y, and orientation in radian for the shape position"""
-        return (self.x, self.y, self.orientation.rad())
+        return (self.x, self.y, self.orientation.radians)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, float]) -> Self:
+        """Returns a new Shape2DPose from a dictionary."""
+        Validator.as_dict(
+            d,
+            key_type_map={"x": float, "y": float, "orientation": Angle},
+            reject_extra_keys=True,
+            name=f"{cls.__name__}.from_dict",
+        )
+        return cls(**d)
+
+    def to_dict(self) -> dict[str, float]:
+        """Returns a dictionary representation of the shape."""
+        return {
+            "x": self.x,
+            "y": self.y,
+            "orientation": self.orientation.radians,
+        }
 
 
 class Shape2D(ABC):
@@ -78,6 +105,22 @@ class Shape2D(ABC):
     @abstractmethod
     def position(self) -> Shape2DPose:
         pass
+
+    @position.setter
+    def position(
+        self,
+        position: Shape2DPose
+        | tuple[float, float, Angle]
+        | dict[str, float | Angle],
+    ) -> None:
+        if isinstance(position, Shape2DPose):
+            self._position = position
+        elif isinstance(position, tuple):
+            self._position = Shape2DPose(*position)
+        elif isinstance(position, dict):
+            self._position = Shape2DPose.from_dict(position)
+        else:
+            raise TypeError("Invalid position type")
 
     @property
     @abstractmethod
@@ -148,6 +191,16 @@ class Shape2D(ABC):
         raise NotImplementedError(
             "Subclasses must implement the from_dict method."
         )
+
+    def distance_to(self, s: Self) -> float:
+        if not isinstance(s, Shape2D):
+            raise TypeError(
+                "Expecting other object to be of Shape2D type to "
+                f"find the distance, but got {type(s).__name__}"
+            )
+        dx = abs(self.position.x - s.position.x)
+        dy = abs(self.position.y - s.position.y)
+        return float(math.hypot(dx, dy))
 
 
 class Shapes2DArray(ABC):
@@ -276,16 +329,24 @@ class Ellipse(Shape2D):
         return {
             "semi_major_length": self._semi_major_length,
             "semi_minor_length": self._semi_minor_length,
-            "centre": self.centre,
-            "major_axis_angle": self.major_axis_angle,
+            "centre": self._position.point.tolist(),
+            "major_axis_angle": self._position.orientation.tolist(),
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> Self:
         d = Validator.as_dict(
             d,
-            keys=["semi_major_length"],
+            key_type_map={
+                "semi_major_length": float,
+                "semi_minor_length": float,
+                "centre": list,
+                "major_axis_angle": list,
+            },
+            reject_extra_keys=True,
+            name=f"{cls.__name__}.from_dict",
         )
+        return cls(**d)
 
     def sample_points(
         self,
@@ -501,7 +562,7 @@ class Ellipse(Shape2D):
         )
         return float(r_min)
 
-    def union_of_circles(self, dh: float = 0.05) -> list:
+    def union_of_circles(self, dh: float = 0.05) -> CirclesArray:
         """
         Approximates the ellipse as a union of circles along its major axis.
 
@@ -518,7 +579,9 @@ class Ellipse(Shape2D):
 
         """
         if self.aspect_ratio == 1.0:
-            return [Circle(self.semi_major_length, self.centre)]
+            return CirclesArray.from_circles(
+                [Circle(self.semi_major_length, self.centre)]
+            )
 
         if dh <= 0.0:
             raise ValueError(
@@ -571,7 +634,7 @@ class Ellipse(Shape2D):
             )
             for c in circles
         ]
-        return circles_array
+        return CirclesArray.from_circles(circles_array)
 
 
 class Circle(Ellipse):
@@ -633,26 +696,43 @@ class Circle(Ellipse):
         -------
         Ellipse
         """
+        tag = f"{cls.__name__}.from_params"
         Validator.as_dict(
             position_params,
-            ["xc", "yc", "major_axis_angle"],
-            [float, float, Angle],
-            name="position_params",
+            key_type_map={"xc": float, "yc": float},
+            name=f"{tag}.position_params",
             reject_extra_keys=True,
         )
         Validator.as_dict(
             size_params,
-            ["semi_major_length", "semi_minor_length"],
-            [float, float],
-            name="size_params",
+            key_type_map={"radius": float},
+            name=f"{tag}.size_params",
             reject_extra_keys=True,
         )
         return cls(
-            size_params["semi_major_length"],
-            size_params["semi_minor_length"],
+            size_params["radius"],
             (position_params["xc"], position_params["yc"]),
-            position_params["major_axis_angle"],
         )
+
+    def overlaps(self, other: Circle, sep: float = 0.0) -> bool:
+        """
+        Check if this circle overlaps with another circle.
+        """
+        tag = f"{self.__class__.__name__}.overlaps"
+        if not isinstance(other, Circle):
+            raise TypeError(
+                f"{tag}.other must be a Circle, got '{type(other).__name__}'"
+            )
+        centre_distance = Point2D.from_sequence(self.centre).distance_to(
+            Point2D.from_sequence(other.centre)
+        )
+        centre_distance = float(
+            np.sqrt(
+                (self.centre[0] - other.centre[0]) ** 2
+                + (self.centre[1] - other.centre[1]) ** 2
+            )
+        )
+        return centre_distance < self.radius + other.radius + sep
 
 
 class CirclesArray(Shapes2DArray):
@@ -712,19 +792,23 @@ class CirclesArray(Shapes2DArray):
     def radii(self) -> np.ndarray:
         return self._radii
 
-    def __getitem__(
-        self, index: int | slice
-    ) -> tuple[float, float, float] | Self:
+    def __getitem__(self, index: int | slice) -> Circle:
         if isinstance(index, slice):
             return self.__class__(self._centres[index], self._radii[index])
 
         center = self._centres[index]
         radius = self._radii[index]
-        return float(center[0]), float(center[1]), float(radius)
+        return Circle(float(radius), (float(center[0]), float(center[1])))
 
-    def __iter__(self) -> Iterator[tuple[float, float, float]]:
+    def __iter__(self) -> Iterator[Circle]:
         for c, r in zip(self._centres, self._radii):
-            yield float(c[0]), float(c[1]), float(r)
+            yield Circle(r, c)
+
+    def to_dict(self) -> dict:
+        return {
+            f"circle_{i}": (c.position.x, c.position.y, c.radius)
+            for i, c in enumerate(self)
+        }
 
     @classmethod
     def from_circles(cls, circles: Sequence[Circle]) -> Self:
@@ -809,3 +893,13 @@ class CirclesArray(Shapes2DArray):
             float(np.max(xs + self._radii)),
             float(np.max(ys + self._radii)),
         )
+
+    def get_overlap_matrix(self, sep: float = 0.0) -> npt.NDArray[np.bool_]:
+        """
+        Returns a matrix indicating circles pairwise overlaps.
+        """
+        n = len(self)
+        overlap_matrix = np.zeros((n, n), dtype=bool)
+        for i in range(n):
+            for j in range(i + 1, n):
+                overlap_matrix[i, j] = self[i].overlaps(self[j])

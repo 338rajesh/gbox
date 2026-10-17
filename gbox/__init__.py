@@ -6,7 +6,7 @@ from .core.points import (
     PointND,
 )
 from .core.transformation import transform_point_2d
-from .core.utils import Angle, Bounds2DRectangular
+from .core.utils import Angle, Bounds, Bounds2DRectangular
 from .plots.render import ShapesPlotter
 from .shapes import Shape2D, shapes_2d
 from .shapes.shapes_2d import (
@@ -17,6 +17,7 @@ from .shapes.shapes_2d import (
 
 __all__ = [
     "Angle",
+    "Bounds",
     "Bounds2DRectangular",
     "Circle",
     "CirclesArray",
